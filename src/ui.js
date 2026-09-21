@@ -291,6 +291,26 @@ export function createUI(root, world, actions) {
      * kurulmasına kalan süre. Yazılar her karede kampın ekran konumuna taşınır; sisin altındaki kamp gizlenir.
      */
     /** Şarj çubuğu: sol tık basılıyken kahramanın üstünde dolar, dolunca altın renk alır. */
+    /**
+     * Yeniden doğuş geri sayımı: kahraman yerdeyken ekranın ortasında büyük sayı; her saniye değişince büyüyüp küçülen
+     * animasyon yeniden başlar (sınıf kaldırılıp eklenir). Son saniyede yeşile döner; sancak yıkıksa geri sayım yok.
+     */
+    updateRespawn() {
+      const el = root.querySelector('#mg-respawn'); if (!el) return;
+      const p = world.player, banner = world.structures[0];
+      if (!p || p.alive || world.ended || !banner || !banner.alive) { el.hidden = true; el.dataset.n = ''; return; }
+      const left = Math.max(0, respawnDelay(p.deaths) - p.deathTimer), n = Math.ceil(left);
+      el.hidden = false;
+      const num = el.querySelector('.num');
+      if (el.dataset.n !== String(n)) {
+        el.dataset.n = String(n);
+        num.textContent = n;
+        num.classList.toggle('final', n <= 1);
+        // Animasyonu her sayıda baştan oynat.
+        num.style.animation = 'none'; void num.offsetWidth; num.style.animation = '';
+        el.querySelector('.sub').textContent = `${p.deaths}. ölüm · sancakta yeniden doğarsın`;
+      }
+    },
     updateCharge() {
       const el = root.querySelector('#mg-charge'); if (!el) return;
       const p = world.player;

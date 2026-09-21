@@ -45,6 +45,14 @@ html,body{margin:0;height:100%;background:#19231d;overflow:hidden}
 /* Anti satırı (bilgi kartı): tek attığı türler yeşil, tek atıldığı türler kırmızı. */
 #meadow-game .anti{margin-top:4px;font-size:12px;display:flex;flex-wrap:wrap;gap:4px 12px}
 #meadow-game .anti .good{color:#bfe59a}#meadow-game .anti .bad{color:#ff9f8c}
+/* Yeniden doğuş geri sayımı: kahraman yerdeyken ekranın ortasında, her saniye büyüyüp küçülen büyük sayı. */
+#meadow-game #mg-respawn{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;z-index:4;color:#f6efd9;text-shadow:0 2px 0 #000c,0 0 24px #000a}
+#meadow-game #mg-respawn[hidden]{display:none}
+#meadow-game #mg-respawn .title{font-size:22px;letter-spacing:3px;font-weight:600;color:#ff9f8c;text-transform:uppercase}
+#meadow-game #mg-respawn .num{font-size:150px;line-height:1;font-weight:800;font-variant-numeric:tabular-nums;color:#ffd12e;animation:mgCount 1s ease-out infinite}
+#meadow-game #mg-respawn .num.final{color:#bfe59a}
+#meadow-game #mg-respawn .sub{font-size:16px;color:#f6efd9cc;margin-top:6px}
+@keyframes mgCount{0%{transform:scale(1.35);opacity:1}55%{transform:scale(1);opacity:.95}100%{transform:scale(.9);opacity:.75}}
 /* Şarj çubuğu: kahramanın üstünde, sol tık basılıyken dolar. */
 #meadow-game #mg-charge{position:absolute;width:64px;height:7px;transform:translate(-50%,-50%);border:1px solid #f6efd9cc;border-radius:4px;background:#1c241ecc;pointer-events:none;z-index:3;overflow:hidden}
 #meadow-game #mg-charge[hidden]{display:none}

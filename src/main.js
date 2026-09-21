@@ -256,6 +256,7 @@ export async function start(root) {
     updateStructureBars(world, camera.quaternion);
     world.ui.updateCampLabels();
     world.ui.updateCharge();
+    world.ui.updateRespawn();
     animateScenery(world, env, animDt);
     updateMarkers(world, selRings, ghost, ghostMat, ghostRing, rangeRing, heroRing);
 
