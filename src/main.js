@@ -255,6 +255,7 @@ export async function start(root) {
     for (const s of world.structures) if (s.faction !== 'blue' && !s.seen && sees(s.pos.x, s.pos.z)) { s.seen = true; s.g.visible = true; }
     updateStructureBars(world, camera.quaternion);
     world.ui.updateCampLabels();
+    world.ui.updateCharge();
     animateScenery(world, env, animDt);
     updateMarkers(world, selRings, ghost, ghostMat, ghostRing, rangeRing, heroRing);
 

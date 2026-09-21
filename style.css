@@ -45,6 +45,11 @@ html,body{margin:0;height:100%;background:#19231d;overflow:hidden}
 /* Anti satırı (bilgi kartı): tek attığı türler yeşil, tek atıldığı türler kırmızı. */
 #meadow-game .anti{margin-top:4px;font-size:12px;display:flex;flex-wrap:wrap;gap:4px 12px}
 #meadow-game .anti .good{color:#bfe59a}#meadow-game .anti .bad{color:#ff9f8c}
+/* Şarj çubuğu: kahramanın üstünde, sol tık basılıyken dolar. */
+#meadow-game #mg-charge{position:absolute;width:64px;height:7px;transform:translate(-50%,-50%);border:1px solid #f6efd9cc;border-radius:4px;background:#1c241ecc;pointer-events:none;z-index:3;overflow:hidden}
+#meadow-game #mg-charge[hidden]{display:none}
+#meadow-game #mg-charge i{display:block;height:100%;width:0;background:#bfe59a;transition:width .05s linear}
+#meadow-game #mg-charge.full i{background:#ffd12e;box-shadow:0 0 8px #ffd12e}
 /* Omuz üstü kamera: ekran ortasında nişan artısı (fare kilitliyken imleç zaten gizlidir). */
 #meadow-game #mg-cross{position:absolute;left:50%;top:50%;width:22px;height:22px;transform:translate(-50%,-50%);pointer-events:none;z-index:3;display:none}
 #meadow-game.tps.locked #mg-cross{display:block}

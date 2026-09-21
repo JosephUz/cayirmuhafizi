@@ -1,6 +1,6 @@
 import * as T from '/vendor/three.module.js';
 import { ballGeo, box, mat, mesh } from './builders.js';
-import { ANTI, BLOCK, COMBAT, HERO_KNOCKBACK, HOMING_TURN, KNOCKBACK_SCALE, LEVEL, SHIELD, SPIN, TORNADO, TOWER, loadoutKey } from './config.js';
+import { ANTI, BLOCK, COMBAT, COMBO, HERO_KNOCKBACK, HOMING_TURN, KNOCKBACK_SCALE, LEVEL, SHIELD, SPIN, TORNADO, TOWER, loadoutKey } from './config.js';
 import { heroPrimary, heroVolley } from './abilities.js';
 import { dashMult, isEvading, levelReachMult, reachOf, chargeMult } from './characters.js';
 import { applyImpulse } from './physics.js';
@@ -15,6 +15,11 @@ export function startAttack(e) {
   if (!canAttack(e)) return false;
   const w = e.stats.weapon;
   e.attackTimer = w.duration; e.cooldown = w.cooldown; e.didHit = false;
+  // Kılıçlı kahraman kombosu: COMBO.window içinde peş peşe vuruşlar zinciri ilerletir (2. geniş yay, 3. girdap; bkz. abilities.heroPrimary).
+  if (isHeroUnit(e) && w.label === 'Kılıç') {
+    e.combo = e.comboTimer > 0 ? (e.combo || 0) + 1 : 1; e.comboTimer = COMBO.window;
+    e.comboArcMult = e.combo === 2 ? COMBO.secondArcMult : 1;
+  }
   return true;
 }
 
@@ -84,6 +89,7 @@ export function updateCombat(world, dt) {
     if (e.cooldown > 0) e.cooldown -= dt;
     if (e.stun > 0) e.stun -= dt;
     if (e.hitFlash > 0) e.hitFlash -= dt;
+    if (e.comboTimer > 0) { e.comboTimer -= dt; if (e.comboTimer <= 0) { e.combo = 0; e.comboArcMult = 1; } }
     if (e.attackTimer <= 0) continue;
     e.attackTimer -= dt;
     const w = e.stats.weapon;
@@ -294,7 +300,8 @@ function shootArrow(world, e) {
 }
 
 /** `side`: çıkış noktasının yana kaydırması (toplu atışta oklar üst üste binmesin diye); uçuş yönünü değiştirmez. */
-export function fireArrow(world, e, dir, target = null, dmgMult = 1, side = 0) {
+/** opts: pierce (çarptığı birimleri delip geçer, yapıda durur), scale (ok boyutu), rangeMult (ömür / menzil çarpanı). */
+export function fireArrow(world, e, dir, target = null, dmgMult = 1, side = 0, opts = {}) {
   const w = e.stats.weapon;
   const g = new T.Group();
   if (w.siege) mesh(g, new T.IcosahedronGeometry(0.34, 0), '#6a6f74', 0, 0, 0);
@@ -304,13 +311,15 @@ export function fireArrow(world, e, dir, target = null, dmgMult = 1, side = 0) {
   }
   g.position.set(e.pos.x + dir.x * 0.6 + dir.z * side, (w.siege ? 2.2 : 1.25) + e.jumpY + (e.view && e.view.mounted ? 0.8 : 0), e.pos.z + dir.z * 0.6 - dir.x * side);
   g.rotation.y = Math.atan2(dir.x, dir.z);
+  if (opts.scale) g.scale.setScalar(opts.scale);
   world.scene.add(g);
   const speed = w.arrowSpeed || 17;
   // Kule oku "kesin": hedefi anında döner, kaçış / zıplama / vurulmazlık savuşturamaz, hedef ölmedikçe ömrü bitmez.
   const sure = Boolean(e.isTower && target);
   world.arrows.push({
     g, vel: dir.clone().multiplyScalar(speed), speed, target, faction: e.faction, sure, siege: Boolean(w.siege),
-    damage: w.damage * damageMult(e) * dmgMult, knock: w.knockback, life: (heroReach(e).range || 14) / speed + (target ? 1.2 : 0.2), source: e,
+    damage: w.damage * damageMult(e) * dmgMult, knock: w.knockback, life: (heroReach(e).range || 14) * (opts.rangeMult || 1) / speed + (target ? 1.2 : 0.2), source: e,
+    pierce: Boolean(opts.pierce), pierced: opts.pierce ? new Set() : null,
   });
 }
 
@@ -358,6 +367,8 @@ export function updateArrows(world, dt) {
         // Yerdeyken ok göğüs hizasında; zıplayan karakter oku altında bırakır.
         if (t.jumpY > COMBAT.jumpDodgeHeight) continue;
         const len = Math.hypot(a.vel.x, a.vel.z);
+        // Delici ok: birimi vurur ve durmadan yoluna devam eder (aynı birime bir kez).
+        if (a.pierce) { if (a.pierced.has(t)) continue; a.pierced.add(t); damageEntity(world, t, hitDamage(a.source, t, a.damage), a.vel.x / len, a.vel.z / len, a.knock, a.source); continue; }
         damageEntity(world, t, hitDamage(a.source, t, a.damage), a.vel.x / len, a.vel.z / len, a.knock, a.source);
         hit = true; break;
       }
@@ -591,7 +602,7 @@ export function updateEffects(world, dt) {
     }
     if (f.fade) {
       f.m.material.opacity = f.fade * Math.max(0, f.life) / f.maxLife;
-      if (f.life <= 0) { world.scene.remove(f.m); f.m.material.dispose(); f.m.geometry.dispose(); fx.splice(i, 1); }
+      if (f.life <= 0) { world.scene.remove(f.parent || f.m); f.m.material.dispose(); f.m.geometry.dispose(); fx.splice(i, 1); }
       continue;
     }
     if (f.ring) {

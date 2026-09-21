@@ -1,4 +1,4 @@
-import { BLOCK, GRAVITY, HALF, PHYSICS, SPRINT_MULT } from './config.js';
+import { BLOCK, CHARGE, GRAVITY, HALF, PHYSICS, SPRINT_MULT } from './config.js';
 
 /**
  * Her gövdenin iki hızı var: kendi yürüyüş hızı (vel) ve darbe / çarpışma kaynaklı
@@ -12,7 +12,7 @@ export function integrate(entities, dt) {
     // Sersemken ve savururken kontrol kısıtlı; kalkan yavaşlatır, koşu hızlandırır.
     // Vururken yavaşlama; bazı kahraman setleri (hücum, koşarken atış) yavaşlamaz (stats.attackControl = 1).
     const control = e.stun > 0 ? 0 : e.attackTimer > 0 ? (e.stats.attackControl != null ? e.stats.attackControl : e.stats.weapon.ranged ? 0.35 : 0.22) : 1;
-    const mult = e.blocking ? BLOCK.speedMult : e.sprinting ? SPRINT_MULT : 1;
+    const mult = (e.blocking ? BLOCK.speedMult : e.sprinting ? SPRINT_MULT : 1) * (e.charging ? CHARGE.speedMult : 1);
     const target = e.stats.speed * control * mult;
     const k = Math.exp(-e.stats.accel * dt);
     e.vel.x = e.moveDir.x * target + (e.vel.x - e.moveDir.x * target) * k;

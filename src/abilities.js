@@ -1,7 +1,8 @@
 import * as T from '/vendor/three.module.js';
-import { DASH, KIT, TORNADO } from './config.js';
+import { CHARGE, COMBO, DASH, KIT, TORNADO } from './config.js';
 import { dashMult, isEvading, kitOf, reachOf } from './characters.js';
 import { burst, damageEntity, damageMult, damageStructure, fireArrow, heroArrows, hitDamage, ring, spawnSpin } from './combat.js';
+import { applyImpulse } from './physics.js';
 
 /**
  * Kahraman yetenek setleri (bkz. config KIT): set silah x at ile belirlenir, kalkan atılma vurulmazlığını uzatır.
@@ -12,10 +13,15 @@ import { burst, damageEntity, damageMult, damageStructure, fireArrow, heroArrows
  *    yerde 2 sn süren alan), yarıp geçme, mızrak hücumu, geriye yaylım. Süreli etkiler world.zones listesinde yaşar (updateZones).
  */
 
-/** Sol tık: silah vuruşundan sonra sete özel ek etki. */
+/** Sol tık: silah vuruşundan sonra sete özel ek etki. Kılıçta girdap yalnızca kombonun COMBO.spinAt. vuruşunda çıkar. */
 export function heroPrimary(world, e) {
   const kit = kitOf(e);
-  if (kit === 'sword') spawnSpin(world, e);
+  if (kit === 'sword') {
+    if ((e.combo || 0) >= COMBO.spinAt) {
+      spawnSpin(world, e); e.combo = 0; e.comboTimer = 0; e.comboArcMult = 1;
+      if (e.isPlayer && world.ui) world.ui.float('Girdap!', { x: e.pos.x, y: 2.6, z: e.pos.z }, '#ffe9a8');
+    }
+  }
   else if (kit === 'spear') spearThrust(world, e);
   // bow / horsebow: yaylım heroVolley'de; horsesword / horsespear: silah değerleri (yay, itme) ve chargeMult.
 }
@@ -31,6 +37,79 @@ export function heroVolley(world, e, dir) {
     const d = new T.Vector3(Math.sin(a), 0, Math.cos(a));
     fireArrow(world, e, d, hostileAlong(world, e, d.x, d.z, range * 1.1, cosTol), 1, 0);
   }
+}
+
+/**
+ * Şarjlı vuruş (sol tık basılı tutup bırakma). c: şarj oranı 0..1; hasar 1 + (damage - 1) x c. Vuruş anında iner, silahın
+ * vuruş animasyonu oynar (attackTimer), normal vuruş tetiklenmez (didHit) ve bekleme CHARGE.cooldownMult kat uzar.
+ *  - Kılıç: ağır kesik (geniş yay, sert itme, öne kayma), girdap yok, kombo sıfırlanır.
+ *  - Mızrak: delici saplama (uzun şerit, herkesi deler, en yakını çeker).
+ *  - Yay: delici ok (tek kalın ok, uzun menzil, delip geçer).
+ */
+export function heroCharged(world, p, c) {
+  const w = p.stats.weapon, kit = kitOf(p);
+  if (!kit) return;
+  const ax = p.aim.x - p.pos.x, az = p.aim.z - p.pos.z, ad = Math.hypot(ax, az);
+  const fx = ad > 0.2 ? ax / ad : Math.sin(p.facing), fz = ad > 0.2 ? az / ad : Math.cos(p.facing);
+  p.facing = Math.atan2(fx, fz); p.aimLocked = true;
+  p.attackTimer = w.duration; p.didHit = true; p.cooldown = w.cooldown * CHARGE.cooldownMult;
+  p.combo = 0; p.comboTimer = 0; p.comboArcMult = 1;
+  const base = w.damage * damageMult(p);
+  if (w.ranged) {
+    const k = CHARGE.bow, dir = new T.Vector3(fx, 0, fz);
+    fireArrow(world, p, dir, null, 1 + (k.damage - 1) * c, 0, { pierce: true, scale: k.scale, rangeMult: k.rangeMult });
+    burst(world, p.pos.x + fx * 0.8, 1.3, p.pos.z + fz * 0.8, '#ffd86b', 6, 0.08);
+    return;
+  }
+  if (w.label === 'Mızrak') {
+    const k = CHARGE.spear, r = reachOf(p), len = r.range * (k.lenMin + (k.lenMax - k.lenMin) * c), half = k.width / 2;
+    const dmg = base * (1 + (k.damage - 1) * c);
+    let nearest = null, nd = Infinity;
+    for (const t of world.entities) {
+      if (t === p || !t.alive || t.faction === p.faction || isEvading(t)) continue;
+      const dx = t.pos.x - p.pos.x, dz = t.pos.z - p.pos.z, along = dx * fx + dz * fz, side = Math.abs(dx * fz - dz * fx);
+      if (along < 0.2 || along > len || side > half + t.radius) continue;
+      damageEntity(world, t, hitDamage(p, t, dmg), fx, fz, 0, p);
+      if (t.alive && along < nd) { nd = along; nearest = t; }
+    }
+    for (const s of world.structures) {
+      if (!s.alive || s.faction === p.faction) continue;
+      const dx = s.pos.x - p.pos.x, dz = s.pos.z - p.pos.z, along = dx * fx + dz * fz, side = Math.abs(dx * fz - dz * fx);
+      if (along < 0 || along > len + s.radius || side > half + s.radius) continue;
+      damageStructure(world, s, dmg, p);
+    }
+    // En yakın delinen hedef mızrağın ucundan kahramana doğru çekilir.
+    if (nearest) { applyImpulse(nearest, -fx, -fz, k.pull * (0.5 + 0.5 * c) / nearest.invMass); burst(world, nearest.pos.x, 1.1, nearest.pos.z, '#ffe9a8', 6, 0.1); }
+    strip(world, p.pos.x, p.pos.z, fx, fz, len, 0.34, '#ffd27a', 0.35);
+    return;
+  }
+  // Kılıç: ağır kesik.
+  const k = CHARGE.sword, r = reachOf(p), range = r.range * k.rangeMult, cosHalf = Math.cos(k.arc / 2);
+  const dmg = base * (1 + (k.damage - 1) * c), knock = w.knockback * k.knockMult;
+  for (const t of world.entities) {
+    if (t === p || !t.alive || t.faction === p.faction || isEvading(t)) continue;
+    const dx = t.pos.x - p.pos.x, dz = t.pos.z - p.pos.z, d = Math.hypot(dx, dz) || 1;
+    if (d > range + t.radius || (fx * dx + fz * dz) / d < cosHalf) continue;
+    damageEntity(world, t, hitDamage(p, t, dmg), dx / d, dz / d, knock, p);
+  }
+  for (const s of world.structures) {
+    if (!s.alive || s.faction === p.faction) continue;
+    const dx = s.pos.x - p.pos.x, dz = s.pos.z - p.pos.z, d = Math.hypot(dx, dz) || 1;
+    if (d > range + s.radius || (fx * dx + fz * dz) / d < cosHalf * 0.6) continue;
+    damageStructure(world, s, dmg, p);
+  }
+  applyImpulse(p, fx, fz, k.lunge * 4.2 / p.invMass);
+  arcFlash(world, p.pos.x, p.pos.z, p.facing, range, k.arc, '#ffe9a8', 0.3);
+}
+
+/** Yere paralel, bakış yönüne ortalanmış yay dilimi (ağır kesik izi). */
+function arcFlash(world, x, z, yaw, radius, arc, color, life) {
+  const g = new T.Group();
+  const m = new T.Mesh(new T.RingGeometry(radius * 0.45, radius, 32, 1, Math.PI * 1.5 - arc / 2, arc), new T.MeshBasicMaterial({ color, transparent: true, opacity: 0.75, side: T.DoubleSide, depthWrite: false }));
+  m.rotation.x = -Math.PI / 2; m.position.y = 0.9;
+  g.add(m); g.position.set(x, 0, z); g.rotation.y = yaw;
+  world.scene.add(g);
+  world.effects.push({ m, life, maxLife: life, fade: 0.75, parent: g });
 }
 
 /** Verilen yönde (cosTol açı payıyla) menzildeki en yakın düşman birim. */

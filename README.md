@@ -61,12 +61,17 @@ setin ek etkisi bunun üstüne biner; sağ tık her zaman **ileri atılma**dır 
 
 | Set | Sol tık: vuruş + … | Sağ tık: atılma + … |
 | --- | --- | --- |
-| **Kılıçlı** | **Girdap**: çevrende 1 sn dönen bıçak çemberi, 360°, 0.2 sn'de bir vuruşun 0.5 katı (yarıçap vuruş menzilin) | **Kılıç fırtınası**: durduğun yerde 2 sn boyunca savrulan kılıçlar; 3.2 birim yarıçap, 0.25 sn'de bir vuruşun 0.6 katı |
-| **Mızraklı** | **Saplama**: bakış yönünde menzilin 2.2 katı uzunlukta ince şerit, yayın ötesindeki herkesi tam hasarla deler | **Kazık alanı**: hortum gibi durduğun yerde açılır, 2 sn boyunca yerden kazıklar yükselir; 3.2 birim yarıçap, 0.25 sn'de bir vuruşun 0.6 katı, dışa iter |
-| **Okçu** | **Yelpaze**: seviyen kadar ok en çok 70° yelpaze açar (ok başına 8°), her ok kendi yönündeki düşmana kilitlenir | **Ok yağmuru**: hortum gibi durduğun yerde açılır, 2 sn boyunca gökten ok yağar; 3.2 birim yarıçap, 0.25 sn'de bir vuruşun 0.6 katı |
+| **Kılıçlı** | **Üçlü kesik**: peş peşe vuruşlar (1.2 sn içinde) zincir kurar; 2. vuruş %35 geniş yay, 3. vuruşta **girdap** (çevrende 1 sn dönen bıçak çemberi, 360°, 0.2 sn'de bir vuruşun 0.5 katı). **Basılı tut → Ağır kesik**: 180° tek vuruş, 2x hasar, üç kat itme, yarım adım öne | **Kılıç fırtınası**: durduğun yerde 2 sn boyunca savrulan kılıçlar; 3.2 birim yarıçap, 0.25 sn'de bir vuruşun 0.6 katı |
+| **Mızraklı** | **Saplama**: bakış yönünde menzilin 2.2 katı uzunlukta ince şerit, yayın ötesindeki herkesi tam hasarla deler. **Basılı tut → Delici saplama**: şerit menzilin 3 katına uzar, 2x hasar, en yakın hedefi sana çeker | **Kazık alanı**: hortum gibi durduğun yerde açılır, 2 sn boyunca yerden kazıklar yükselir; 3.2 birim yarıçap, 0.25 sn'de bir vuruşun 0.6 katı, dışa iter |
+| **Okçu** | **Yelpaze**: seviyen kadar ok en çok 70° yelpaze açar (ok başına 8°), her ok kendi yönündeki düşmana kilitlenir. **Basılı tut → Delici ok**: tek kalın ok, 2.5x hasar, 1.5x menzil, çarptığı her düşmanı delip geçer | **Ok yağmuru**: hortum gibi durduğun yerde açılır, 2 sn boyunca gökten ok yağar; 3.2 birim yarıçap, 0.25 sn'de bir vuruşun 0.6 katı |
 | **Kılıçlı Atlı** | **Geniş kesik**: vuruş yayı 180°, itme iki kat | **Yarıp geçme**: atılma yolunda geçtiğin her düşmana bir tam vuruş, yana savurur |
 | **Mızraklı Atlı** | **Hücum**: vururken yavaşlamazsın, hasar hızınla artar (tam koşuda 2x) | **Mızrak hücumu**: atılmanın bittiği yerde önüne 90° koni, vuruşun 2 katı, dört kat itme |
 | **Atlı Okçu** | **Koşarken atış**: atarken yavaşlamazsın, seviyenin iki katı ok dar (20°) yelpazede | **Geriye yaylım**: atılırken arkana (geldiğin yöne) seviyen kadar takipli ok |
+
+**Şarjlı vuruş (sol tık basılı tutma)**: tık anında normal vuruş iner; fare 0.22 sn'den uzun basılı kalırsa kahramanın üstünde bir
+çubuk 0.6 sn'de dolar (dolunca altın), bu sırada hız yarıya iner ve yüz imleci izler. Bırakınca silaha özgü güçlü vuruş çıkar; hasar şarj
+oranıyla büyür (yarım şarj = çarpanın yarısı). Şarjlı vuruştan sonra bekleme 1.5 kat. Atlı setler silahının şarjlı vuruşunu aynen alır.
+Sayılar `config.js` → `CHARGE` ve `COMBO`.
 
 Anti kuralı bütün set etkilerinde geçerlidir: antisi olduğun türe girdap, saplama, kılıç fırtınası, kazık alanı, ok yağmuru da tek atar (yarım güçlü etkiler
 hasarı aynı oranda ölçekler, bkz. Birim üstünlükleri). Rakip kahraman sol tık etkilerini kullanır (sağ tık yetenekleri yalnızca oyuncuda).

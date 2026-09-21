@@ -49,7 +49,8 @@ export function reachOf(e) {
   const w = e.stats.weapon;
   if (!(e.isPlayer || e.isHero)) return { range: w.range, arc: w.arc };
   if (w.ranged) return { range: w.range * bowRangeMult(e), arc: w.arc };
-  return { range: w.range * levelReachMult(e), arc: Math.min(Math.PI * 1.9, w.arc * levelArcMult(e)) };
+  // comboArcMult: kılıç kombosunun ikinci vuruşu daha geniş yay (bkz. combat.startAttack).
+  return { range: w.range * levelReachMult(e), arc: Math.min(Math.PI * 1.9, w.arc * levelArcMult(e) * (e.comboArcMult || 1)) };
 }
 
 /** Vuruş yayı geometrisi: gerçek menzil ve açıyla çizilir, böylece gösterge alanı birebir gösterir. */

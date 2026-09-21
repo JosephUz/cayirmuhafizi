@@ -1,9 +1,9 @@
 import * as T from '/vendor/three.module.js';
 import { dampAngle, yawFromDir } from './builders.js';
 import { startAttack } from './combat.js';
-import { heroDash } from './abilities.js';
+import { heroCharged, heroDash } from './abilities.js';
 import { dashDistance } from './characters.js';
-import { CAMERA, HALF, JUMP_SPEED, PHYSICS } from './config.js';
+import { CAMERA, CHARGE, HALF, JUMP_SPEED, PHYSICS } from './config.js';
 import { applyImpulse } from './physics.js';
 import { pickOwnStructure } from './structures.js';
 
@@ -21,6 +21,8 @@ export function createInput() {
     keys: new Set(), attackQueued: false, rightDown: false, blockToggle: false,
     dodgeQueued: false, jumpQueued: false, aim: new T.Vector3(0, 0, 1), hasAim: false,
     pointer: { x: 0, y: 0, inside: false }, drag: null, shift: false,
+    // Sol tık basılı tutma (şarjlı vuruş): basılı mı, ne zaman basıldı (world.clock), bırakıldı mı.
+    attackHeld: false, attackDownAt: 0, attackReleased: false,
     // Omuz üstü kamera: fare kilidi ve bu karede biriken bakış hareketi (piksel).
     lookDX: 0, lookDY: 0, locked: false, unlockedAt: -1e9,
   };
@@ -100,7 +102,7 @@ export function attachInput(world, canvas, camera, dragEl) {
     if (MOVE.includes(e.code)) { e.preventDefault(); input.keys.add(e.code); if (e.code === 'Space' && !e.repeat && !aoe) input.jumpQueued = true; }
   });
   window.addEventListener('keyup', e => { input.keys.delete(e.code); input.shift = e.shiftKey; });
-  window.addEventListener('blur', () => { input.keys.clear(); input.rightDown = false; });
+  window.addEventListener('blur', () => { input.keys.clear(); input.rightDown = false; input.attackHeld = false; input.attackReleased = false; });
 
   canvas.addEventListener('contextmenu', e => e.preventDefault());
   canvas.addEventListener('pointerleave', () => { input.pointer.inside = false; });
@@ -154,6 +156,7 @@ export function attachInput(world, canvas, camera, dragEl) {
       }
       if (world.mode === 'aoe') { clearSelection(world); ui.update(); return; }
       input.attackQueued = true;
+      input.attackHeld = true; input.attackDownAt = world.clock; input.attackReleased = false;
     } else if (e.button === 2) {
       if (world.placing || world.rallyMode) { ui.cancelModes(true); return; }
       if (world.mode === 'aoe') return;
@@ -161,7 +164,10 @@ export function attachInput(world, canvas, camera, dragEl) {
     }
   });
   dragEl.hidden = true;
-  window.addEventListener('pointerup', e => { if (e.button === 2 || e.buttons === 0) input.rightDown = false; });
+  window.addEventListener('pointerup', e => {
+    if (e.button === 2 || e.buttons === 0) input.rightDown = false;
+    if ((e.button === 0 || e.buttons === 0) && input.attackHeld) { input.attackHeld = false; input.attackReleased = true; }
+  });
   window.addEventListener('mouseup', e => { if (e.button === 2 || e.buttons === 0) input.rightDown = false; });
   window.addEventListener('pointercancel', () => { input.rightDown = false; });
   document.addEventListener('visibilitychange', () => { if (document.hidden) input.rightDown = false; });
@@ -216,7 +222,7 @@ export function updateCamera(world, dt) {
 /** Kahraman modunda girdiyi oyuncuya uygular; komutan modunda yalnızca otomatik vuruş çalışır (hareket beyinden). */
 export function updatePlayerControl(world, dt) {
   const p = world.player, input = world.input;
-  if (!p.alive) { p.moveDir.set(0, 0, 0); p.blocking = false; p.sprinting = false; input.attackQueued = input.dodgeQueued = input.jumpQueued = false; return; }
+  if (!p.alive) { p.moveDir.set(0, 0, 0); p.blocking = false; p.sprinting = false; p.charging = false; input.attackQueued = input.dodgeQueued = input.jumpQueued = input.attackReleased = false; return; }
   if (world.mode === 'aoe') {
     p.blocking = false; p.sprinting = false; input.attackQueued = input.dodgeQueued = input.jumpQueued = false;
     return;
@@ -266,10 +272,25 @@ export function updatePlayerControl(world, dt) {
   if (input.jumpQueued) { input.jumpQueued = false; if (p.jumpY === 0 && p.vy === 0 && p.stun <= 0) p.vy = JUMP_SPEED; }
 
   // Vuruş sırasında nişan tıklanan noktada kilitli kalır; aksi hâlde imleci izler.
-  const locked = p.attackTimer > 0 && p.aimLocked;
+  // Şarjlı vuruş: sol tık CHARGE.delay sn'den uzun basılı kalırsa şarj dolmaya başlar (hız düşer, yüz imleci izler);
+  // bırakınca silaha özgü güçlü vuruş çıkar (abilities.heroCharged). Kısa tık şarj başlatmaz, normal vuruş zaten indi.
+  if (input.attackHeld && !p.charging && p.stun <= 0 && world.clock - input.attackDownAt >= CHARGE.delay) { p.charging = true; p.charge = 0; }
+  if (p.charging) {
+    if (!input.attackHeld && !input.attackReleased) p.charging = false;
+    else p.charge = Math.min(1, (world.clock - input.attackDownAt - CHARGE.delay) / CHARGE.full);
+  }
+  if (input.attackReleased) {
+    input.attackReleased = false;
+    if (p.charging) {
+      const c = p.charge; p.charging = false;
+      if (c >= CHARGE.minRelease && p.stun <= 0) { if (input.hasAim) p.aim.copy(input.aim); heroCharged(world, p, c); }
+    }
+  }
+
+  const locked = p.attackTimer > 0 && p.aimLocked && !p.charging;
   if (!locked) { p.aimLocked = false; p.aim.copy(input.aim); }
   if (locked) p.facing = dampAngle(p.facing, yawFromDir(p.aim.x - p.pos.x, p.aim.z - p.pos.z), 20, dt);
-  else if (p.blocking || p.attackTimer > 0) {
+  else if (p.blocking || p.attackTimer > 0 || p.charging) {
     if (input.hasAim) p.facing = dampAngle(p.facing, yawFromDir(input.aim.x - p.pos.x, input.aim.z - p.pos.z), 14, dt);
   } else if (tps && input.locked) p.facing = dampAngle(p.facing, world.look.yaw, 18, dt); // kilitli omuz üstü: yüz hep kameranın baktığı yönde (geri yürürken de)
   else if (moving) p.facing = dampAngle(p.facing, yawFromDir(dx, dz), 16, dt); // izometrik ya da serbest fare: yürüdüğü yöne

@@ -214,7 +214,7 @@ export function createUI(root, world, actions) {
       const towers = world.structures.filter(t => t.alive && t.kind === 'tower' && t.faction === 'blue').length;
       key = `H|${p.level}|${p.stats.maxHp}|${heroTypeLabel(p)}|${Math.ceil(own.hp)}|${towers}`;
       const name = heroTypeLabel(p);
-      html = `<div class="card"><div class="ico">★</div><div class="body"><h3>Kahraman · ${name} · Sv ${p.level}</h3>${bar(p.hp, p.stats.maxHp)}<div class="line"><span data-hp>♥ ${Math.ceil(p.hp)}/${p.stats.maxHp}</span><span>${unitStats(p)}</span></div><div class="line"><span data-banner>⚑ Sancak ${Math.ceil(own.hp)}/${own.maxHp}</span><span>${shielded ? `🛡 ${towers} kule koruyor: can azalmaz` : '⚠ Kule yok: sancak can kaybeder!'}</span><span>★ Sv ${p.level} · ${Math.floor(p.xp || 0)}/${xpNeeded(p.level)} exp</span></div><div class="bar banner"><i data-bbar style="width:${Math.max(0, Math.min(100, own.hp / own.maxHp * 100))}%"></i></div><div class="hint">${(() => { const k = KIT[kitKey(p.loadout)] || KIT.sword; return `Set: <b>${k.label}</b>. Sol tık: <b>${k.primary}</b> — ${k.primaryDesc}. Sağ tık: <b>ileri atılma</b> (${dashDistance(p).toFixed(1)} birim, seviye başına +${DASH.perLevel}) + <b>${k.secondary}</b> — ${k.secondaryDesc}.${p.loadout.shield ? ' Kalkan: atılmada vurulmazlık daha uzun.' : ''}`; })()} Soldaki düğmelerle bina dik. Seviye <b>öldürerek</b> gelir: ${Math.floor(p.xp || 0)}/${xpNeeded(p.level)} exp. Can yalnızca <b>sancak alanında</b> yenilenir (${HERO_UPGRADE.regenPerSecond} can/sn, tepende can baloncukları çıkar). Sancak > <b>Geliştir</b>: türe dönüş. Ordu tek tek yönetilmez: soldaki ⚑ düğmeleriyle toplanma alanı kur. Maden, ağaç, tarlaya vur (vuruş başına ${heroGather(p)} kaynak) ya da ganimetin üstünden geç: kaynak ${pickRadiusOf(p).toFixed(1)} birimden envantere girer.</div></div></div>`;
+      html = `<div class="card"><div class="ico">★</div><div class="body"><h3>Kahraman · ${name} · Sv ${p.level}</h3>${bar(p.hp, p.stats.maxHp)}<div class="line"><span data-hp>♥ ${Math.ceil(p.hp)}/${p.stats.maxHp}</span><span>${unitStats(p)}</span></div><div class="line"><span data-banner>⚑ Sancak ${Math.ceil(own.hp)}/${own.maxHp}</span><span>${shielded ? `🛡 ${towers} kule koruyor: can azalmaz` : '⚠ Kule yok: sancak can kaybeder!'}</span><span>★ Sv ${p.level} · ${Math.floor(p.xp || 0)}/${xpNeeded(p.level)} exp</span></div><div class="bar banner"><i data-bbar style="width:${Math.max(0, Math.min(100, own.hp / own.maxHp * 100))}%"></i></div><div class="hint">${(() => { const k = KIT[kitKey(p.loadout)] || KIT.sword; return `Set: <b>${k.label}</b>. Sol tık: <b>${k.primary}</b> — ${k.primaryDesc}.${k.charge ? ` <b>Basılı tut</b> (0.6 sn dolar, bırak): <b>${k.charge}</b> — ${k.chargeDesc}.` : ''} Sağ tık: <b>ileri atılma</b> (${dashDistance(p).toFixed(1)} birim, seviye başına +${DASH.perLevel}) + <b>${k.secondary}</b> — ${k.secondaryDesc}.${p.loadout.shield ? ' Kalkan: atılmada vurulmazlık daha uzun.' : ''}`; })()} Soldaki düğmelerle bina dik. Seviye <b>öldürerek</b> gelir: ${Math.floor(p.xp || 0)}/${xpNeeded(p.level)} exp. Can yalnızca <b>sancak alanında</b> yenilenir (${HERO_UPGRADE.regenPerSecond} can/sn, tepende can baloncukları çıkar). Sancak > <b>Geliştir</b>: türe dönüş. Ordu tek tek yönetilmez: soldaki ⚑ düğmeleriyle toplanma alanı kur. Maden, ağaç, tarlaya vur (vuruş başına ${heroGather(p)} kaynak) ya da ganimetin üstünden geç: kaynak ${pickRadiusOf(p).toFixed(1)} birimden envantere girer.</div></div></div>`;
     } else {
       key = 'A';
       html = `<div class="card"><div class="ico">🏳</div><div class="body"><h3>Komutan modu</h3><div class="hint">Ordu tek tek yönetilmez: soldaki ⚑ düğmeleriyle sınıfların <b>toplanma alanını</b> kur; askerler oraya gidip yalnızca orada dövüşür. Sol tık: kendi yapını seç · Soldan bina dik · WASD / ok tuşları / minimap: kamera · Sancak > <b>Kahraman</b>: kahraman moduna dön</div></div></div>`;
@@ -290,6 +290,17 @@ export function createUI(root, world, actions) {
      * Kampların üstündeki geri sayımlar: akıncı kampta bir sonraki dalgaya kalan süre, yıkık kampta yeniden
      * kurulmasına kalan süre. Yazılar her karede kampın ekran konumuna taşınır; sisin altındaki kamp gizlenir.
      */
+    /** Şarj çubuğu: sol tık basılıyken kahramanın üstünde dolar, dolunca altın renk alır. */
+    updateCharge() {
+      const el = root.querySelector('#mg-charge'); if (!el) return;
+      const p = world.player;
+      if (!p || !p.alive || !p.charging || !world.toScreen) { el.hidden = true; return; }
+      const s = world.toScreen({ x: p.pos.x, y: 3.1 + p.jumpY, z: p.pos.z });
+      if (!s || !isFinite(s.x)) { el.hidden = true; return; }
+      el.hidden = false; el.style.left = `${s.x}px`; el.style.top = `${s.y}px`;
+      el.firstElementChild.style.width = `${Math.round(p.charge * 100)}%`;
+      el.classList.toggle('full', p.charge >= 1);
+    },
     updateCampLabels() {
       if (!els.floats || !world.toScreen || !world.camps) return;
       // Yeni oyunda eski kampların etiketleri kalmasın.

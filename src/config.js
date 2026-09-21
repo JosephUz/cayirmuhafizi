@@ -60,21 +60,41 @@ export const SPIN = { duration: 1, tick: 0.2, damageMult: 0.5, minRadius: 2.4, b
  * sete özel ikinci etki. Sayılar vuruş gücünün katıdır; yarıçaplar dashMult (her 10 seviyede +%10), uzunluklar vuruş
  * menziliyle (seviyeyle) büyür, ok sayıları heroArrows (seviye) ile artar. Uygulama: abilities.js.
  */
+/**
+ * Sol tık **basılı tutma = şarjlı vuruş**. Tık anında silahın normal vuruşu iner; fare delay sn'den uzun basılı kalırsa şarj
+ * başlar, full sn'de dolar (kahramanın üstünde çubuk), bırakınca silaha özgü güçlü vuruş çıkar (şarj oranı c: 0..1, hasar
+ * 1 + (damage - 1) x c). Şarj sırasında hız speedMult; şarjlı vuruştan sonra bekleme cooldownMult kat.
+ *  - Kılıç **ağır kesik**: arc yayında tek vuruş, itme knockMult kat, kahraman lunge birim öne kayar; girdap çıkmaz.
+ *  - Mızrak **delici saplama**: şerit menzilin lenMin..lenMax katına uzar, hattaki herkesi deler, en yakın hedefi pull ile çeker.
+ *  - Yay **delici ok**: tek kalın ok (scale), menzil rangeMult, çarptığı her düşmanı delip geçer (yapıda durur).
+ */
+export const CHARGE = {
+  delay: 0.22, full: 0.6, minRelease: 0.15, speedMult: 0.5, cooldownMult: 1.5,
+  sword: { arc: Math.PI, rangeMult: 1.15, damage: 2, knockMult: 3, lunge: 0.8 },
+  spear: { lenMin: 1.5, lenMax: 3, width: 1.4, damage: 2, pull: 7 },
+  bow: { damage: 2.5, rangeMult: 1.5, scale: 2.2 },
+};
+/** Kılıç kombosu: window sn içinde peş peşe vuruşlar zinciri ilerletir; 2. vuruş yayı secondArcMult kat geniş, spinAt. vuruşta girdap. */
+export const COMBO = { window: 1.2, secondArcMult: 1.35, spinAt: 3 };
+
 export const KIT = {
   /**
    * Girdap: çevrede 1 sn dönen bıçak çemberi (SPIN). Kılıç fırtınası: hortumla aynı alan sayıları (yarıçap, süre, tempo, hasar)
    * ama görselde durduğun yerde savrulan kılıçlar (blades tane, farklı yarıçap ve yüksekliklerde dönüp takla atar).
    */
-  sword: { label: 'Kılıçlı', primary: 'Girdap', secondary: 'Kılıç fırtınası',
+  sword: { label: 'Kılıçlı', primary: 'Üçlü kesik', secondary: 'Kılıç fırtınası', charge: 'Ağır kesik',
     fieldRadius: TORNADO.radius, fieldLife: TORNADO.duration, fieldTick: TORNADO.tick, fieldDamage: TORNADO.damageMult, fieldKnock: TORNADO.knockback, blades: 10,
-    primaryDesc: `çevrende ${SPIN.duration} sn dönen bıçak çemberi (360°, ${SPIN.tick} sn'de bir vuruşun ${SPIN.damageMult} katı)`,
+    primaryDesc: `peş peşe vuruşlar zincir kurar: ikincisi daha geniş yay, üçüncüsü çevrende ${SPIN.duration} sn dönen girdap (360°, ${SPIN.tick} sn'de bir vuruşun ${SPIN.damageMult} katı)`,
+    chargeDesc: '180° tek ağır kesik, 2x hasar, üç kat itme, yarım adım öne atılırsın',
     secondaryDesc: `durduğun yerde ${TORNADO.duration} sn boyunca savrulan kılıçlar (${TORNADO.radius} birim yarıçap, ${TORNADO.tick} sn'de bir vuruşun ${TORNADO.damageMult} katı)` },
   /**
    * Saplama: bakış yönünde menzilin thrustLen katı uzunlukta şerit, yayın ötesindekileri deler.
    * Kazık alanı: hortum gibi **durduğun yerde** açılır; yerden yükselen kazıklar fieldLife sn boyunca fieldTick sn'de bir
    * yarıçaptaki herkese vuruşun fieldDamage katını verir ve dışa iter. Yarıçap dashMult ile büyür.
    */
-  spear: { label: 'Mızraklı', primary: 'Saplama', secondary: 'Kazık alanı',
+  spear: { label: 'Mızraklı', primary: 'Saplama', secondary: 'Kazık alanı', charge: 'Delici saplama',
+    chargeDesc: 'şerit menzilin 3 katına uzar, hattaki herkesi 2x hasarla deler ve en yakınını sana çeker', charge: 'Delici saplama',
+    chargeDesc: 'şerit menzilin 3 katına uzar, hattaki herkesi 2x hasarla deler ve en yakınını sana çeker',
     thrustLen: 2.2, thrustWidth: 1.4, thrustDamage: 1,
     fieldRadius: 3.2, fieldLife: 2, fieldTick: 0.25, fieldDamage: 0.6, fieldKnock: 3, stakes: 16,
     primaryDesc: 'vuruşun ötesine menzilin 2.2 katı uzunlukta ince şerit: hattaki herkesi tam hasarla deler',
@@ -84,7 +104,9 @@ export const KIT = {
    * Ok yağmuru: hortum gibi **durduğun yerde** açılır; fieldLife sn boyunca fieldTick sn'de bir yarıçaptaki herkese
    * vuruşun fieldDamage katı ok düşer (görselde her tick gökten oklar iner). Yarıçap dashMult ile büyür.
    */
-  bow: { label: 'Okçu', primary: 'Yelpaze', secondary: 'Ok yağmuru',
+  bow: { label: 'Okçu', primary: 'Yelpaze', secondary: 'Ok yağmuru', charge: 'Delici ok',
+    chargeDesc: 'tek kalın ok, 2.5x hasar, 1.5x menzil, çarptığı her düşmanı delip geçer', charge: 'Delici ok',
+    chargeDesc: 'tek kalın ok, 2.5x hasar, 1.5x menzil, çarptığı her düşmanı delip geçer',
     fanStep: 8, fanMax: 70, homingDeg: 10, arrowMult: 1,
     fieldRadius: 3.2, fieldLife: 2, fieldTick: 0.25, fieldDamage: 0.6, fieldKnock: 1,
     primaryDesc: 'seviyen kadar ok 70°\'ye kadar yelpaze açar, her ok kendi yönündeki düşmana kilitlenir',
