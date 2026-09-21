@@ -1,0 +1,586 @@
+// Tüm ayar sayıları tek yerde. Hız birimi: birim/sn, süreler saniye.
+
+/** Yürünebilir alanın yarı boyutu (kare: -HALF..+HALF). Zemin 240x240. */
+export const HALF = 120;
+
+export const PHYSICS = {
+  /** Birimler arası kişisel alan: çarpışma yarıçapları bu katsayıyla büyütülür (sıkı paket olmasınlar). */
+  unitSpacing: 1.9,
+  /** Darbe hızının sönümlenmesi (1/s). */
+  pushDrag: 4.2,
+  restitution: 0.35,
+  correction: 0.85,
+  fixedStep: 1 / 60,
+  maxSteps: 5,
+};
+
+export const GRAVITY = 22;
+export const JUMP_SPEED = 7.8;
+export const SPRINT_MULT = 1.65;
+
+export const BLOCK = {
+  speedMult: 0.45,
+  /** Kalkanın koruduğu ön yarım: saldırı yönü ile bakış yönü dot eşiği. */
+  frontDot: 0.15,
+  damageMult: 0.15,
+  knockMult: 0.3,
+};
+
+/**
+ * Sağ tık: kahraman **durduğu yerde bir hortum** çağırır. Hortum çağrıldığı noktada kalır (kahraman uzaklaşabilir),
+ * `duration` boyunca döner ve her `tick` saniyede yarıçapındaki **bütün düşmanlara** (birim ve yapı) vuruşunun
+ * `damageMult` katı hasarı yeniden indirir: 2 saniyede 8 vuruş, toplam vuruşun ~4.8 katı. Yarıçapı seviyeyle
+ * modüler büyür (her LEVEL.dashEvery seviyede %10, bkz. dashMult). `cast` çağırma anındaki kısa savuşturma
+ * penceresi, `cooldown` iki hortum arası bekleme, `rings` / `height` / `spin` huninin görüntüsüdür.
+ */
+export const TORNADO = { duration: 2, radius: 3.2, tick: 0.25, damageMult: 0.6, cooldown: 1.4, knockback: 3, cast: 0.22, invuln: 0.5, rings: 7, height: 4.2, spin: 7 };
+
+/**
+ * Sağ tıkta hortumla birlikte **ileri atılma**: kahraman imlece doğru fırlar, hortum da fırladığı (durduğu) noktada
+ * kalır. Atılma mesafesi oyunun başında `base` birimdir ve **seviye başına `perLevel` birim** bunun üstüne eklenir
+ * (en çok `max`): kahraman seviye aldıkça haritada belirgin biçimde daha hızlı yol alır. İtme sürtünmeyle söndüğü
+ * için (PHYSICS.pushDrag) itme gücü **mesafe x sürtünme** verilir; böylece kahraman gerçekten bu kadar yol alır.
+ * `duration` atılma sırasındaki savuşturma (dodgeTimer) penceresi, `invuln` vurulmazlık süresidir.
+ */
+export const DASH = { base: 4.8, perLevel: 0.12, max: 12, duration: 0.28, invuln: 0.5, /** Kalkanlı setlerde vurulmazlık bu kat uzar. */ shieldInvulnMult: 1.8 };
+
+/**
+ * Sol tık kahramanda **dönerek vuruş**: normal vuruşun (yakın dövüşte yay, yayda imlece giden ok yaylımı) üstüne
+ * kahramanın çevresinde `duration` saniye dönen bir çember açılır ve her `tick` saniyede çemberin içindeki
+ * **bütün** düşmanlara — birim ve yapı — vuruşunun `damageMult` katı iner (yön / açı aranmaz, 360°).
+ * Yakın dövüşte çemberin yarıçapı kahramanın vuruş menzilidir (en az `minRadius`, seviyeyle büyür); okçuda
+ * `bowRadius`tır ve çember kahramanın **seviyesi kadar dönen oktan** oluşur. Peş peşe tıklamada çember yenilenir,
+ * üst üste binmez. `spin` çemberin dönüş hızıdır.
+ */
+export const SPIN = { duration: 1, tick: 0.2, damageMult: 0.5, minRadius: 2.4, bowRadius: 4.4, spin: 6.5, knockback: 2 };
+
+/**
+ * Kahraman **yetenek setleri**: set silah x at ile belirlenir (kalkan yalnızca atılma vurulmazlığını uzatır, DASH.shieldInvulnMult).
+ * Sol tık her sette silahın kendi vuruşu (yakın dövüşte yay, okçuda ok) + sete özel ek etki; sağ tık her sette ileri atılma +
+ * sete özel ikinci etki. Sayılar vuruş gücünün katıdır; yarıçaplar dashMult (her 10 seviyede +%10), uzunluklar vuruş
+ * menziliyle (seviyeyle) büyür, ok sayıları heroArrows (seviye) ile artar. Uygulama: abilities.js.
+ */
+export const KIT = {
+  /** Girdap: çevrede 1 sn dönen bıçak çemberi (SPIN). Hortum: durduğu yerde kalan hortum (TORNADO). */
+  sword: { label: 'Kılıçlı', primary: 'Girdap', secondary: 'Hortum',
+    primaryDesc: `çevrende ${SPIN.duration} sn dönen bıçak çemberi (360°, ${SPIN.tick} sn'de bir vuruşun ${SPIN.damageMult} katı)`,
+    secondaryDesc: `durduğun yerde ${TORNADO.duration} sn kalan hortum (${TORNADO.tick} sn'de bir vuruşun ${TORNADO.damageMult} katı)` },
+  /**
+   * Saplama: bakış yönünde menzilin thrustLen katı uzunlukta şerit, yayın ötesindekileri deler.
+   * Kazık alanı: hortum gibi **durduğun yerde** açılır; yerden yükselen kazıklar fieldLife sn boyunca fieldTick sn'de bir
+   * yarıçaptaki herkese vuruşun fieldDamage katını verir ve dışa iter. Yarıçap dashMult ile büyür.
+   */
+  spear: { label: 'Mızraklı', primary: 'Saplama', secondary: 'Kazık alanı',
+    thrustLen: 2.2, thrustWidth: 1.4, thrustDamage: 1,
+    fieldRadius: 3.2, fieldLife: 2, fieldTick: 0.25, fieldDamage: 0.6, fieldKnock: 3, stakes: 16,
+    primaryDesc: 'vuruşun ötesine menzilin 2.2 katı uzunlukta ince şerit: hattaki herkesi tam hasarla deler',
+    secondaryDesc: 'durduğun yerde 2 sn boyunca yerden kazıklar çıkar (3.2 birim yarıçap, 0.25 sn\'de bir vuruşun 0.6 katı, dışa iter)' },
+  /**
+   * Yelpaze: seviye kadar ok fanMax dereceye kadar dağılır, her ok kendi yönündeki (homingDeg) düşmana kilitlenir.
+   * Ok yağmuru: hortum gibi **durduğun yerde** açılır; fieldLife sn boyunca fieldTick sn'de bir yarıçaptaki herkese
+   * vuruşun fieldDamage katı ok düşer (görselde her tick gökten oklar iner). Yarıçap dashMult ile büyür.
+   */
+  bow: { label: 'Okçu', primary: 'Yelpaze', secondary: 'Ok yağmuru',
+    fanStep: 8, fanMax: 70, homingDeg: 10, arrowMult: 1,
+    fieldRadius: 3.2, fieldLife: 2, fieldTick: 0.25, fieldDamage: 0.6, fieldKnock: 1,
+    primaryDesc: 'seviyen kadar ok 70°\'ye kadar yelpaze açar, her ok kendi yönündeki düşmana kilitlenir',
+    secondaryDesc: 'durduğun yerde 2 sn boyunca ok yağmuru (3.2 birim yarıçap, 0.25 sn\'de bir vuruşun 0.6 katı)' },
+  /** Geniş kesik: yay 180°, itme 2x (silah değerlerinde). Yarıp geçme: atılma yolundaki herkese bir vuruş. */
+  horsesword: { label: 'Kılıçlı Atlı', primary: 'Geniş kesik', secondary: 'Yarıp geçme',
+    /** trailRadius birim aralığından (PHYSICS.unitSpacing) büyük olmalı, yoksa at önündeki yayaya hiç değmez; trailLife itmenin sönme süresi. */
+    arcMult: 1.6, knockMult: 2, trailRadius: 2.2, trailDamage: 1, trailLife: 0.6,
+    primaryDesc: 'vuruş yayı 180°, itme iki kat: önündeki kalabalığı biçer ve savurur',
+    secondaryDesc: 'atılma yolunda geçtiğin her düşmana tam vuruş, yana savurur' },
+  /** Hücum: vururken yavaşlamaz, hasar hıza göre artar (tam koşuda 1+chargeBonus). Mızrak hücumu: atılma bitince öne koni vuruşu. */
+  horsespear: { label: 'Mızraklı Atlı', primary: 'Hücum', secondary: 'Mızrak hücumu',
+    chargeBonus: 1, attackControl: 1, impactRange: 1.5, impactArc: Math.PI / 2, impactDamage: 2, impactKnock: 4,
+    primaryDesc: 'vururken yavaşlamazsın, hasar hızınla artar (tam koşuda 2x)',
+    secondaryDesc: 'atılmanın bittiği yerde önüne 90° koni: vuruşun 2 katı, dört kat itme' },
+  /** Koşarken atış: yavaşlamaz, ok sayısı arrowMult katı, dar yelpaze. Geriye yaylım: atılırken arkaya takipli oklar. */
+  horsebow: { label: 'Atlı Okçu', primary: 'Koşarken atış', secondary: 'Geriye yaylım',
+    attackControl: 1, arrowMult: 2, fanStep: 3, fanMax: 20, homingDeg: 8, backFan: 30,
+    primaryDesc: 'atarken yavaşlamazsın ve seviyenin iki katı ok dar yelpazede gider',
+    secondaryDesc: 'atılırken arkana (geldiğin yöne) seviyen kadar takipli ok bırakırsın' },
+};
+
+/** Vuruşların hedefi itme çarpanı (asker ve kule vuruşları). 0 = itmez. */
+export const KNOCKBACK_SCALE = 0;
+/** Kahramanın vuruşları çevresindekileri biraz iter. */
+export const HERO_KNOCKBACK = 0.5;
+
+export const COMBAT = {
+  /** Vuruş sonrası sersemleme (hareketi durdurur). 0 = vuruşlar hareketi etkilemez. */
+  stunOnHit: 0,
+  hitFlash: 0.18,
+  /** Bu yükseklikten yukarıda yakın dövüş vuruşları ıskalar. */
+  jumpDodgeHeight: 0.6,
+  deathDuration: 1.1,
+  sinkDuration: 0.7,
+};
+
+export const WEAPONS = {
+  sword: { label: 'Kılıç', range: 2.2, arc: Math.PI * 0.62, damage: 26, cooldown: 0.46, windup: 0.13, duration: 0.4, knockback: 12 },
+  spear: { label: 'Mızrak', range: 3.1, arc: Math.PI * 0.45, damage: 22, cooldown: 0.6, windup: 0.18, duration: 0.5, knockback: 9 },
+  /** soldierMult: asker okçular kahramandan daha zayıf atar. */
+  bow: { label: 'Yay', range: 14, arc: 0, damage: 18, cooldown: 0.85, windup: 0.25, duration: 0.45, knockback: 0, ranged: true, arrowSpeed: 17, soldierMult: 0.65 },
+  /** İşçi aleti: saldırmaz. */
+  tool: { label: 'Kazma', range: 1, arc: 0.5, damage: 0, cooldown: 1, windup: 0.1, duration: 0.3, knockback: 0 },
+  /**
+   * Mancınık: kule menzilinin (9) **iki katı** uzaktan taş atar ve öbür askerler gibi **her hedefe** (birim, bina, kule)
+   * saldırır; yalnız hedef seçerken kuleyi yeğler. Kulede asker hasar çarpanı uygulanmaz, TOWER.siegeDamageMult katı
+   * hasar geçer (220 x 2.5 = 550); canlı hedefte taş dağıldığı için yalnızca unitMult katı (220 x 0.35 = 77) iner.
+   * Atış arası kısadır (2.2 sn).
+   */
+  catapult: { label: 'Mancınık', range: 18, arc: 0, damage: 220, cooldown: 2.2, windup: 0.45, duration: 0.9, knockback: 0, ranged: true, arrowSpeed: 16, siege: true, unitMult: 0.35 },
+};
+
+/** Mancınık gövdesi: askerlere karşı çok dayanıksız, yavaş, geniş. */
+export const SIEGE = { hp: 40, speed: 2.4, radius: 0.9 };
+
+export const PLAYER_BASE = { speed: 6.2, accel: 15, hp: 140, radius: 0.45, invMass: 1 };
+/**
+ * Kahramanlar (oyuncu ve rakip kahraman) kendi türündeki asker gibi vurur (asker hasar çarpanı, üstünlük matrisi, alan vuruşu);
+ * farkları can, hız ve seviyeyle büyüyen vuruş alanı / ok sayısıdır. İşçiler dahil her düşmana vurur; yapılara
+ * (bina, kule, sancak) türünün asker hasarıyla vurur, bu hasar seviye başına LEVEL.structureDamagePerLevel artar. Kafaları sarıdır.
+ */
+export const HERO = { damageLikeSoldier: true, headColor: '#ffd12e' };
+export const SOLDIER_BASE = { speed: 3.8, accel: 9, hp: 100, radius: 0.45, invMass: 1.15, damageMult: 0.55 };
+export const HORSE = { speedMult: 1.7, hpBonus: 50, radius: 0.62, invMassMult: 0.6, damageMult: 1.2 };
+export const SHIELD = { hpBonus: 30, /** Kalkan taşıyan birim belirgin yavaştır. */ speedMult: 0.8, /** Yapay zekâ kalkanlıları önden gelen vuruşu pasif azaltır. */ passiveFrontMult: 0.7 };
+
+/**
+ * Birim üstünlükleri: **anti sistemi**. Her tür, antisi olduğu türleri **tek vuruşta** öldürür; asker tipi savaşın kendisidir.
+ * - Askere anti vuruş: hedef canının soldierMult katı (1.5x: kalkanın önden %30 emişini de deler, yine ölür).
+ * - Kahramana anti vuruş: sabit heroDamage (sv 1 kahraman 140 can -> tek vuruş; her seviye +10 can, sv 3'ten sonra iki vuruş).
+ *   Vuran kahramansa seviye çarpanı da biner. Dönerek vuruş (0.5x) ve hortum (0.6x) anti hasarı da aynı oranda ölçekler.
+ * - Anti dışı eşleşmeler 1x; yalnızca ok zayıftır (weak): kalkana 0.15x, atlıya 0.5x.
+ * Tablo karşılıklı tek atma çifti oluşturmaz: atlı mızrak yaya mızrağı, atlı okçu yaya mızrak ile atlı kılıcı tek atmaz
+ * (onlar atlının antisidir). Kalkanlı atlıları yalnızca mızrak durdurur; bedelleri de en yüksektir.
+ */
+export const ANTI = {
+  soldierMult: 1.5,
+  heroDamage: 150,
+  weak: { bowVsShield: 0.15, bowVsHorse: 0.5 },
+  /** Saldıran tür -> tek vuruşta öldürdüğü türler (SOLDIER_TYPES anahtarları). */
+  table: {
+    sword: ['spear', 'spearshield'],
+    swordshield: ['spear', 'spearshield'],
+    spear: ['horsebow', 'horsespear', 'horsesword', 'horseswordshield', 'horsespearshield'],
+    spearshield: ['horsebow', 'horsespear', 'horsesword', 'horseswordshield', 'horsespearshield'],
+    bow: ['sword', 'spear', 'bow'],
+    horsespear: ['sword', 'swordshield', 'bow'],
+    horsespearshield: ['sword', 'swordshield', 'bow'],
+    horsesword: ['bow', 'horsebow'],
+    horseswordshield: ['bow', 'horsebow'],
+    horsebow: ['sword', 'bow', 'horsespear'],
+  },
+};
+
+/** Donanımdan tür anahtarı (kahraman ve typeKey'siz birimler için): silah + kalkan + at eşleşen asker türü. */
+const loadoutKeys = new Map();
+export function loadoutKey(l) {
+  if (!l) return null;
+  const k = `${l.weapon}|${l.shield ? 1 : 0}|${l.horse ? 1 : 0}`;
+  if (!loadoutKeys.has(k)) { const t = SOLDIER_TYPES.find(x => !x.worker && !x.siege && x.weapon === l.weapon && Boolean(x.shield) === Boolean(l.shield) && Boolean(x.horse) === Boolean(l.horse)); loadoutKeys.set(k, t ? t.key : null); }
+  return loadoutKeys.get(k);
+}
+/** Bir türün antisi olduğu türler ve bu türü tek atan türler (etiketleriyle). */
+export function antiInfo(key) {
+  const label = k => { const t = SOLDIER_TYPES.find(x => x.key === k); return t ? t.label : k; };
+  const beats = (ANTI.table[key] || []).map(label);
+  const beatenBy = Object.entries(ANTI.table).filter(([, v]) => v.includes(key)).map(([k]) => label(k));
+  return { beats, beatenBy };
+}
+
+/**
+ * Birimler: hangi binadan basıldığı `building`, üretim süresi `train` (kaliteli birim geç çıkar). Kısayol yok, düğmeyle basılır.
+ * Askerler altın + yiyecek, işçiler yalnızca altın ister; sıraya alınarak basılır (bkz. QUEUE).
+ * **Ordu büyüsün diye asker basımı ucuz ve çok hızlıdır**: maliyetler eski değerlerin ~%60'ı, üretim süreleri ilk
+ * değerlerin ~**üçte biri** (kılıçlı 6 sn yerine 1 sn).
+ * Mancınık (kuşatma) da artık öbür askerlerle aynı fiyat aralığındadır ve her hedefe saldırır. Aynı türden birden fazla
+ * bina kurmak üretimi paralelleştirir (bkz. production.js).
+ */
+export const SOLDIER_TYPES = [
+  // Kışla
+  { key: 'sword', label: 'Kılıçlı', icon: '⚔', cost: 9, food: 3, train: 1, weapon: 'sword', shield: false, horse: false, building: 'barracks' },
+  { key: 'swordshield', label: 'Kılıç Kalkan', icon: '🛡', cost: 15, food: 5, train: 1.5, weapon: 'sword', shield: true, horse: false, building: 'barracks' },
+  { key: 'spear', label: 'Mızraklı', icon: '🔱', cost: 12, food: 4, train: 1.2, weapon: 'spear', shield: false, horse: false, building: 'barracks' },
+  { key: 'spearshield', label: 'Mızrak Kalkan', icon: '🔰', cost: 18, food: 5, train: 1.7, weapon: 'spear', shield: true, horse: false, building: 'barracks' },
+  // Okçuluk
+  { key: 'bow', label: 'Okçu', icon: '🏹', cost: 15, food: 4, train: 1.3, weapon: 'bow', shield: false, horse: false, building: 'archery' },
+  { key: 'horsebow', label: 'Atlı Okçu', icon: '🐎🏹', cost: 27, food: 7, train: 2.3, weapon: 'bow', shield: false, horse: true, building: 'archery' },
+  // Ahır
+  { key: 'horsespear', label: 'Mızraklı Atlı', icon: '🐎🔱', cost: 24, food: 7, train: 2.2, weapon: 'spear', shield: false, horse: true, building: 'stable' },
+  { key: 'horsesword', label: 'Kılıçlı Atlı', icon: '🐎⚔', cost: 24, food: 7, train: 2.2, weapon: 'sword', shield: false, horse: true, building: 'stable' },
+  { key: 'horseswordshield', label: 'Kılıç Kalkan Atlısı', icon: '🐎🛡', cost: 33, food: 9, train: 2.8, weapon: 'sword', shield: true, horse: true, building: 'stable' },
+  { key: 'horsespearshield', label: 'Mızrak Kalkan Atlısı', icon: '🐎🔰', cost: 33, food: 9, train: 2.8, weapon: 'spear', shield: true, horse: true, building: 'stable' },
+  // Savaş aletleri: yiyecek değil odun ister; fiyatı öbür askerlerle aynı aralıktadır. Her hedefe (birim, bina, kule)
+  // saldırır: kuleye tam katlı, canlı hedefe düşük (WEAPONS.catapult.unitMult) hasar verir; gövdesi çok dayanıksızdır.
+  { key: 'catapult', label: 'Mancınık', icon: '🪨', cost: 45, food: 0, wood: 30, train: 3.2, weapon: 'catapult', shield: false, horse: false, building: 'siege', siege: true },
+  // Sancak (işçiler)
+  { key: 'woodcutter', label: 'Oduncu', icon: '🪓', cost: 10, food: 0, train: 1, weapon: 'tool', shield: false, horse: false, worker: 'wood', building: 'banner' },
+  { key: 'miner', label: 'Madenci', icon: '⛏', cost: 10, food: 0, train: 1, weapon: 'tool', shield: false, horse: false, worker: 'gold', building: 'banner' },
+  { key: 'farmer', label: 'Çiftçi', icon: '🌾', cost: 10, food: 0, train: 1, weapon: 'tool', shield: false, horse: false, worker: 'food', building: 'banner' },
+];
+
+/**
+ * Toplanma alanları binalara değil birim sınıflarına bağlıdır: hiçbir şey seçili değilken soldaki düğmeyle sınıfın
+ * (piyade / okçu / süvari / savaş aleti) toplanma yeri haritada seçilir; o sınıftaki tüm askerler oraya yürür ve yeni
+ * çıkanlar oraya gider. "Hepsi" tüm sınıfların toplanma yerini aynı noktaya alır.
+ */
+export const RALLY = {
+  classes: [
+    { key: 'foot', label: 'Piyade', icon: '🛡', buildings: ['barracks'], color: '#8fd0ff' },
+    { key: 'archer', label: 'Okçu', icon: '🏹', buildings: ['archery'], color: '#c8ff8a' },
+    { key: 'cavalry', label: 'Süvari', icon: '🐎', buildings: ['stable'], color: '#ffd27a' },
+    { key: 'siege', label: 'Mancınık', icon: '🪨', buildings: ['siege'], color: '#d9d9d9' },
+  ],
+  allLabel: 'Hepsi', allColor: '#ffd12e',
+  /**
+   * Toplanma alanı aynı zamanda hedef tayinidir: askerler bayrağa yürür ve yalnızca bayrağın bu yarıçapı içinde,
+   * sisin kalktığı yerde dövüşür (düşman birimi, kule, bina). Dışarıda haritada başıboş gezmezler.
+   */
+  engageRadius: 22,
+};
+
+/**
+ * Nüfus sınırı (her iki taraf için ayrı ayrı işler):
+ *  - `army`: sahadaki bütün asker türlerinin **toplamı** (mancınık dahil, kahraman hariç) en fazla bu kadar olur.
+ *    Sınır dolunca **asker çıkmaz**: emir sıraya bile alınmaz, sırada bekleyen emir de sınır açılana kadar bekletilir
+ *    (bkz. production.js updateProduction).
+ *  - `workers`: bütün işçi türlerinin (madenci / oduncu / çiftçi) **toplamı** en fazla bu kadar olur; tür başına ayrı
+ *    sınır yoktur. İşçiler birleştiği için sayım kademe (tier) toplamıdır: x3 bir madenci 3 işçi sayılır. Sınır dolunca
+ *    üretim durmaz: yeni çıkan işçi **en kalabalık türden bir kademe eksiltir** ve onun yerine kendi türünde gelir
+ *    (toplam sabit kalır, dağılım bastığın türe kayar; bkz. economy.js trimWorkers).
+ *  - `towers` / `buildings`: ayakta duran kule sayısı ve kule dışındaki bina (kışla, okçuluk, ahır, kuşatma) sayısı
+ *    **ayrı ayrı** en fazla bu kadar olur; sancak sayılmaz. İnşası süren yapı da sayılır.
+ * Sırada bekleyen emirler de sayılır; sınır dolunca üretim / inşa düğmesi kapanır ve emir alınmaz (işçide düğme
+ * kapanmaz, yeni işçi en kalabalık türün yerine geçer).
+ * Sınıra takılınca yapı seçilip **yıkılabilir** (bilgi ızgarasındaki "Binayı yık" / "Kuleyi yık" düğmesi).
+ */
+export const LIMITS = { army: 200, workers: 100, towers: 10, buildings: 10 };
+
+/**
+ * Üretim kuyruğu: bina başına en fazla bu kadar emir. Altın sıraya alınırken düşer, iptalde geri gelir.
+ * Toplu basımda emirler aynı türü basan **tüm hazır binalara** sırayla dağıtılır: iki kışlan varsa iki asker aynı anda çıkar.
+ */
+export const QUEUE = { max: 30, /** Üretim düğmesine Shift ile basınca 5, Ctrl ile 10 birim birden sıraya girer. */ batchShift: 5, batchCtrl: 10 };
+
+/**
+ * İşçi: savaşmaz, yalnızca kendi kaynağında çalışır; diğer birimlerle çarpışmaz. Sayı sınırı yok ama **işçi sayısı artmaz**:
+ * her türden yalnızca ilk işçi sahada kalır. Sonraki işçiler de çıkar, o işçiye yürür ve mergeDist mesafesinde onunla
+ * birleşir; birleşen her işçi kademeyi (tier) bir artırır ve işçi her çalışmada kademesi kadar ürün çıkarır.
+ */
+export const WORKER = { hp: 100, speed: 3.8, fleeRadius: 5, mergeDist: 1.4 };
+
+export const ARMY = {
+  /** Asker ve işçi sayısı sınırsız. */
+  aggro: 16,
+  /** Bekleyen / emirli asker durduğu noktadan bu kadar uzaklaşmaz; bu yarıçapa girince varmış sayılır. */
+  leash: 14, arrive: 3.0,
+};
+
+/**
+ * Kule atışı: ok hedefi takip eder ve mutlaka vurur (kaçış / zıplama / vurulmazlık savuşturamaz); askeri / işçiyi ve
+ * (lethalVsHeroes) kahramanı tek atışta öldürür. Menzilde asker varsa önce askere, kahramana en son atar.
+ * soldierDamageMult: askerlerin (kahraman dışı birimlerin) kuleye verdiği hasarın çarpanı.
+ */
+export const TOWER = {
+  range: 9, damage: 14, cooldown: 1.3, arrowSpeed: 20, lethalVsSoldiers: 1.5,
+  /** Kule oku kahramanı da tek atışta öldürür (zıplayana değil). */
+  lethalVsHeroes: true, soldierDamageMult: 0.4,
+  /** Mancınık taşı kuleye bu katla vurur: kule kırmanın yolu kuşatmadır (220 x 2.5 = 550). */
+  siegeDamageMult: 2.5,
+  /** Yerleştirme: yola bu kadar yakın olmalı; iki kule arası en az minGap (kendi menzili 9 + rakibin menzili 9). */
+  laneDist: 4.5, minGap: 18,
+};
+
+/**
+ * Yapılar. Başlangıçta yalnızca sancak ve kışla vardır; diğerleri sancak seçilip
+ * yalnızca odunla istenen yere dikilir. `produces` o yapıdan basılan birimler, `builds` sancağın kurabildiği yapılar.
+ * Yıkılan yapı çevreye `loot` kadar odun bırakır (yalnızca kahramanlar toplar).
+ */
+export const BUILDINGS = {
+  banner: { label: 'Sancak', from: 'sancaktan', icon: '⚑', hp: 10000, radius: 0.9, vision: 18, loot: 6, produces: ['woodcutter', 'miner', 'farmer'], builds: ['barracks', 'archery', 'stable', 'siege', 'tower'] },
+  barracks: { label: 'Kışla', from: 'kışladan', icon: '🏯', cost: 0, wood: 60, loot: 3, hp: 260, radius: 1.7, vision: 11, buildTime: 6, produces: ['sword', 'swordshield', 'spear', 'spearshield'], desc: 'Kılıçlı, kılıç kalkan, mızraklı, mızrak kalkan basar' },
+  archery: { label: 'Okçuluk', from: 'okçuluktan', icon: '🎯', cost: 0, wood: 80, loot: 3, hp: 220, radius: 1.6, vision: 11, buildTime: 6, produces: ['bow', 'horsebow'], desc: 'Okçu ve atlı okçu basar' },
+  stable: { label: 'Ahır', from: 'ahırdan', icon: '🐴', cost: 0, wood: 100, loot: 3, hp: 280, radius: 1.9, vision: 11, buildTime: 8, produces: ['horsespear', 'horsesword', 'horseswordshield', 'horsespearshield'], desc: 'Dört tür atlı basar' },
+  siege: { label: 'Kuşatma', from: 'kuşatma binasından', icon: '⚙', cost: 0, wood: 150, loot: 3, hp: 240, radius: 1.8, vision: 11, buildTime: 8, produces: ['catapult'], desc: 'Mancınık basar: kule menzili dışından her hedefi döver, kuleyi yeğler' },
+  tower: { label: 'Kule', from: 'kuleden', icon: '🏰', cost: 0, wood: 1000, loot: 3, hp: 2000, radius: 1.0, vision: 14, buildTime: 5, produces: [], desc: 'Menzile gireni okla vurur; kuleler ayaktayken sancak vurulamaz' },
+  /** Tarafsız kamp: oyuncu dikemez, harita kurulurken yerleşir (bkz. CAMPS). Yıkılınca yıkıntısı kalır ve geri sayımla yeniden kurulur. */
+  camp: { label: 'Yaratık Kampı', from: 'kamptan', icon: '⛺', cost: 0, wood: 0, loot: 4, hp: 900, radius: 2.2, vision: 12, buildTime: 0, produces: [], desc: 'Tarafsız kamp: çevresinde muhafızlar bekler, akıncı kamplar dakikada bir dalga çıkarır' },
+};
+
+/**
+ * İnşa: her bina (iki taraf için de) kahramanın heroRadius yarıçapı içine dikilir. Kule dışındaki binalar ayrıca
+ * kendi sancağının çemberi (bannerRadius, sancağın çevresindeki halka) içinde olmalıdır. Kuleler çemberle sınırlı
+ * değildir ama yalnızca yollara ve birbirinden TOWER.minGap uzağa dikilebilir.
+ */
+export const BUILD = { heroRadius: 14, bannerRadius: 30 };
+
+/** Görüş mesafeleri (birim) ve sis ızgarası hücre boyu. */
+export const VISION = { hero: 15, soldier: 10, worker: 8, /** Mancınık uzağı görür ki kule menzili dışından hedef alsın. */ siege: 14, cell: 2 };
+/** Savaş sisi: keşfedilmiş ama görünmeyen alanın karartması; güncelleme aralığı. */
+export const FOG = { exploredAlpha: 0.55, updateEvery: 0.15 };
+
+/**
+ * Kamera. panSpeed: komutan modu kaydırma hızı (birim/sn).
+ * tps: **omuz üstü (üçüncü şahıs) kamera**, V ile geçilir. dist: kahramana uzaklık; height: izlenen noktanın yüksekliği;
+ * shoulder: kahramanın ekranda ortadan kayması (sağ omuz üstü); fov: görüş açısı (derece); sens: fare duyarlılığı
+ * (radyan / piksel); pitch: başlangıç eğimi; pitchMin / pitchMax: yukarı-aşağı bakış sınırı (radyan); minY: kameranın
+ * inebileceği en düşük yükseklik; follow: kameranın kahramanı izleme sertliği; aimFar: artı zemine değmezse nişanın
+ * ileriye alındığı uzaklık; viewDist: omuz üstünde görüş mesafesi (birim); fogNear: sahne pusunun başladığı uzaklık.
+ */
+export const CAMERA = {
+  panSpeed: 46,
+  tps: { dist: 9, height: 2.4, shoulder: 0.9, fov: 62, sens: 0.0022, pitch: 0.42, pitchMin: -0.3, pitchMax: 1.15, minY: 0.9, follow: 18, aimFar: 40,
+    /** Omuz üstünde savaş sisi düzlemi yok: düşman birim / yapı kahramana bu uzaklıktan yakınsa görünür, sahne pusu bu uzaklıkta tam kapanır. */
+    viewDist: 90, fogNear: 30 },
+};
+
+/**
+ * Komut kısayolu yok: üretim, inşa, emirler, kahraman geliştirme ve mod geçişi yalnızca alt banttaki düğmelerle yapılır
+ * (mod geçişi sancak seçiliyken, kahraman sancağa yakınken). Klavyede yalnızca WASD / ok tuşları, Shift, Boşluk ve Esc vardır.
+ */
+export const KEYS = {};
+
+/**
+ * Kahraman geliştirme (sancak seçiliyken, kahraman sancağa yakınken): altınla seviye atlar ya da bir asker türüne dönüşür.
+ * Tür değişince seviye 1'e döner. Oyun sabit bir kahramanla (startLoadout) başlar; başlangıçta yalnızca zorluk seçilir.
+ * Can **altınla doldurulmaz**: kahraman yalnızca **kendi sancağının alanında** (BUILD.bannerRadius) durdukça
+ * yavaşça iyileşir (regenPerSecond can/sn). Başka hiçbir yol canı doldurmaz; yiyecek yalnızca envantere girer,
+ * seviye atlamak da can doldurmaz. Yeniden doğunca can tabii ki dolu başlar.
+ */
+/** Sancaktaki kahraman menüsü: tür değişimi ve can doldurma altınla; **seviye altınla alınmaz** (exp ile gelir). */
+export const HERO_UPGRADE = {
+  /** Sancak alanında saniyede kazanılan can ve tepede çıkan can baloncuklarının aralığı (saniye). */
+  range: 12, regenPerSecond: 9, bubbleEvery: 0.28, startLoadout: { weapon: 'sword', shield: false, horse: false },
+  /**
+   * Tür değiştirme bedeli: en ucuz tür (yaya kılıç / mızrak) convertBase altındır; donanım eklendikçe belirgin artar.
+   * Yay + kalkan + at üst üste binebilir (en pahalı: kalkanlı atlı 3000 altın).
+   */
+  convertBase: 1000, convertBow: 600, convertShield: 800, convertHorse: 1200,
+};
+/** Kahramanın o türe dönüşme bedeli (altın): taban + yay / kalkan / at ek ücretleri. */
+export const heroConvertCost = t =>
+  HERO_UPGRADE.convertBase
+  + (t.weapon === 'bow' ? HERO_UPGRADE.convertBow : 0)
+  + (t.shield ? HERO_UPGRADE.convertShield : 0)
+  + (t.horse ? HERO_UPGRADE.convertHorse : 0);
+
+export const ENEMY = {
+  aggro: 16,
+  /** Oyuncunun öldürdüğü düşman başına altın. */
+  bounty: 2,
+};
+
+/**
+ * Rakip kahraman: kaynak toplar, keşfe çıkar, bina yerine gider ve görüşüne giren düşman askerine saldırır
+ * (alan vuruşu, asker hasarı); canı fightHpRatio'nun altına inince dövüşü bırakıp kaçar. Kendi öldürdüklerinden exp
+ * kazanır; geride kalırsa her karar turunda bir seviye alarak oyuncunun seviyesine çekilir (bedeli yok).
+ */
+export const ENEMY_HERO = {
+  /** `respawn`: rakip kahramanın ilk ölümündeki bekleme; sonraki ölümlerde RESPAWN.step kadar uzar. */
+  hp: 200, speedMult: 1.15, respawn: 8, fightHpRatio: 0.35,
+  /** Kaç saniyede bir harcama yapmayı dener; bir binada aynı anda en fazla kaç emir bekletir. */
+  spawnCheck: 3, queueDepth: 2,
+  /** Düşman bu mesafeye girince toplamayı bırakıp uzaklaşır. */
+  fleeRadius: 5,
+};
+
+/**
+ * Rakip yapay zekâsı: oyuncuyu bire bir taklit eder. Her karar turunda oyuncunun işçi (türe göre), asker
+ * (canlı + sırada), bina (türe göre sayı) ve kule sayılarını okur; aynı sayıları hedefler ve asla aşmaz
+ * (extra payı 0). Binalarını kendi kahramanının yanına diker: kahraman uzaktaysa oraya yollanır. Askerlerini
+ * toplanma noktasında biriktirir; ordusu oyuncununkine ulaşınca topluca saldırır, eriyince geri çekilip yeniden birikir.
+ */
+export const ENEMY_AI = {
+  /** Oyuncunun sayılarına eklenen pay (zorluğa göre). 0 = tam eşleme. */
+  extra: { easy: { workers: 0, army: 0, towers: 0 }, normal: { workers: 0, army: 0, towers: 0 }, hard: { workers: 0, army: 0, towers: 0 } },
+  minWorkersPerKind: 1,
+  /**
+   * Ordu hedefi: oyuncunun asker sayısının armyMult katı (canlı + sırada). Saldırıya kalkmak için en az minWave asker ve
+   * oyuncununkine denk sayı gerekir. Saldırıdayken ordu oyuncununkinin altına inince, kalkış sayısının retreatRatio'suna
+   * düşünce ya da ordu merkezinin crowdRadius çevresindeki mavi savaşçılar kendi sayısının crowdRatio katını aşınca
+   * kulelerinin dibine çekilir (toplanma noktası: sancağa en yakın kule; kule yoksa sancak önü).
+   */
+  armyMult: 2, minWave: 4, retreatRatio: 0.35, crowdRadius: 18, crowdRatio: 1.2,
+  /** Oyuncunun asker türlerini bu olasılıkla kopyalar; kalanında sırayla basar. */
+  copyChance: 0.75,
+  /** Önce bu olasılıkla oyuncunun **en kalabalık türünün antisini** basar (zorluğa göre); tutmazsa kopyala / sırayla. */
+  counterChance: { easy: 0.2, normal: 0.5, hard: 0.8 },
+  /** Toplanma noktası kule yoksa: sancaktan merkeze doğru uzaklık. Kule varsa en ileri kulenin oyuncuya doğru towerOffset önü. */
+  rallyDist: 12, towerOffset: 3,
+  /** Saldırıda olmayan asker toplanma noktasından bu kadar uzaksa geri çağrılır (kule zinciri ilerleyince öne toplanırlar). */
+  regroupDist: 8,
+  /** Rakip kahramanın keşfi: ilk keşif, keşifler arası süre, bir keşfin en uzun süresi (sn). Rakip yalnızca gördüğü yapılara saldırır. */
+  scoutFirst: 20, scoutEvery: 40, scoutTime: 30,
+  /** Ek bina yerleri (sırayla, boş olan ilki). Ek kuleler yol üstüne kurulur (bkz. creep), sabit yer listesi yok. */
+  buildSpots: [{ back: 4, side: 19 }, { back: 17, side: -11 }, { back: 22, side: 4 }, { back: 4, side: -19 }, { back: 24, side: -8 }, { back: 26, side: 12 }],
+  /**
+   * Kule zinciri: taklit hedefleri tamamsa rakip, en ileri kulesinden mavi sancağa doğru step adımla yeni kule dikerek
+   * ilerler (parite üstü, en çok maxTowers kule); mavi sancağın çemberine (stopDist = BUILD.bannerRadius) girmez:
+   * rakip sancak çemberine kule dikmek iki taraf için de yasaktır (bkz. placementError). Mavi kule menzilinin (+ avoidTower)
+   * içine kule dikmez (kahraman inşaya giderken ölmesin). Odun biriktirmek için oduncu hedefine extraWoodcutters ekler.
+   */
+  creep: { step: 20, stopDist: 30, maxTowers: 10, avoidTower: 4, extraWoodcutters: 3 },
+  /**
+   * Kule kuralı: sende ayakta kule varken rakip, canlı bir mancınığı yoksa saldırıya kalkmaz, saldırıdaysa çekilir
+   * (savaş aletleri kurup mancınık için kaynak biriktirir). Askerleri kulelere hiç vurmaz ve kule menzilinin
+   * towerMargin kadar dışında kalır; mancınık varsa ordu onun yanında (escortDist) ilerler ve onu korur.
+   */
+  towerMargin: 2.5, escortDist: 4,
+};
+
+export const ECONOMY = {
+  /** Başlangıç envanteri (her iki taraf). Kaynaklar envanterde birikir: altın + yiyecek asker, altın işçi, odun bina. */
+  start: { gold: 60, wood: 60, food: 40 },
+  /** Kaynak noktaları tükenmez: çalışan işçi çevreye bir ürün fırlatır, sonra onu alır. Bir altın ürünü bu kadar altın. */
+  gold: { value: 7 },
+  /** Yiyecek yalnızca envantere girer; kahramanı iyileştirmez (can yalnızca sancak alanında yenilenir). */
+  /** Ölen asker çevreye bu kadar yiyecek bırakır; ganimet saçılma yarıçapı. Ganimeti yalnızca kahramanlar toplar. */
+  loot: { soldierFood: 2, scatter: 2.2 },
+  /** Çalışma süreleri (saniye) ve ürünün fırlatıldığı mesafe. */
+  work: { time: 1.0, heroTime: 1.0, throwMin: 1.0, throwMax: 1.6, spotRadius: 0.9, /** Kahramanın aynı düğüme vuruşları arasındaki en az süre. */ hitCooldown: 0.5 },
+  /** İşçilerin ve seviye 1 kahramanın ürün alma yarıçapı (birim); kahramanda seviyeyle büyür (bkz. LEVEL.pickPerLevel). */
+  pickRadius: 2.5,
+  /** Oyuncu ölünce kaybedilen altın oranı. */
+  deathGoldLoss: 0.2,
+};
+
+export const POSITIONS = {
+  playerBanner: { x: -88, z: 52 },
+  enemyBanner: { x: 88, z: -52 },
+  /** Üs yerleşimi sancağa göre: back = merkezden uzağa, side = ona dik. */
+  base: {
+    farm: { back: 9, side: 7 }, mine: { back: 9, side: -7 }, woods: { back: 12, side: 0, radius: 4.5, trees: 8 },
+    /** Başlangıç kışlası ve rakibin sonradan kuracağı binaların yerleri. */
+    barracks: { back: 0, side: 13 }, archery: { back: 0, side: -13 }, stable: { back: 17, side: 11 }, siege: { back: 21, side: 0 },
+  },
+  /** Kuleler: ana hatta %35, kanat hatlarında köşeye doğru %60. */
+  towers: { mainT: 0.35, flankT: 0.6 },
+  /**
+   * Haritanın ortasındaki tarafsız madenler: bitişik bir küme. Küme merkezi, ana yolun dışında kalsın diye
+   * harita merkezinden yola dik yönde offset kadar kaydırılır; üç maden spread yarıçaplı üçgende yan yana durur.
+   */
+  centerMines: { offset: 8, spread: 1.9 },
+};
+
+/**
+ * Kahramanın yeniden doğuşu: **her ölümde süre uzar**. İlk ölüşte taban süre (oyuncu `base`, rakip kahraman
+ * `ENEMY_HERO.respawn`), sonraki her ölümde üstüne `step` saniye eklenir, en çok `max`. Ölüm sayısı her iki
+ * kahramanda ayrı sayılır (`e.deaths`) ve yeni oyunda sıfırlanır.
+ */
+export const RESPAWN = { base: 5, step: 4, max: 30 };
+/** Kaçıncı ölümse (1 = ilk ölüm) o ölümün bekleme süresi. */
+export const respawnDelay = (deaths, base = RESPAWN.base) => Math.min(RESPAWN.max, base + RESPAWN.step * Math.max(0, (deaths || 1) - 1));
+
+/**
+ * Tarafsız yaratıklar: iki tarafa da düşmandırlar (faction 'beast'), yollardan ve üslerden uzakta,
+ * inlerin (den) çevresinde yaşarlar. İnlerinden leash kadar uzaklaşmaz, aggro yarıçapına gireni döverler.
+ * Ölünce bol exp bırakırlar (LEVEL.xp.beast): kahramanın asker basmadan da gelişme yolu budur.
+ * Her in respawn saniyede bir eksik yaratığını tamamlar; sayıları perDen'i geçmez.
+ */
+/**
+ * Tarafsız kamplar (faction 'beast'): haritada yollardan ve iki üsten uzak `count` kamp kurulur. Her kampın
+ * çevresinde **her türden** muhafız asker bekler; muhafızlar kamptan uzaklaşmaz, yalnızca yaklaşanı döverler.
+ * Kampların `raidersPerSide` kadarı **maviye**, o kadarı da **kırmızıya** akıncıdır: kampın üstündeki geri sayım
+ * (waveTime) dolunca bir dalga çıkarır — her türden asker + bir **mancınık** — ve o tarafın **kulelerine** saldırır.
+ * Kamp yıkılınca yerinde yıkıntısı kalır ve `respawn` saniye sonra yeniden kurulur; kurulunca geri sayım baştan
+ * başlar. Yani kampı yıkmak o taraftan `respawn` saniyelik rahatlık kazandırır.
+ */
+export const CAMPS = {
+  /** İki kamp: **boş köşelerde** (senin ve botun üssünün olmadığı iki köşe) kurulur, biri sana biri bota akın eder. */
+  count: 2, waveTime: 60, respawn: 300, hp: 900,
+  /** Kampın çevresinde bekleyen muhafızlar (her türden); dakikada **bir** asker doğar (guardEvery). */
+  guards: ['sword', 'spear', 'bow', 'swordshield', 'horsesword'], guardEvery: 60,
+  /** Akın dalgası: bu askerler + bir mancınık. Kamp kurulduktan/yeniden kurulduktan 1 dk (waveTime) sonra başlar. */
+  wave: ['sword', 'spear', 'bow', 'horsesword'],
+  /** Köşe arayışı: köşeden bu kadar içeride, yoldan minLaneDist uzakta uygun bir yer aranır. */
+  cornerSearch: 34, minLaneDist: 20, edge: 16,
+  /** Muhafız kampını bu yarıçapta korur; bu mesafeye gireni kovalar, leash dışına çıkmaz. */
+  aggro: 12, leash: 18,
+};
+
+/**
+ * Haydutlar: araziye serpiştirilmiş, **yerinden kıpırdamayan** tarafsız askerler. Yollardan ve üslerden uzakta
+ * dururlar, yalnızca `aggro` yarıçapına **yaklaşana** saldırırlar ve `leash` dışına çıkmazlar (kamp akınlarına
+ * katılmazlar). Sayıları `max`'a ulaşana dek `spawnEvery` saniyede bir yenisi belirir.
+ */
+export const BANDITS = {
+  initial: 8, max: 16, spawnEvery: 45,
+  types: ['sword', 'spear', 'bow', 'swordshield', 'spearshield', 'horsesword'],
+  minLaneDist: 22, minBannerDist: 45, minGap: 9, edge: 14,
+  aggro: 9, leash: 11,
+};
+
+/**
+ * Saldırı uyarısı: kendi **sancağın** ya da **kulen** vurulduğunda ekranın kenarları hafifçe kızarır, vurulan
+ * yerde kırmızı bir halka belirip söner ve minimapte aynı noktada genişleyen kırmızı halkalar çıkar.
+ * Aynı yapı için uyarı `cooldown` saniyede bir tazelenir; minimap halkası `mapLife` saniye yaşar.
+ */
+export const ALERT = { cooldown: 1.5, flash: 1.1, mapLife: 1.6, worldRing: 6 };
+
+export const PLAYER_RESPAWN = RESPAWN.base;
+
+export const COLORS = {
+  blue: '#447dab', bluePlayer: '#3f8fd0', blueShield: '#356887', blueBanner: '#3f8fd0',
+  red: '#ad5542', redBow: '#897048', redShield: '#934b38', redBanner: '#c9503e',
+  /** Tarafsız yaratık: yosun yeşili gövde, koyu kafa. */
+  beast: '#5f7a43', beastHead: '#33411f',
+};
+
+/** Kahramanın takipli okları: saniyede en fazla bu kadar radyan döner. */
+export const HOMING_TURN = 5.5;
+
+/** Otomatik vuruş: menzildeki en yakın düşmana kendiliğinden saldırır. */
+
+/** Zorluk: rakip kahramanın topladığı kaynakların çarpanı. */
+export const DIFFICULTY = {
+  easy: { label: "Kolay", resourceMult: 0.5 },
+  normal: { label: "Normal", resourceMult: 1 },
+  hard: { label: "Zor", resourceMult: 2 },
+};
+
+/**
+ * Kahraman seviyesi (öldürme ya da sancakta altın): yalnızca can ve vuruş alanı artar (hasar ve hız sabit).
+ * Kılıç / mızrakta menzil seviye başına reachPerLevel, yay arcPerLevel büyür (en çok maxReachMult kat);
+ * yaylı kahraman **seviyesi kadar** ok atar (sv 1: 1 ok, sv 12: 12 ok).
+ */
+export const LEVEL = {
+  /** Seviye başına: +10 can ve **+%8 vuruş gücü** (yakın vuruş da ok da); hız değişmez. */
+  hpPerLevel: 10, damagePerLevel: 0.08, speedPerLevel: 0,
+  /**
+   * Seviye **altınla alınmaz**: ölen her birim yere bir **exp küresi** bırakır; küreyi toplayan kahraman (kim öldürmüş
+   * olursa olsun) tecrübe kazanır ve yeter sayıya ulaşınca kendiliğinden seviye atlar. Bir seviyenin bedeli xpBase + xpGrowth x (seviye - 1) exp'tir (sv 1→2: 30,
+   * 2→3: 45, 3→4: 60 …), yani üst seviyeler gitgide daha çok öldürme ister. Artan exp bir sonraki seviyeye sayılır.
+   */
+  xpBase: 30, xpGrowth: 15,
+  /**
+   * Ölen birimin ve yıkılan yapının yere bıraktığı exp; küreyi toplayan kahraman kazanır.
+   * **Kahraman ve kule en değerli hedeflerdir**: onları düşürmek seviye atlatır. Kendi yapını yıkmak exp vermez.
+   */
+  xp: { soldier: 10, cavalry: 24, worker: 4, siege: 14, hero: 120, tower: 90, building: 30, beast: 35, camp: 150 },
+  /** Kahraman ne kadar yüksek seviyedeyse ölünce o kadar çok exp bırakır: hero + bu değer x (seviye - 1). */
+  xpHeroPerLevel: 25,
+  /** Büyük exp ödülleri tek kürede yığılmasın diye bu boyutta kürelere bölünür. */
+  xpOrbMax: 30,
+  /** Seviye sınırsız: altın yettikçe atlanır; rakip kahraman da oyuncunun seviyesine çıkar. */
+  maxLevel: Infinity,
+  /** Vuruş alanı seviyeyle büyür (kılıç / mızrak menzili, yay açısı), en çok maxReachMult kat. */
+  reachPerLevel: 0.12, arcPerLevel: 0.1, maxReachMult: 3.0,
+  /**
+   * Yay: kahraman **seviyesi kadar** ok atar (sv 1: 1, sv 8: 8 ok); kademeli / modüler artış yok. Oklar dağılmaz,
+   * hepsi aynı hedefe gider; yalnızca çıkış noktaları yan yana kaydırılır. arrowsMax çizim yükünü sınırlar.
+   * Yay menzili ise her bowRangeEvery seviyede bowRangeStep kadar artar.
+   */
+  arrowsMax: 40, bowRangeEvery: 10, bowRangeStep: 0.2,
+  /** Kahramanın yapılara vuruşu seviye başına bu kadar artar (sınırsız). */
+  structureDamagePerLevel: 0.1,
+  /** Kahramanın kaynak toplama yarıçapı seviye başına bu kadar büyür (en çok maxPickRadius). */
+  pickPerLevel: 0.2, maxPickRadius: 14,
+  /** Kahraman her bu kadar seviyede bir, kaynak çıkarışında bir ürün daha düşürür (sv 1-9: 1, 10-19: 2, 20-29: 3...). */
+  gatherEvery: 10,
+  /** Sağ tık hortumunun yarıçapı her dashEvery seviyede dashPerStep kadar büyür (sv 10: +%10, sv 20: +%20…). */
+  dashEvery: 10, dashPerStep: 0.1,
+};

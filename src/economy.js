@@ -1,0 +1,667 @@
+import * as T from '/vendor/three.module.js';
+import { ball, box, mesh, removeGroup } from './builders.js';
+import { applyLevelUp, buildView, createEntity } from './characters.js';
+import { burst, ring } from './combat.js';
+import { ANTI, BANDITS, BUILD, BUILDINGS, CAMPS, DIFFICULTY, ECONOMY, ENEMY_AI, ENEMY_HERO, HALF, HERO_UPGRADE, LEVEL, LIMITS, POSITIONS, SIEGE, SOLDIER_BASE, SOLDIER_TYPES, TOWER, VISION, WORKER } from './config.js';
+import { giveOrder, inBlueTowerRange } from './ai.js';
+import { armyCount, bestProducer, classOf, enqueue, queuedOf, queuedSoldiers, workerTotal } from './production.js';
+import { rrand } from './rng.js';
+import { bannerOf, canPlace, createStructure, placementError, reviveCamp, structureCount } from './structures.js';
+
+/**
+ * Ekonomi: her üssün arkasında maden (altın), odunluk (odun) ve tarla (yiyecek).
+ * Kaynak noktaları hiç tükenmez. Bir toplayıcı (işçi, rakip kahraman ya da oyuncu) çalışma
+ * yerinde durup çalışır; süre dolunca çevreye bir ürün fırlar. Ürün alındığı anda envantere girer
+ * (taşıma yok): altın + yiyecek asker basar, altın + odun bina kurar. Ölen asker yiyecek, yıkılan
+ * yapı odun bırakır (ganimet, base=null): bunları yalnızca kahramanlar toplar. Rakibin altını zorluk çarpanıyla ölçeklenir.
+ */
+export function createEconomy() {
+  return { ...ECONOMY.start, hintTimer: 0, soldiersSpawned: 0, work: { spot: null, timer: 0 } };
+}
+export function createEnemyEconomy() {
+  return { ...ECONOMY.start, soldiersSpawned: 0, spawnTimer: 2, typeIndex: 0, attacking: false, launchSize: 0 };
+}
+const bagOf = (world, faction) => (faction === 'blue' ? world.eco : world.enemyEco);
+export function enemyMult(world) { return DIFFICULTY[world.difficulty].resourceMult; }
+
+const SOLDIER_ONLY = SOLDIER_TYPES.filter(t => !t.worker);
+const WORKER_TYPES = SOLDIER_TYPES.filter(t => t.worker);
+
+// ---------- Çalışma yerleri ve ürünler ----------
+
+/** Üs yerleşiminden çalışma yerlerini kurar. Yerler kalıcıdır; ürün çalışmayla üretilir. */
+export function initResources(world) {
+  world.spots = []; world.items = [];
+  for (const faction of ['blue', 'red']) {
+    const base = world.bases[faction];
+    const add = (kind, list) => { for (const s of list) world.spots.push({ kind, base: faction, x: s.x, z: s.z, pos: new T.Vector3(s.x, 0, s.z) }); };
+    add('gold', base.mineSlots); add('wood', base.woodSlots); add('food', base.farmSlots);
+  }
+}
+
+export function clearResources(world) {
+  for (const it of world.items) removeGroup(it.g);
+  world.items.length = 0;
+}
+
+/** Çalışma yerinden çevreye bir ürün fırlatır; yere düşünce alınabilir. */
+export function produceItem(world, spot, claimedBy = null) {
+  const g = new T.Group(); g.position.set(spot.x, 0.6, spot.z); g.rotation.y = rrand(0, 6); world.scene.add(g);
+  if (spot.kind === 'gold') {
+    ball(g, '#f3c53d', 0, 0.28, 0, 0.32, 0.26, 0.3); ball(g, '#e2ad2c', 0.25, 0.2, 0.15, 0.2, 0.18, 0.2); ball(g, '#f7d76a', -0.2, 0.18, -0.15, 0.16);
+  } else if (spot.kind === 'wood') {
+    box(g, '#7a5433', 0, 0.2, 0, 0.32, 0.32, 1.3);
+    box(g, '#8c6238', 0.3, 0.2, 0.1, 0.3, 0.3, 1.1);
+    for (const z of [-0.65, 0.65]) mesh(g, new T.CircleGeometry(0.16, 8), '#d8b78a', 0, 0.2, z).rotation.y = z > 0 ? 0 : Math.PI;
+  } else if (spot.kind === 'xp') {
+    // Exp küresi: mor, hafifçe parlayan bir kristal; yalnızca kahramanlar toplar.
+    ball(g, '#c48bff', 0, 0.42, 0, 0.26, 0.42, 0.26);
+    ball(g, '#e7d0ff', 0, 0.42, 0, 0.14, 0.24, 0.14);
+    ball(g, '#9a5cf0', 0, 0.1, 0, 0.2, 0.1, 0.2);
+  } else {
+    for (let i = 0; i < 7; i++) { const a = (i / 7) * Math.PI * 2, r = 0.22; box(g, '#c9b45c', Math.cos(a) * r, 0.45, Math.sin(a) * r, 0.08, 0.9, 0.08); ball(g, '#e6d27a', Math.cos(a) * r * 1.3, 0.95, Math.sin(a) * r * 1.3, 0.1, 0.22, 0.1); }
+    box(g, '#7a5433', 0, 0.35, 0, 0.62, 0.08, 0.62).rotation.y = 0.4;
+  }
+  const glow = mesh(g, new T.RingGeometry(0.4, 0.5, 20), itemColor(spot.kind), 0, 0.03, 0);
+  glow.rotation.x = -Math.PI / 2; glow.castShadow = false;
+  glow.material = new T.MeshBasicMaterial({ color: glow.material.color.clone(), transparent: true, opacity: 0.35, side: T.DoubleSide });
+  const a = rrand(0, Math.PI * 2), d = rrand(ECONOMY.work.throwMin, ECONOMY.work.throwMax);
+  const item = {
+    kind: spot.kind, base: spot.base, amount: spot.amount || 0, pos: g.position, g, claimedBy, taken: false, phase: rrand(0, 6),
+    fly: { fx: spot.x, fz: spot.z, tx: spot.tx ?? spot.x + Math.cos(a) * d, tz: spot.tz ?? spot.z + Math.sin(a) * d, t: 0, dur: 0.45 },
+  };
+  burst(world, spot.x, 1, spot.z, itemColor(spot.kind), 5, 0.08);
+  world.items.push(item);
+  return item;
+}
+
+const itemColor = kind => (kind === 'gold' ? '#f3c53d' : kind === 'wood' ? '#c9a06a' : kind === 'xp' ? '#c48bff' : '#bfe59a');
+/** Ekrandaki "+N" yazısının simgesi. */
+const itemIcon = kind => (kind === 'gold' ? '◉' : kind === 'wood' ? '🪵' : kind === 'xp' ? 'exp' : '🌾');
+
+/**
+ * Kahraman bir kaynak düğümüne (maden / ağaç / tarla) vurdu: düğümün kenarından ona doğru ürün düşer.
+ * Seviyeli kahraman her vuruşta daha çok ürün çıkarır (bkz. heroGather).
+ */
+export function hitNode(world, node, attacker) {
+  if (node.hitCd > 0) return false;
+  node.hitCd = ECONOMY.work.hitCooldown;
+  const dx = attacker.pos.x - node.pos.x, dz = attacker.pos.z - node.pos.z, d = Math.hypot(dx, dz) || 1;
+  const edge = Math.max(0, Math.min(d - 0.4, node.radius));
+  const spot = { kind: node.kind, x: node.pos.x + dx / d * edge, z: node.pos.z + dz / d * edge, base: attacker.faction };
+  const n = heroGather(attacker);
+  for (let i = 0; i < n; i++) produceItem(world, spot);
+  burst(world, spot.x, 1.2, spot.z, node.kind === 'wood' ? '#8fbf6a' : node.kind === 'gold' ? '#c9c9d4' : '#e6d27a', 6 + n * 2, 0.1);
+  return true;
+}
+
+function removeItem(world, item) {
+  item.taken = true;
+  removeGroup(item.g);
+  const i = world.items.indexOf(item); if (i >= 0) world.items.splice(i, 1);
+}
+
+// ---------- Kaynak etkileri ----------
+
+const near = (a, b, r) => Math.hypot(a.x - b.x, a.z - b.z) < r;
+
+/** Kahramanın bir kaynak çıkarışında düşen ürün sayısı: her LEVEL.gatherEvery seviyede bir fazla. */
+export const heroGather = e =>
+  (e.isPlayer || e.isHero ? 1 + Math.floor(e.level / LEVEL.gatherEvery) : 1);
+
+/** Ürün alma yarıçapı: işçilerde sabit, kahramanlarda seviyeyle büyür. */
+export const pickRadiusOf = e =>
+  (e.isPlayer || e.isHero ? Math.min(LEVEL.maxPickRadius, ECONOMY.pickRadius + LEVEL.pickPerLevel * (e.level - 1)) : ECONOMY.pickRadius);
+
+/** Ganimet: ölen asker / yıkılan yapı çevreye kaynak saçar (base=null: yalnızca kahramanlar toplar). */
+export function dropLoot(world, kind, x, z, count) {
+  for (let i = 0; i < count; i++) {
+    const a = rrand(0, Math.PI * 2), d = rrand(0.6, ECONOMY.loot.scatter);
+    produceItem(world, { kind, x, z, base: null, tx: x + Math.cos(a) * d, tz: z + Math.sin(a) * d });
+  }
+}
+
+/**
+ * Ölen birimin bıraktığı exp küresi: yere düşer, yalnızca kahramanlar (oyuncu ve rakip kahraman) toplar.
+ * Kim öldürdüğünden bağımsızdır — küreyi kapan kahraman tecrübeyi alır.
+ */
+export function dropXp(world, x, z, amount) {
+  if (!(amount > 0)) return;
+  // Büyük ödüller (kahraman, kule) tek kürede kalmasın: LEVEL.xpOrbMax boyutunda kürelere bölünür.
+  const orbs = Math.max(1, Math.ceil(amount / LEVEL.xpOrbMax)), each = amount / orbs;
+  for (let i = 0; i < orbs; i++) {
+    const a = rrand(0, Math.PI * 2), d = rrand(0.5, 1.4 + orbs * 0.3);
+    produceItem(world, { kind: 'xp', x, z, base: null, amount: each, tx: x + Math.cos(a) * d, tz: z + Math.sin(a) * d });
+  }
+}
+
+/**
+ * Toplanan ürün anında envantere girer (exp ise toplayan kahramana yazılır). Altın rakip için zorluk çarpanıyla
+ * ölçeklenir. `taker` verilirse mavi kahraman için ekranda "+N" yazısı çıkar.
+ */
+function collect(world, faction, it, k = 1, taker = null) {
+  const bag = bagOf(world, faction), blue = faction === 'blue';
+  const float = (n, kind) => { if (taker && taker.isPlayer) world.ui.float(`+${n} ${itemIcon(kind)}`, taker.pos, itemColor(kind)); };
+  if (it.kind === 'xp') { const n = Math.round(it.amount || 0); if (taker) world.onXpCollected(taker, n); float(n, 'xp'); return `+${n} exp`; }
+  if (it.kind === 'gold') { const g = Math.round(ECONOMY.gold.value * k); bag.gold += g; if (blue) world.ui.flash('gold'); float(g, 'gold'); return `+${g} altın`; }
+  if (it.kind === 'wood') { bag.wood++; if (blue) world.ui.flash('wood'); float(1, 'wood'); return '+1 odun'; }
+  bag.food++; if (blue) world.ui.flash('wood'); float(1, 'food');
+  return '+1 yiyecek';
+}
+
+// ---------- Ana güncelleme ----------
+
+export function updateEconomy(world, dt) {
+  const eco = world.eco, E = ECONOMY, mult = enemyMult(world), p = world.player;
+  eco.hintTimer -= dt;
+  if (world.nodes) for (const n of world.nodes) if (n.hitCd > 0) n.hitCd -= dt;
+
+  // Uçan ürünler yere düşer; altın parlar.
+  for (const it of world.items) {
+    if (it.fly) {
+      const f = it.fly; f.t += dt;
+      const k = Math.min(1, f.t / f.dur);
+      it.g.position.set(f.fx + (f.tx - f.fx) * k, 0.6 * (1 - k) + Math.sin(k * Math.PI) * 1.2, f.fz + (f.tz - f.fz) * k);
+      if (k >= 1) { it.g.position.y = 0; it.fly = null; }
+    } else if (it.kind === 'gold') { it.g.rotation.y += dt * 1.5; it.g.position.y = Math.sin(world.time * 3 + it.phase) * 0.05; }
+  }
+
+  // Oyuncu çalışması: kendi üssünün boş bir çalışma yerinde hareketsiz dur.
+  const pw = eco.work;
+  let spot = null;
+  if (p.alive && p.moveDir.lengthSq() < 0.01 && p.attackTimer <= 0) {
+    spot = world.spots.find(s => s.base === 'blue' && near(s.pos, p.pos, E.work.spotRadius + p.radius));
+  }
+  if (spot) {
+    if (pw.spot !== spot) { pw.spot = spot; pw.timer = 0; }
+    pw.timer += dt; p.working = true; p.workTimer += dt;
+    if (pw.timer >= E.work.heroTime) { pw.timer = 0; for (let i = 0; i < heroGather(p); i++) produceItem(world, spot); world.ui.ping('worker'); }
+  } else { pw.spot = null; pw.timer = 0; p.working = false; }
+
+  // Ürünleri al: etkiler anında işlenir, taşıma yok.
+  const gatherers = world.entities.filter(e => e.alive && (e.isHero || e.isWorker));
+  for (let i = world.items.length - 1; i >= 0; i--) {
+    const it = world.items[i];
+    if (it.fly) continue;
+    if (p.alive && (it.base === 'blue' || it.base === null) && near(it.pos, p.pos, p.radius + pickRadiusOf(p))) {
+      // Yiyecek de yalnızca envantere girer: kahramanın canı yalnızca sancak alanında yenilenir.
+      // "+N" yazısı kahramanın üstünde belirir (bkz. collect -> ui.float).
+      collect(world, 'blue', it, 1, p);
+      burst(world, it.pos.x, 0.8, it.pos.z, itemColor(it.kind), 5, 0.08);
+      removeItem(world, it); continue;
+    }
+    for (const g of gatherers) {
+      // İşçi yalnızca kendi üssünün kendi türündeki ürününü alır; kahraman ganimeti de alır.
+      if (!(it.base === g.faction || (g.isHero && it.base === null)) || !near(it.pos, g.pos, g.radius + pickRadiusOf(g))) continue;
+      if (g.workerKind && g.workerKind !== it.kind) continue;
+      const red = g.faction === 'red';
+      const note = collect(world, g.faction, it, red ? mult : 1, g);
+      if (!red && (it.kind !== 'gold' || Math.random() < 0.25)) world.ui.say(`${g.workerKind === 'wood' ? 'Oduncu' : g.workerKind === 'gold' ? 'Madenci' : 'Çiftçi'}: ${note}`, 900);
+      if (g.work && g.work.item === it) g.work.item = null;
+      burst(world, it.pos.x, 0.7, it.pos.z, itemColor(it.kind), 4, 0.08);
+      removeItem(world, it); break;
+    }
+  }
+}
+
+// ---------- Tarafsız kamplar ve haydutlar ----------
+
+/** Yerleşim uygun mu: yoldan, sancaklardan, çalışma yerlerinden uzak ve boş bir nokta. */
+function freeNeutralSpot(world, x, z, radius, minLane, minBanner, others, minGap) {
+  const lanes = world.lanePoints || [];
+  if (Math.abs(x) > HALF - 12 || Math.abs(z) > HALF - 12) return false;
+  if (lanes.some(p => Math.hypot(p.x - x, p.z - z) < minLane)) return false;
+  if (world.structures.some(s => s.kind === 'banner' && Math.hypot(s.pos.x - x, s.pos.z - z) < minBanner)) return false;
+  if (world.spots.some(s => Math.hypot(s.x - x, s.z - z) < 10)) return false;
+  if (others.some(o => Math.hypot(o.x - x, o.z - z) < minGap)) return false;
+  return !canPlace(world, x, z, radius);
+}
+
+/**
+ * İki tarafsız kamp: haritanın **boş köşelerine** kurulur — mavi üs (-x, +z) ve kırmızı üs (+x, -z) köşelerinde
+ * olduğundan kamplar (-x, -z) ve (+x, +z) köşelerine gider. Her kamp en yakın sancağın tarafına **akıncıdır**:
+ * kurulduktan CAMPS.waveTime sonra her türden asker + bir mancınık çıkarıp o tarafın kulelerine saldırır.
+ */
+export function initCamps(world) {
+  const C = CAMPS, r = BUILDINGS.camp.radius + 1;
+  const lim = HALF - C.edge;
+  const corners = [
+    { x: POSITIONS.playerBanner.x, z: POSITIONS.enemyBanner.z },
+    { x: POSITIONS.enemyBanner.x, z: POSITIONS.playerBanner.z },
+  ];
+  const spots = [];
+  for (const c of corners) {
+    let best = null;
+    for (let tries = 0; tries < 3000 && !best; tries++) {
+      const x = Math.max(-lim, Math.min(lim, c.x + rrand(-C.cornerSearch, C.cornerSearch)));
+      const z = Math.max(-lim, Math.min(lim, c.z + rrand(-C.cornerSearch, C.cornerSearch)));
+      if (freeNeutralSpot(world, x, z, r, C.minLaneDist, 30, spots, 20)) best = { x, z };
+    }
+    if (best) spots.push(best);
+  }
+  const camps = spots.map(p => {
+    const s = createStructure(world, 'camp', 'beast', p.x, p.z, { instant: true });
+    s.waveTimer = CAMPS.waveTime; s.guardTimer = CAMPS.guardEvery; s.respawnTimer = 0;
+    // Hangi tarafa akın edecek: hangi sancak daha yakınsa.
+    const db = Math.hypot(p.x - POSITIONS.playerBanner.x, p.z - POSITIONS.playerBanner.z);
+    const dr = Math.hypot(p.x - POSITIONS.enemyBanner.x, p.z - POSITIONS.enemyBanner.z);
+    s.raidSide = db < dr ? 'blue' : 'red';
+    return s;
+  });
+  world.camps = camps;
+  for (const c of camps) for (const key of CAMPS.guards) spawnCampUnit(world, c, key);
+  return camps;
+}
+
+/** Kampın çevresinde tarafsız bir asker doğurur. raidSide verilirse kamptan ayrılıp o tarafın kulelerine gider. */
+export function spawnCampUnit(world, camp, typeKey, raidSide = null) {
+  const a = rrand(0, Math.PI * 2), r = camp.radius + rrand(1.6, 4);
+  const e = spawnNeutral(world, camp.pos.x + Math.cos(a) * r, camp.pos.z + Math.sin(a) * r, typeKey, { aggro: CAMPS.aggro, leash: CAMPS.leash });
+  if (!e) return null;
+  e.camp = camp; e.raidSide = raidSide;
+  e.brain.den = { x: camp.pos.x, z: camp.pos.z };
+  return e;
+}
+
+/** Tarafsız bir asker yaratır (kamp muhafızı, akıncı ya da haydut). Kendi durduğu yeri korur. */
+export function spawnNeutral(world, x, z, typeKey, { aggro = BANDITS.aggro, leash = BANDITS.leash } = {}) {
+  const type = SOLDIER_TYPES.find(t => t.key === typeKey);
+  if (!type) return null;
+  const e = createEntity({ faction: 'beast', loadout: { weapon: type.weapon, shield: type.shield, horse: type.horse }, x, z });
+  e.typeKey = type.key; e.isBeast = true; e.vision = type.siege ? VISION.soldier : aggro + 4;
+  if (type.siege) { e.isSiege = true; e.stats.maxHp = SIEGE.hp; e.hp = SIEGE.hp; e.stats.speed = SIEGE.speed; e.radius = SIEGE.radius; e.stats.radius = SIEGE.radius; }
+  e.guard = { aggro, leash };
+  e.brain = { mode: 'beast', timer: 0, target: null, retarget: 0, den: { x, z } };
+  e.spawnTimer = 0.5;
+  buildView(world.scene, e);
+  world.entities.push(e);
+  return e;
+}
+
+/** Araziye serpiştirilmiş haydutlar: yollardan ve üslerden uzak, birbirinden ayrı noktalarda dururlar. */
+export function initBandits(world) {
+  world.banditTimer = BANDITS.spawnEvery;
+  for (let i = 0; i < BANDITS.initial; i++) spawnBandit(world);
+}
+
+/** Uygun bir yere tek bir haydut koyar (yer bulunamazsa hiçbir şey yapmaz). */
+export function spawnBandit(world) {
+  const B = BANDITS, lim = HALF - B.edge;
+  const others = world.entities.filter(e => e.alive && e.isBeast).map(e => ({ x: e.pos.x, z: e.pos.z }));
+  const campSpots = (world.camps || []).map(c => ({ x: c.pos.x, z: c.pos.z }));
+  for (let tries = 0; tries < 400; tries++) {
+    const x = rrand(-lim, lim), z = rrand(-lim, lim);
+    if (!freeNeutralSpot(world, x, z, 1.2, B.minLaneDist, B.minBannerDist, [...others, ...campSpots], B.minGap)) continue;
+    const key = B.types[Math.floor(Math.random() * B.types.length)];
+    const e = spawnNeutral(world, x, z, key, { aggro: B.aggro, leash: B.leash });
+    if (e) e.isBandit = true;
+    return e;
+  }
+  return null;
+}
+
+/**
+ * Kamplar ve haydutlar:
+ *  - Kamp dakikada **bir** muhafız doğurur (eksikse) ve dakikada **bir** akın dalgası (her türden asker + mancınık)
+ *    çıkarıp hedef tarafın kulelerine yollar. Dalga sayacı kamp kurulduğunda / yeniden kurulduğunda 1 dakikadan başlar.
+ *  - Yıkık kamp CAMPS.respawn saniye sonra yerinde yeniden kurulur.
+ *  - Haydutlar BANDITS.spawnEvery saniyede bir, en çok BANDITS.max olacak şekilde araziye eklenir.
+ */
+export function updateCamps(world, dt) {
+  if (world.camps) for (const camp of world.camps) {
+    if (!camp.alive) {
+      camp.respawnTimer = Math.max(0, (camp.respawnTimer || 0) - dt);
+      if (camp.respawnTimer <= 0) {
+        reviveCamp(world, camp);
+        camp.waveTimer = CAMPS.waveTime; camp.guardTimer = CAMPS.guardEvery;
+        for (const key of CAMPS.guards) spawnCampUnit(world, camp, key);
+        if (world.fog.isVisible(camp.pos.x, camp.pos.z)) world.ui.say('Haydut kampı yeniden kuruldu: 1 dakika sonra akın başlar!', 2600);
+      }
+      continue;
+    }
+    // Dakikada bir muhafız: eksik türlerden ilkini doğurur.
+    camp.guardTimer = (camp.guardTimer || 0) - dt;
+    if (camp.guardTimer <= 0) {
+      camp.guardTimer = CAMPS.guardEvery;
+      const missing = CAMPS.guards.find(k => !world.entities.some(e => e.alive && e.isBeast && e.camp === camp && !e.raidSide && e.typeKey === k));
+      if (missing) spawnCampUnit(world, camp, missing);
+    }
+    // Dakikada bir akın dalgası: her türden asker + bir mancınık.
+    camp.waveTimer = (camp.waveTimer || CAMPS.waveTime) - dt;
+    if (camp.waveTimer > 0) continue;
+    camp.waveTimer = CAMPS.waveTime;
+    for (const key of CAMPS.wave) spawnCampUnit(world, camp, key, camp.raidSide);
+    spawnCampUnit(world, camp, 'catapult', camp.raidSide);
+    ring(world, camp.pos.x, camp.pos.z, '#8fd15a', 5, 0.8);
+    if (camp.raidSide === 'blue') { world.ui.say('Haydut kampı akına çıktı: kulelerine mancınıklı dalga geliyor!', 2600); world.ui.ping('tower'); }
+  }
+  // Haydutlar arada bir yeniden belirir.
+  world.banditTimer = (world.banditTimer || BANDITS.spawnEvery) - dt;
+  if (world.banditTimer <= 0) {
+    world.banditTimer = BANDITS.spawnEvery;
+    const n = world.entities.filter(e => e.alive && e.isBandit).length;
+    if (n < BANDITS.max) spawnBandit(world);
+  }
+}
+
+// ---------- Birim basma ----------
+
+/**
+ * İşçi sınırı (LIMITS.workers) bütün türlerin **toplamıdır** ve üretimi durdurmaz: yeni işçi çıkınca sahadaki
+ * **en kalabalık** işçi türünden bir kademe eksilir (eşitlikte yeni işçinin türü değil öbürü eksilir; kademesi 1 olan
+ * işçi ölmeden, birleşen işçi gibi sessizce sahneden kalkar). Böylece toplam sabit kalır, dağılım yeni türe kayar.
+ * Eksiltilen türün adını döndürür (üretim mesajına yazılır), gerekmediyse null.
+ */
+export function trimWorkers(world, faction, fresh = null) {
+  const LABEL = { gold: 'madenci', wood: 'oduncu', food: 'çiftçi' };
+  let removed = null;
+  for (let guard = 0; guard < 64; guard++) {
+    const by = { wood: 0, gold: 0, food: 0 };
+    let total = 0;
+    for (const e of world.entities) {
+      if (!e.alive || e.merged || e.faction !== faction || !e.isWorker) continue;
+      const n = e.tier || 1; by[e.workerKind] += n; total += n;
+    }
+    if (total <= LIMITS.workers) break;
+    // En kalabalık tür; eşitlikte yeni işçinin türü en sona kalır.
+    let kind = null, best = -Infinity;
+    for (const k of Object.keys(by)) {
+      if (!by[k]) continue;
+      const score = by[k] - (fresh && k === fresh.workerKind ? 0.5 : 0);
+      if (score > best) { best = score; kind = k; }
+    }
+    // O türden (yeni işçinin kendisi hariç) kademesi en yüksek işçiden bir kademe alınır.
+    let victim = null;
+    for (const e of world.entities) {
+      if (!e.alive || e.merged || e.faction !== faction || !e.isWorker || e.workerKind !== kind || e === fresh) continue;
+      if (!victim || (e.tier || 1) > (victim.tier || 1)) victim = e;
+    }
+    if (!victim) break;
+    if ((victim.tier || 1) > 1) victim.tier -= 1; else { victim.merged = true; victim.mergeTo = null; }
+    removed = kind;
+  }
+  return removed ? LABEL[removed] : null;
+}
+
+/**
+ * Kuyruktan çıkan birimi binanın yanında yaratır (ücret sırada ödendi). Sancak yıkıksa null.
+ */
+export function spawnUnit(world, typeKey, faction, building) {
+  const type = SOLDIER_TYPES.find(t => t.key === typeKey);
+  if (!type || !building || !building.alive) return null;
+  const blue = faction === 'blue';
+  const bag = bagOf(world, faction);
+  if (!bannerOf(world, faction).alive) return null;
+  bag.soldiersSpawned++;
+
+  // Binanın merkeze bakan tarafında doğ.
+  const toCenter = Math.atan2(-building.pos.z, -building.pos.x);
+  const a = toCenter + rrand(-1.1, 1.1), r = building.radius + rrand(1.2, 2.4);
+  const e = createEntity({ faction, loadout: { weapon: type.weapon, shield: type.shield, horse: type.horse }, x: building.pos.x + Math.cos(a) * r, z: building.pos.z + Math.sin(a) * r });
+  e.typeKey = type.key; e.rallyClass = classOf(type); e.vision = type.worker ? VISION.worker : VISION.soldier;
+  if (type.worker) {
+    e.isWorker = true; e.workerKind = type.worker;
+    e.stats.maxHp = WORKER.hp; e.hp = e.stats.maxHp; e.stats.speed = WORKER.speed;
+    e.brain = { mode: 'gather', timer: 0, target: null, retarget: 0 };
+    e.work = { spot: null, item: null };
+    // Kademe: bu işçinin temsil ettiği işçi sayısı; her çalışmada bu kadar ürün çıkarır.
+    e.tier = 1;
+    // Aynı türde sahada işçi varsa yenisi ona yürüyüp birleşir (sayı artmaz, üretim artar).
+    e.mergeTo = world.entities.find(o => o.alive && o.isWorker && o.faction === faction && o.workerKind === e.workerKind && !o.mergeTo) || null;
+  } else { e.stats.maxHp = SOLDIER_BASE.hp; e.hp = e.stats.maxHp; e.brain.order = null; e.brain.home = { x: e.pos.x, z: e.pos.z }; }
+  if (type.siege) { e.isSiege = true; e.stats.maxHp = SIEGE.hp; e.hp = SIEGE.hp; e.stats.speed = SIEGE.speed; e.radius = SIEGE.radius; e.vision = VISION.siege; }
+  e.facing = Math.atan2(-building.pos.x, -building.pos.z);
+  e.spawnTimer = 0.5;
+  buildView(world.scene, e);
+  world.entities.push(e);
+  // İşçi sınırı toplamdır: gerekiyorsa en kalabalık türden bir kademe eksilir, yeni işçi onun yerine geçer.
+  if (e.isWorker) e.replacedLabel = trimWorkers(world, faction, e);
+  const color = blue ? '#9fd6ff' : '#ffb59f';
+  burst(world, e.pos.x, 1, e.pos.z, color, 12, 0.11);
+  ring(world, e.pos.x, e.pos.z, color, 2.2, 0.5);
+  ring(world, building.pos.x, building.pos.z, color, building.radius + 3.5, 0.6);
+  building.spawnTimer = 0.35;
+  if (!blue) world.ui.flash('enemyGold');
+  return e;
+}
+
+/** Bina / kule kurar (odunla, kahramanın yakınına); odun yetmezse, kahraman uzaksa ya da yer uygun değilse sebep döner. */
+export function buildStructure(world, kind, faction, x, z, { instant = false } = {}) {
+  const spec = BUILDINGS[kind];
+  if (!spec || kind === 'banner') return 'Bilinmeyen yapı';
+  const bag = bagOf(world, faction);
+  if (!bannerOf(world, faction).alive) return 'Sancak yıkıldı, inşa edilemez';
+  if (bag.gold < spec.cost || bag.wood < spec.wood) return `Yetersiz odun: ${spec.label} ${spec.wood} odun`;
+  // Yapı sınırı: kuleler ve diğer binalar ayrı ayrı sayılır (sancak hariç).
+  const isTower = kind === 'tower', cap = isTower ? LIMITS.towers : LIMITS.buildings;
+  if (structureCount(world, faction, isTower) >= cap) return isTower ? `Kule sınırı dolu (en fazla ${cap} kule) · birini yıkabilirsin` : `Bina sınırı dolu (en fazla ${cap} bina) · birini yıkabilirsin`;
+  if (!instant) {
+    const hero = faction === 'blue' ? world.player : world.enemyHero;
+    if (!hero || !hero.alive) return 'Kahraman yerde, inşa edilemez';
+    if (Math.hypot(hero.pos.x - x, hero.pos.z - z) > BUILD.heroRadius) return `Kahramandan uzak: bina kahramanın ${BUILD.heroRadius} birim yakınına dikilir`;
+    const why = placementError(world, kind, x, z, faction);
+    if (why) return why;
+  }
+  const why = canPlace(world, x, z, spec.radius, faction);
+  if (why) return why;
+  bag.gold -= spec.cost; bag.wood -= spec.wood;
+  const s = createStructure(world, kind, faction, x, z, { instant });
+  const blue = faction === 'blue', color = blue ? '#9fd6ff' : '#ffb59f';
+  burst(world, x, 1.5, z, color, 16, 0.13);
+  ring(world, x, z, color, spec.radius + 4, 0.7);
+  world.ui.flash(blue ? 'gold' : 'enemyGold');
+  if (blue) world.ui.ping('tower');
+  return s;
+}
+
+/** Bir tarafın sayımı: işçi türü, asker sayısı ve türleri, bina türleri, kuleler. */
+function census(world, faction) {
+  const c = { workers: { wood: 0, gold: 0, food: 0 }, army: 0, types: {}, buildings: {}, towers: 0 };
+  for (const e of world.entities) {
+    if (!e.alive || e.faction !== faction || e.isPlayer || e.isHero) continue;
+    // İşçide kademe sayılır: taklit eden rakip de aynı üretim gücünü hedefler.
+    if (e.isWorker) c.workers[e.workerKind] += e.tier || 1; else { c.army++; c.types[e.typeKey] = (c.types[e.typeKey] || 0) + 1; }
+  }
+  for (const s of world.structures) {
+    if (!s.alive || s.faction !== faction) continue;
+    if (s.kind === 'tower') c.towers++; else c.buildings[s.kind] = (c.buildings[s.kind] || 0) + 1;
+  }
+  return c;
+}
+
+/**
+ * Rakip ordusunun toplanma noktası: oyuncuya **en yakın** (en ileri) ayakta kırmızı kulenin hemen önü. Ordu orada
+ * kulesinin koruması altında birikir ve saldırıya oradan çıkar; kule zinciri ilerledikçe toplanma da öne kayar.
+ * Nokta mavi kule menziline düşüyorsa kulenin arkasına çekilir. Hiç kule yoksa sancaktan merkeze doğru toplanır.
+ */
+export function enemyRally(world) {
+  const b = bannerOf(world, 'red'), target = bannerOf(world, 'blue').pos;
+  let tower = null, td = Infinity;
+  for (const s of world.structures) {
+    if (!s.alive || s.faction !== 'red' || s.kind !== 'tower') continue;
+    const d = Math.hypot(s.pos.x - target.x, s.pos.z - target.z);
+    if (d < td) { td = d; tower = s; }
+  }
+  if (tower) {
+    const dx = target.x - tower.pos.x, dz = target.z - tower.pos.z, l = Math.hypot(dx, dz) || 1;
+    for (const off of [ENEMY_AI.towerOffset, 0, -ENEMY_AI.towerOffset]) {
+      const x = tower.pos.x + (dx / l) * off, z = tower.pos.z + (dz / l) * off;
+      if (!inBlueTowerRange(world, { x, z })) return { x, z };
+    }
+    return { x: tower.pos.x, z: tower.pos.z };
+  }
+  const d = Math.hypot(b.pos.x, b.pos.z) || 1;
+  return { x: b.pos.x - (b.pos.x / d) * ENEMY_AI.rallyDist, z: b.pos.z - (b.pos.z / d) * ENEMY_AI.rallyDist };
+}
+
+/**
+ * Kule zincirinin bir sonraki yeri: en ileri kırmızı kuleden (yoksa sancaktan) mavi sancağa doğru bir adım; yer doluysa
+ * çevresinde boş nokta aranır. Mavi kule menziline yakın noktalar ve hedefe stopDist'ten yakın adımlar elenir.
+ */
+export function creepTowerSpot(world) {
+  const C = ENEMY_AI.creep, target = bannerOf(world, 'blue').pos, own = bannerOf(world, 'red').pos;
+  // En ileri kırmızı kule (yoksa sancak): zincir oradan mavi sancağa doğru ilerler.
+  let fd = Math.hypot(own.x - target.x, own.z - target.z), front = own;
+  for (const s of world.structures) {
+    if (!s.alive || s.faction !== 'red' || s.kind !== 'tower') continue;
+    const d = Math.hypot(s.pos.x - target.x, s.pos.z - target.z);
+    if (d < fd) { fd = d; front = s.pos; }
+  }
+  if (fd <= C.stopDist + 1) return null;
+  const r = BUILDINGS.tower.radius;
+  const blueTowers = world.structures.filter(s => s.alive && s.faction === 'blue' && s.kind === 'tower');
+  const safe = (x, z) => blueTowers.every(t => Math.hypot(t.pos.x - x, t.pos.z - z) > TOWER.range + C.avoidTower);
+  // Kuleler yalnızca yollara dikilebildiği için aday noktalar doğrudan yol üstünden seçilir:
+  // mavi sancağa en yakın, ileri doğru bir adımlık ve kurallara uyan yol noktası.
+  let best = null, bestScore = Infinity;
+  for (const p of world.lanePoints) {
+    const toTarget = Math.hypot(p.x - target.x, p.z - target.z);
+    if (toTarget <= C.stopDist || toTarget >= fd) continue;
+    if (Math.hypot(p.x - front.x, p.z - front.z) > C.step * 1.6) continue;
+    if (!safe(p.x, p.z)) continue;
+    if (placementError(world, 'tower', p.x, p.z, 'red')) continue;
+    if (canPlace(world, p.x, p.z, r, 'red') || placementError(world, 'tower', p.x, p.z, 'red')) continue;
+    if (toTarget < bestScore) { bestScore = toTarget; best = { x: p.x, z: p.z }; }
+  }
+  return best;
+}
+
+/** Rakip ordunun (asker) merkezi ve bu merkezin çevresindeki mavi / kırmızı savaşçı sayısı. */
+function crowdAround(world, reds) {
+  if (!reds.length) return { blue: 0, red: 0 };
+  let cx = 0, cz = 0; for (const e of reds) { cx += e.pos.x; cz += e.pos.z; } cx /= reds.length; cz /= reds.length;
+  let blue = 0, red = 0;
+  for (const e of world.entities) {
+    if (!e.alive || e.isWorker) continue;
+    if (Math.hypot(e.pos.x - cx, e.pos.z - cz) > ENEMY_AI.crowdRadius) continue;
+    if (e.faction === 'blue') blue++; else if (!e.isHero) red++;
+  }
+  return { blue, red };
+}
+
+/**
+ * Birikme / saldırı: ordu oyuncununkine denk (ve en az minWave) olunca hepsi saldırır. Saldırıdayken ordu oyuncununkinin
+ * altına inince, eriyince ya da karşısında kalabalık görünce kulelerinin dibine çekilir ve yeniden birikir.
+ */
+function updateEnemyStance(world, me, you) {
+  const en = world.enemyEco, X = ENEMY_AI.extra[world.difficulty];
+  const reds = world.entities.filter(e => e.alive && e.faction === 'red' && !e.isHero && !e.isWorker);
+  const retreat = why => {
+    en.attacking = false;
+    const r = enemyRally(world);
+    giveOrder(world, reds, { kind: 'move', x: r.x, z: r.z });
+    world.ui.say(why, 2500);
+  };
+  // Sende kule varken rakip mancınıksız yürümez: saldırıdaysa çekilir, değilse bekler ve mancınık için biriktirir.
+  const blueTowers = world.structures.some(s => s.alive && s.faction === 'blue' && s.kind === 'tower');
+  const redSiege = world.entities.some(e => e.alive && e.faction === 'red' && e.isSiege);
+  en.needSiege = blueTowers && !redSiege;
+  if (en.needSiege) { if (en.attacking) retreat('Rakip ordusu mancınıksız kulelere yürümez, çekiliyor'); return; }
+  const threshold = Math.max(ENEMY_AI.minWave, you.army + X.army);
+  if (!en.attacking) {
+    if (me.army >= threshold) { en.attacking = true; en.launchSize = me.army; world.ui.say(`Rakip ordusu (${me.army} asker) saldırıya geçti!`, 3000); }
+    return;
+  }
+  if (me.army < Math.max(2, en.launchSize * ENEMY_AI.retreatRatio)) { retreat('Rakip ordusu eridi, kulelerine çekiliyor'); return; }
+  if (me.army < you.army) { retreat('Rakip ordusu sayıca geride kaldı, kulelerine çekiliyor'); return; }
+  const c = crowdAround(world, reds);
+  if (c.blue > c.red * ENEMY_AI.crowdRatio) retreat(`Rakip ordusu kalabalık gördü (${c.blue} savaşçı), kulelerine çekiliyor`);
+}
+
+/**
+ * Rakip: oyuncuyu taklit eder. Her karar turunda oyuncunun sayımını alır ve şu sırayla hedefler:
+ * işçiler (türe göre oyuncu kadar + pay) -> binalar (oyuncuda olan bina türü kendinde yoksa kurar, ikinci kışla,
+ * eksik / eksik kalan kuleler) -> asker (oyuncunun tür dağılımını kopyalar). Bina için odun bekliyorsa asker
+ * basımı engellenmez. Askerler toplanma bayrağında birikir; saldırı kararı updateEnemyStance'ta.
+ */
+export function updateEnemyEconomy(world, dt) {
+  const en = world.enemyEco;
+  const banner = bannerOf(world, 'red');
+  if (!banner.alive) return;
+  en.spawnTimer -= dt;
+  if (en.spawnTimer > 0) return;
+  en.spawnTimer = ENEMY_HERO.spawnCheck;
+  const base = world.bases.red, X = ENEMY_AI.extra[world.difficulty];
+  const me = census(world, 'red'), you = census(world, 'blue');
+
+  // 0) Rakip kahraman da öldürdüklerinden exp kazanır; geride kalırsa tur başına bir seviye alarak oyuncuya yetişir
+  // (seviye artık altınla alınmadığı için bedeli yoktur).
+  const rh = world.enemyHero;
+  if (rh && rh.alive && rh.level < world.player.level) { applyLevelUp(rh); ring(world, rh.pos.x, rh.pos.z, '#ffb59f', 3, 0.6); }
+
+  updateEnemyStance(world, me, you);
+
+  // Saldırıda değilken ordu en ileri kulenin dibinde toparlanır; zincir ilerledikçe toplanma noktası öne kayar.
+  if (!en.attacking) {
+    const r = enemyRally(world);
+    const idle = world.entities.filter(e => e.alive && e.faction === 'red' && !e.isHero && !e.isWorker
+      && !(e.brain && e.brain.order) && Math.hypot(e.pos.x - r.x, e.pos.z - r.z) > ENEMY_AI.regroupDist);
+    if (idle.length) giveOrder(world, idle, { kind: 'move', x: r.x, z: r.z });
+  }
+
+  // 1) İşçiler: oyuncunun her türdeki işçisi kadar (+ pay).
+  for (const wt of WORKER_TYPES) {
+    const target = Math.max(ENEMY_AI.minWorkersPerKind, you.workers[wt.worker] + X.workers) + (wt.worker === 'wood' ? ENEMY_AI.creep.extraWoodcutters : 0);
+    const n = me.workers[wt.worker] + queuedOf(world, 'red', wt.key);
+    // Toplam işçi sınırı dolduysa rakip yeni işçi basmaz (yerine geçirmeyle oynamaz).
+    if (workerTotal(world, 'red') >= LIMITS.workers) break;
+    if (n < target && banner.queue.length < ENEMY_HERO.queueDepth + 1) { if (!enqueue(world, banner, wt.key, 'red')) world.ui.say(`Rakip ${wt.label.toLowerCase()} basıyor`, 1200); break; }
+  }
+
+  // 2) Binalar: her türde oyuncu kadar (kışla en az 1); bina kahramanın yanına dikilir, kahraman uzaksa oraya yollanır.
+  //    'wait' odun / kahraman bekliyor demek, asker basımını engellemez.
+  const has = kind => me.buildings[kind] || 0;
+  const hero = world.enemyHero;
+  const freeSpot = (kind, cands) => cands.find(p => !canPlace(world, p.x, p.z, BUILDINGS[kind].radius, 'red') && !placementError(world, kind, p.x, p.z, 'red')) || null;
+  const tryBuild = (kind, spot) => {
+    if (en.gold < BUILDINGS[kind].cost || en.wood < BUILDINGS[kind].wood) return 'wait';
+    if (!spot) return 'fail';
+    if (!hero || !hero.alive) return 'wait';
+    if (Math.hypot(hero.pos.x - spot.x, hero.pos.z - spot.z) > BUILD.heroRadius) { hero.errand = { x: spot.x, z: spot.z, kind, ttl: 30 }; return 'wait'; }
+    const r = buildStructure(world, kind, 'red', spot.x, spot.z);
+    hero.errand = null;
+    if (typeof r !== 'string') { world.ui.say(`Rakip ${BUILDINGS[kind].label.toLowerCase()} kuruyor`, 2000); return 'built'; }
+    return 'fail';
+  };
+  const wants = [];
+  for (const kind of ['barracks', 'archery', 'stable', 'siege']) {
+    // Savaş aletleri: sende varsa ya da kulelerini kırmak için gerekiyorsa en az 1.
+    const target = kind === 'barracks' ? Math.max(1, you.buildings.barracks || 0) : kind === 'siege' && en.needSiege ? Math.max(1, you.buildings.siege || 0) : (you.buildings[kind] || 0);
+    if (has(kind) < target) wants.push([kind, freeSpot(kind, [base.at(POSITIONS.base[kind]), ...ENEMY_AI.buildSpots.map(o => base.at(o))])]);
+  }
+  const missingTower = world.towerSpots.find(t => t.faction === 'red' && !world.structures.some(s => s.alive && s.kind === 'tower' && Math.hypot(s.pos.x - t.x, s.pos.z - t.z) < 3));
+  if (missingTower) wants.push(['tower', missingTower]);
+  // Kule zinciri (en düşük öncelik): taklit tamamsa mavi sancağa doğru bir adım daha kule.
+  const hasCatapult = world.entities.some(e => e.alive && e.faction === 'red' && e.isSiege) || queuedOf(world, 'red', 'catapult') > 0;
+  if (me.towers < ENEMY_AI.creep.maxTowers && !(en.needSiege && !hasCatapult)) { const c = creepTowerSpot(world); if (c) wants.push(['tower', c]); }
+  for (const [kind, spot] of wants) { const r = tryBuild(kind, spot); if (r === 'built') return; if (r === 'wait') break; }
+
+  // 3) Asker: oyuncunun (canlı + sırada) armyMult katı kadar; tür dağılımını kopyala, oyuncuda o tür yoksa sırayla.
+  // Mancınık gerekiyorsa (ordu sınırından bağımsız): savaş aletleri hazırsa önce mancınık; ordu oyuncuya denkse başka asker
+  // basmayıp kaynak biriktirir.
+  if (en.needSiege && !hasCatapult) {
+    const sw = bestProducer(world, 'red', 'siege'), ct = SOLDIER_ONLY.find(t => t.key === 'catapult');
+    if (sw && en.gold >= ct.cost && en.wood >= ct.wood) { if (!enqueue(world, sw, 'catapult', 'red')) world.ui.say('Rakip mancınık basıyor', 1800); return; }
+    if (me.army >= you.army) return;
+  }
+  // Taklit sınırı ve nüfus sınırı: hangisi önce dolarsa.
+  const cap = Math.min(Math.ceil((you.army + queuedSoldiers(world, 'blue')) * ENEMY_AI.armyMult) + X.army, LIMITS.army);
+  if (me.army + queuedSoldiers(world, 'red') >= cap || armyCount(world, 'red') >= LIMITS.army) return;
+  const options = SOLDIER_ONLY.filter(t => { const b = bestProducer(world, 'red', t.building); return b && b.ready && b.queue.length < ENEMY_HERO.queueDepth && en.gold >= t.cost && en.food >= t.food && en.wood >= (t.wood || 0); });
+  if (!options.length) return;
+  let pick = null;
+  // Önce anti: oyuncunun en kalabalık asker türünü tek atan bir tür (zorluğa göre olasılıkla).
+  const top = Object.entries(you.types).filter(([k]) => k !== 'catapult').sort((a, b) => b[1] - a[1])[0];
+  if (top && Math.random() < ENEMY_AI.counterChance[world.difficulty]) {
+    const counters = options.filter(t => ANTI.table[t.key] && ANTI.table[t.key].includes(top[0]));
+    if (counters.length) pick = counters[Math.floor(Math.random() * counters.length)];
+  }
+  const copy = options.filter(t => you.types[t.key]);
+  if (pick) { /* anti seçildi */ }
+  else if (copy.length && Math.random() < ENEMY_AI.copyChance) {
+    let r = Math.random() * copy.reduce((s, t) => s + you.types[t.key], 0);
+    for (const t of copy) { r -= you.types[t.key]; if (r <= 0) { pick = t; break; } }
+    pick = pick || copy[copy.length - 1];
+  } else pick = options[en.typeIndex++ % options.length];
+  if (!enqueue(world, bestProducer(world, 'red', pick.building), pick.key, 'red')) world.ui.say(`Rakip ${pick.label.toLowerCase()} basıyor`, 1400);
+}

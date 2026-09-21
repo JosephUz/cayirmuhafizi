@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Çayır Muhafızı</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div id="meadow-game">
+  <div id="mg-view">
+    <header id="mg-hud">
+      <div class="side ours">
+        <div class="title"><strong>ÇAYIR MUHAFIZI</strong></div>
+        <div class="stats">
+          <span id="mg-health" title="Kahramanın canı">♥ 140</span>
+          <span id="mg-level" title="Kahraman seviyesi (her 3 öldürmede artar)">★ 1</span>
+          <span id="mg-gold" title="Altın: asker ve işçi basar">◉ 30</span>
+          <span id="mg-wood" title="Envanter: odun (bina kurar) ve yiyecek (askerle birlikte altın + yiyecek)">🪵 40 🌾 20</span>
+          <span id="mg-workers" title="İşçilerin: toplam (en fazla 100) · madenci · oduncu · çiftçi (kademeleriyle)">👷 0/100 · ⛏ 0 🪓 0 🌾 0</span>
+          <span id="mg-army" title="Askerin: piyade · okçu · süvari · mancınık (toplam en fazla 200; sınır dolunca üretim durur)">⚔ 0/200 · 🛡 0 🏹 0 🐎 0 🪨 0</span>
+          <span id="mg-towers" title="Ayakta kulelerin (en fazla 10) ve binaların (en fazla 10)">🏰 3/10 🏠 1/10</span>
+          <span id="mg-banner-own" title="Sancağının canı">⚑ 10000</span>
+        </div>
+      </div>
+      <div class="side theirs">
+        <div class="stats">
+          <span id="mg-enemy-towers" title="Rakibin ayakta kule sayısı: kuleler durdukça sancağı can kaybetmez">🏰 3/10</span>
+          <span id="mg-banner-enemy" title="Düşman sancağının canı">⚑ 10000</span>
+        </div>
+        <div class="title"><strong>RAKİP</strong></div>
+      </div>
+    </header>
+    <div id="mg-message" role="status">Dünya hazırlanıyor…</div>
+    <div id="mg-floats" aria-hidden="true"></div>
+    <div id="mg-dragbox" hidden></div>
+    <div class="vignette"></div>
+    <div id="mg-alert" aria-hidden="true"></div>
+    <div id="mg-cross" aria-hidden="true"></div>
+
+    <div id="mg-select" class="overlay" hidden>
+      <div class="card">
+        <h2>Savaşa hazırlan</h2>
+        <p class="muted">Kılıçlı bir kahramanla başlarsın. Oyun içinde sancağını seçip <b>J</b> ile kahraman menüsünü aç: altınla seviye atla ya da istediğin asker türüne dönüş (tür değişince seviye 1'e döner).</p>
+        <fieldset class="difficulty">
+          <legend>Zorluk</legend>
+          <label><input type="radio" name="difficulty" value="easy"> Kolay <small>rakip 0.5x altın, seni birebir taklit eder</small></label>
+          <label><input type="radio" name="difficulty" value="normal" checked> Normal <small>rakip 1x altın, senden biraz fazlasını hedefler</small></label>
+          <label><input type="radio" name="difficulty" value="hard"> Zor <small>rakip 2x altın, senden çok fazlasını hedefler</small></label>
+        </fieldset>
+        <div class="row">
+          <button type="button" id="sel-start" class="primary">Savaşı başlat</button>
+          <button type="button" id="sel-cancel" hidden>Vazgeç</button>
+        </div>
+        <p class="muted keys"><b>Kahraman modu:</b> WASD hareket · Shift koş · Boşluk zıpla · <b>Sol tık: tıkladığın yöne vuruş + setine özel etki</b> (Kılıçlı girdap, Mızraklı saplama, Okçu yelpaze, atlılarda geniş kesik / hücum / koşarken atış) / yapı seç · Sağ tık: ileri atılma (seviyeyle uzar) + setine özel etki (hortum, kazık alanı, ok yağmuru, yarıp geçme, mızrak hücumu, geriye yaylım) · Maden, ağaç, tarlaya vur: kaynak düşer<br>
+        <b>Ordu:</b> Asker ucuz ve hızlı basılır · Üretim düğmesinde Shift 5, Ctrl 10 birim · Aynı türden ikinci bina üretimi paralelleştirir<br>
+        <b>Yapılar:</b> Sol tık kendi yapını seçer · <b>Çift tık</b> aynı türdeki bütün binaları seçer, üretim hepsine dağılır<br>
+        <b>Kamera:</b> <b>V</b> izometrik ↔ omuz üstü (üçüncü şahıs): fare bakışı döndürür, WASD kameraya göre, sol tık ekran ortasındaki artıya doğru vurur · <b>Orta tuş</b> fareyi serbest bırakır (imleçle seç, dik, vur), tekrar basınca kaldığı açıdan kilitler<br>
+        Kısayol yok: üretim, inşa ve kahraman geliştirme soldaki düğmelerden (geliştirme için kahraman sancağa yakın olmalı) · Esc vazgeç / duraklat</p>
+      </div>
+    </div>
+
+    <div id="mg-end" class="overlay" hidden>
+      <div class="card">
+        <h2 id="end-title">Bitti</h2>
+        <p id="end-text"></p>
+        <div class="row"><button type="button" id="end-new" class="primary">Yeni oyun</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="mg-bar">
+    <div id="mg-cmd" class="cmd" aria-label="Komutlar"></div>
+    <div id="mg-info" class="info" aria-live="polite"></div>
+    <div class="mini">
+      <canvas id="mg-minimap" aria-label="Minimap"></canvas>
+      <div class="minibtns">
+        <button type="button" id="mg-pause" title="Duraklat (Esc)">Duraklat</button>
+        <button type="button" id="mg-new" title="Karakter seçip yeni oyuna başla">Yeni oyun</button>
+        <button type="button" id="mg-cam" title="Kamera: izometrik ↔ omuz üstü (V)">🎥 Omuz üstü</button>
+        <button type="button" id="mg-full" title="Tam ekran">⛶</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script type="module" src="/game.js"></script>
+</body>
+</html>
