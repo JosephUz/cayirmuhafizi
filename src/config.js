@@ -64,40 +64,50 @@ export const SPIN = { duration: 1, tick: 0.2, damageMult: 0.5, minRadius: 2.4, b
  * Sol tık **basılı tutma = şarjlı vuruş**. Tık anında silahın normal vuruşu iner; fare delay sn'den uzun basılı kalırsa şarj
  * başlar, full sn'de dolar (kahramanın üstünde çubuk), bırakınca silaha özgü güçlü vuruş çıkar (şarj oranı c: 0..1, hasar
  * 1 + (damage - 1) x c). Şarj sırasında hız speedMult; şarjlı vuruştan sonra bekleme cooldownMult kat.
- *  - Kılıç **ağır kesik**: arc yayında tek vuruş, itme knockMult kat, kahraman lunge birim öne kayar; girdap çıkmaz.
- *  - Mızrak **delici saplama**: şerit menzilin lenMin..lenMax katına uzar, hattaki herkesi deler, en yakın hedefi pull ile çeker.
- *  - Yay **hızlı yaylım**: normal sol tık atışını (yelpaze) peş peşe shots kez, gap sn arayla yapar; şarj yarımsa atış
- *    sayısı da yarıdır. Atışlar sırasında nişan imleci izler, yani yaylımı süpürebilirsin.
+ * **Her silahta aynı kalıp**: şarjlı vuruş, o silahın normal sol tık vuruşunu **peş peşe shots kez** (gap sn arayla) yapar;
+ * şarj yarımsa atış sayısı da yarıdır (en az 1). Her vuruş normal güçtedir, hasar çarpanı yoktur. Dalgalar sırasında nişan
+ * imleci izler, yani vuruşları süpürebilirsin.
+ *  - Kılıç: 360° şok dalgası (her dalga daha geniş, sert iter).
+ *  - Mızrak: koridor dalgası (her dalga daha uzun, en yakını sana çeker).
+ *  - Yay: yaylım (yelpaze atışı).
  */
 export const CHARGE = {
   delay: 0.22, full: 0.6, minRelease: 0.15, speedMult: 0.5, cooldownMult: 1.5,
-  /** Kılıç: 360° tek ağır kesik, menzil rangeMult kat. */
-  sword: { rangeMult: 1.4, damage: 2, knockMult: 3, lunge: 0.8 },
-  /** Mızrak: koridor lenMin..lenMax kat uzar (şarja göre), 2x hasar, en yakın delinen hedef pull ile çekilir. */
-  spear: { lenMin: 1.3, lenMax: 1.8, damage: 2, pull: 7 },
+  /**
+   * Kılıç: **360° şok dalgası**, shots kez, gap sn arayla; her dalga bir öncekinden growth kadar geniş (1x, 1.2x, 1.4x menzil),
+   * vurduğunu knockMult kat iter. İlk dalgada kahraman lunge birim öne kayar.
+   */
+  sword: { shots: 3, gap: 0.14, growth: 0.2, knockMult: 3, lunge: 0.8 },
+  // knockMult yalnızca son dalgada uygulanır (bkz. abilities.chargePulse): ara dalgalar itseydi hedef menzilden çıkardı.
+  /**
+   * Mızrak: **koridor dalgası**, shots kez, gap sn arayla; her dalga bir öncekinden growth kadar uzun (1x, 1.4x, 1.8x koridor),
+   * her dalga en yakın hedefi pull ile kahramana çeker.
+   */
+  spear: { shots: 3, gap: 0.14, growth: 0.4, pull: 7 },
   /** Yay: normal yaylımı shots kez, gap sn arayla tekrarlar (tam şarjda 5 atış). */
   bow: { shots: 5, gap: 0.12 },
 };
+
 export const KIT = {
   /**
    * Girdap: çevrede 1 sn dönen bıçak çemberi (SPIN). Kılıç fırtınası: hortumla aynı alan sayıları (yarıçap, süre, tempo, hasar)
    * ama görselde durduğun yerde savrulan kılıçlar (blades tane, farklı yarıçap ve yüksekliklerde dönüp takla atar).
    */
-  sword: { label: 'Kılıçlı', primary: 'Çevre kesik', secondary: 'Kılıç fırtınası', charge: 'Ağır kesik',
+  sword: { label: 'Kılıçlı', primary: 'Çevre kesik', secondary: 'Kılıç fırtınası', charge: 'Şok dalgası',
     fieldRadius: TORNADO.radius, fieldLife: TORNADO.duration, fieldTick: TORNADO.tick, fieldDamage: TORNADO.damageMult, fieldKnock: TORNADO.knockback, blades: 10,
     primaryDesc: 'kılıç çevrende 360° döner: menzilindeki her düşman vurulur (menzil seviyeyle büyür)',
-    chargeDesc: '360° ağır kesik, menzilin 1.4 katı, 2x hasar, üç kat itme, yarım adım öne atılırsın',
+    chargeDesc: 'peş peşe 3 kez 360° şok dalgası (menzilin 1x, 1.2x, 1.4x katı), her biri normal vuruş gücünde, üç kat iter',
     secondaryDesc: `durduğun yerde ${TORNADO.duration} sn boyunca savrulan kılıçlar (${TORNADO.radius} birim yarıçap, ${TORNADO.tick} sn'de bir vuruşun ${TORNADO.damageMult} katı)` },
   /**
    * Koridor: mızrak vuruşu yay değil, bakış yönünde corridorLen x menzil uzunluğunda, corridorWidth genişliğinde bir
    * koridordur; içindeki herkes vurulur (delip geçer). Kazık alanı: hortum gibi **durduğun yerde** açılır; yerden yükselen
    * kazıklar fieldLife sn boyunca fieldTick sn'de bir yarıçaptaki herkese vuruşun fieldDamage katını verir ve dışa iter.
    */
-  spear: { label: 'Mızraklı', primary: 'Koridor', secondary: 'Kazık alanı', charge: 'Delici saplama',
+  spear: { label: 'Mızraklı', primary: 'Koridor', secondary: 'Kazık alanı', charge: 'Şok dalgası',
     corridorLen: 2, corridorWidth: 1.8,
     fieldRadius: 3.2, fieldLife: 2, fieldTick: 0.25, fieldDamage: 0.6, fieldKnock: 3, stakes: 16,
     primaryDesc: 'mızrak önüne menzilin 2 katı uzunlukta, 1.8 birim genişlikte bir koridor açar: içindeki herkes vurulur',
-    chargeDesc: 'koridor 1.8 katına uzar, hattaki herkesi 2x hasarla deler ve en yakınını sana çeker',
+    chargeDesc: 'peş peşe 3 koridor dalgası (koridorun 1x, 1.4x, 1.8x katı), her biri normal vuruş gücünde, en yakınını sana çeker',
     secondaryDesc: 'durduğun yerde 2 sn boyunca yerden kazıklar çıkar (3.2 birim yarıçap, 0.25 sn\'de bir vuruşun 0.6 katı, dışa iter)' },
   /**
    * Yelpaze: seviye kadar ok fanMax dereceye kadar dağılır, her ok kendi yönündeki (homingDeg) düşmana kilitlenir.
@@ -116,13 +126,13 @@ export const KIT = {
    * (vacuum.pull: çekme itmesi, kütleden bağımsız), böylece alanın içine toplanıp vuruşları yerler.
    */
   horsesword: { label: 'Kılıçlı Atlı', primary: 'Geniş kesik', secondary: 'Kılıç fırtınası + vakum', field: 'blades',
-    charge: 'Ağır kesik', chargeDesc: '360° ağır kesik, menzilin 1.4 katı, 2x hasar, üç kat itme',
+    charge: 'Şok dalgası', chargeDesc: 'peş peşe 3 kez 360° şok dalgası (gitgide genişler), her biri normal vuruş gücünde',
     arcMult: 1.6, knockMult: 2, vacuum: { radius: 2.4, life: 0.6, pull: 42 },
     primaryDesc: 'vuruş yayı 180°, itme iki kat: önündeki kalabalığı biçer ve savurur',
     secondaryDesc: 'durduğun yerde 2 sn savrulan kılıçlar; tık anında çevredeki düşmanlar alanın merkezine çekilir' },
   /** Hücum: vururken yavaşlamaz, hasar hıza göre artar (tam koşuda 1+chargeBonus). Mızrak hücumu: atılma bitince öne koni vuruşu. */
   horsespear: { label: 'Mızraklı Atlı', primary: 'Hücum', secondary: 'Kazık alanı + vakum', field: 'spikes',
-    charge: 'Delici saplama', chargeDesc: 'koridor 1.8 katına uzar, hattaki herkesi 2x hasarla deler ve en yakınını sana çeker',
+    charge: 'Şok dalgası', chargeDesc: 'peş peşe 3 koridor dalgası (gitgide uzar), her biri normal vuruş gücünde, en yakınını sana çeker',
     chargeBonus: 1, attackControl: 1, vacuum: { radius: 2.4, life: 0.6, pull: 42 },
     primaryDesc: 'vururken yavaşlamazsın, hasar hızınla artar (tam koşuda 2x)',
     secondaryDesc: 'durduğun yerde 2 sn yerden çıkan kazıklar; tık anında çevredeki düşmanlar alanın merkezine çekilir' },

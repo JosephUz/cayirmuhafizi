@@ -27,34 +27,50 @@ export function heroVolley(world, e, dir) {
 }
 
 /**
- * Şarjlı vuruş (sol tık basılı tutup bırakma). c: şarj oranı 0..1; hasar 1 + (damage - 1) x c. Vuruş anında iner, silahın
- * vuruş animasyonu oynar (attackTimer), normal vuruş tetiklenmez (didHit) ve bekleme CHARGE.cooldownMult kat uzar.
- *  - Kılıç: ağır kesik (360°, uzun menzil, sert itme, öne kayma).
- *  - Mızrak: delici saplama (koridor uzar, herkesi deler, en yakını çeker).
- *  - Yay: hızlı yaylım (normal atışı peş peşe CHARGE.bow.shots kez; sürerken nişan imleci izler, bkz. updateZones 'volley').
+ * Şarjlı vuruş (sol tık basılı tutup bırakma). Silahın **normal vuruşunu peş peşe** k.shots kez, k.gap sn arayla yapar;
+ * şarj oranı c atış sayısını ölçekler (en az 1). İlk dalga hemen, kalanlar 'burst' bölgesiyle (updateZones) iner.
+ * Nişan kilitlenmez: dalgalar arasında imleci oynatarak vuruşları süpürebilirsin. Bekleme CHARGE.cooldownMult kat uzar.
  */
 export function heroCharged(world, p, c) {
-  const w = p.stats.weapon, kit = kitOf(p);
-  if (!kit) return;
+  const w = p.stats.weapon;
+  if (!kitOf(p)) return;
+  const k = chargeSpec(p), n = Math.max(1, Math.round(k.shots * c));
+  p.aimLocked = false;
+  p.cooldown = w.cooldown * CHARGE.cooldownMult;
+  chargePulse(world, p, 0, n === 1);
+  if (n > 1) world.zones.push({ kind: 'burst', source: p, faction: p.faction, left: n - 1, i: 1, gap: k.gap, tick: k.gap, life: (n - 1) * k.gap + 0.05 });
+  if (p.isPlayer && world.ui) {
+    const label = w.ranged ? 'Hızlı yaylım' : 'Şok dalgası';
+    world.ui.float(`${label} x${n}`, { x: p.pos.x, y: 2.6, z: p.pos.z }, w.ranged ? '#ffd86b' : '#ffe9a8');
+  }
+}
+
+/** Kahramanın silahına göre şarj ayarları (bkz. CHARGE). */
+function chargeSpec(p) {
+  const w = p.stats.weapon;
+  return w.ranged ? CHARGE.bow : w.label === 'Mızrak' ? CHARGE.spear : CHARGE.sword;
+}
+
+/**
+ * Şarjın i. dalgası (0 tabanlı): kahraman o anki nişanına döner, silahın normal vuruşunu yapar ve animasyonu oynar
+ * (didHit = true olduğu için updateCombat vuruşu bir daha çözmez). Kılıçta çember, mızrakta koridor her dalgada
+ * k.growth kadar büyür — dışa yayılan bir şok dalgası gibi. Kılıçta itme yalnızca **son** dalgadadır (last): ara dalgalar
+ * itseydi hedefi menzil dışına fırlatır, sonraki dalgalar ıskalardı; son dalga sert savurur.
+ */
+function chargePulse(world, p, i, last = false) {
+  const w = p.stats.weapon, k = chargeSpec(p), grow = 1 + (k.growth || 0) * i;
   const ax = p.aim.x - p.pos.x, az = p.aim.z - p.pos.z, ad = Math.hypot(ax, az);
   const fx = ad > 0.2 ? ax / ad : Math.sin(p.facing), fz = ad > 0.2 ? az / ad : Math.cos(p.facing);
-  p.facing = Math.atan2(fx, fz); p.aimLocked = true;
-  p.attackTimer = w.duration; p.didHit = true; p.cooldown = w.cooldown * CHARGE.cooldownMult;
-  const base = w.damage * damageMult(p);
-  if (w.ranged) {
-    // Hızlı yaylım: ilki hemen, kalanı gap aralıklarla (updateZones 'volley'). Nişan kilitlenmez ki yaylımı süpürebilesin.
-    const k = CHARGE.bow, n = Math.max(1, Math.round(k.shots * c));
-    p.aimLocked = false;
-    heroVolley(world, p, new T.Vector3(fx, 0, fz));
-    burst(world, p.pos.x + fx * 0.8, 1.3, p.pos.z + fz * 0.8, '#ffd86b', 6, 0.08);
-    if (n > 1) world.zones.push({ kind: 'volley', source: p, faction: p.faction, left: n - 1, gap: k.gap, tick: k.gap, life: (n - 1) * k.gap + 0.05 });
-    if (p.isPlayer && world.ui) world.ui.float(`Hızlı yaylım x${n}`, { x: p.pos.x, y: 2.6, z: p.pos.z }, '#ffd86b');
-    return;
-  }
+  p.facing = Math.atan2(fx, fz);
+  p.attackTimer = w.duration; p.didHit = true;
+  const dmg = w.damage * damageMult(p);
+
+  if (w.ranged) { heroVolley(world, p, new T.Vector3(fx, 0, fz)); burst(world, p.pos.x + fx * 0.8, 1.3, p.pos.z + fz * 0.8, '#ffd86b', 6, 0.08); return; }
+
   if (w.label === 'Mızrak') {
-    const k = CHARGE.spear, r = reachOf(p), cor = r.corridor || { length: r.range * 2, width: 1.8 };
-    const len = cor.length * (k.lenMin + (k.lenMax - k.lenMin) * c), half = cor.width / 2;
-    const dmg = base * (1 + (k.damage - 1) * c);
+    // Koridor dalgası: her dalga bir öncekinden uzun; hattaki herkes vurulur, en yakını kahramana çekilir.
+    const r = reachOf(p), cor = r.corridor || { length: r.range * 2, width: 1.8 };
+    const len = cor.length * grow, half = cor.width / 2;
     let nearest = null, nd = Infinity;
     for (const t of world.entities) {
       if (t === p || !t.alive || t.faction === p.faction || isEvading(t)) continue;
@@ -69,14 +85,13 @@ export function heroCharged(world, p, c) {
       if (along < 0 || along > len + s.radius || side > half + s.radius) continue;
       damageStructure(world, s, dmg, p);
     }
-    // En yakın delinen hedef mızrağın ucundan kahramana doğru çekilir.
-    if (nearest) { applyImpulse(nearest, -fx, -fz, k.pull * (0.5 + 0.5 * c) / nearest.invMass); burst(world, nearest.pos.x, 1.1, nearest.pos.z, '#ffe9a8', 6, 0.1); }
-    strip(world, p.pos.x, p.pos.z, fx, fz, len, cor.width, '#ffd27a', 0.35);
+    if (nearest) { applyImpulse(nearest, -fx, -fz, k.pull / (nearest.invMass || 1)); burst(world, nearest.pos.x, 1.1, nearest.pos.z, '#ffe9a8', 6, 0.1); }
+    strip(world, p.pos.x, p.pos.z, fx, fz, len, cor.width, '#ffd27a', 0.3);
     return;
   }
-  // Kılıç: 360° ağır kesik, menzil uzar.
-  const k = CHARGE.sword, range = reachOf(p).range * k.rangeMult;
-  const dmg = base * (1 + (k.damage - 1) * c), knock = w.knockback * k.knockMult;
+
+  // Kılıç: 360° şok dalgası, her dalga daha geniş.
+  const range = reachOf(p).range * grow, knock = last ? w.knockback * k.knockMult : 0;
   for (const t of world.entities) {
     if (t === p || !t.alive || t.faction === p.faction || isEvading(t)) continue;
     const dx = t.pos.x - p.pos.x, dz = t.pos.z - p.pos.z, d = Math.hypot(dx, dz) || 1;
@@ -88,17 +103,8 @@ export function heroCharged(world, p, c) {
     if (Math.hypot(s.pos.x - p.pos.x, s.pos.z - p.pos.z) > range + s.radius) continue;
     damageStructure(world, s, dmg, p);
   }
-  applyImpulse(p, fx, fz, k.lunge * 4.2 / p.invMass);
-  ring(world, p.pos.x, p.pos.z, '#ffe9a8', range, 0.35);
-}
-
-/** Hızlı yaylımın bir atışı: kahraman o anki nişanına döner, yaylımı atar, yay animasyonu oynar (vuruş yeniden çözülmez). */
-function burstVolley(world, p) {
-  const ax = p.aim.x - p.pos.x, az = p.aim.z - p.pos.z, ad = Math.hypot(ax, az);
-  const fx = ad > 0.2 ? ax / ad : Math.sin(p.facing), fz = ad > 0.2 ? az / ad : Math.cos(p.facing);
-  p.facing = Math.atan2(fx, fz);
-  p.attackTimer = p.stats.weapon.duration; p.didHit = true;
-  heroVolley(world, p, new T.Vector3(fx, 0, fz));
+  if (i === 0) applyImpulse(p, fx, fz, k.lunge * 4.2 / p.invMass);
+  ring(world, p.pos.x, p.pos.z, '#ffe9a8', range, 0.3);
 }
 
 /** Verilen yönde (cosTol açı payıyla) menzildeki en yakın düşman birim. */
@@ -260,10 +266,10 @@ export function updateZones(world, dt) {
       for (const it of z.mats) if (!z.sparks.some(sp => sp.m.material === it.m)) it.m.opacity = it.o * fade;
       z.tick -= dt;
       if (z.tick <= 0 && z.life > 0) { z.tick = z.tickEvery; fieldTick(world, z); }
-    } else if (z.kind === 'volley') {
-      // Hızlı yaylımın kalan atışları: her biri normal sol tık atışıdır ve o anki nişana gider.
+    } else if (z.kind === 'burst') {
+      // Şarjın kalan dalgaları: her biri silahın normal vuruşudur ve o anki nişana gider.
       z.tick -= dt;
-      if (z.tick <= 0 && z.left > 0) { z.tick = z.gap; z.left--; burstVolley(world, e); }
+      if (z.tick <= 0 && z.left > 0) { z.tick = z.gap; z.left--; chargePulse(world, e, z.i++, z.left === 0); }
     }
     if (z.life <= 0) { dispose(world, z); list.splice(i, 1); }
   }
