@@ -1,7 +1,7 @@
 import * as T from '/vendor/three.module.js';
 import { ballGeo, box, mat, mesh } from './builders.js';
-import { ANTI, BLOCK, COMBAT, COMBO, HERO_KNOCKBACK, HOMING_TURN, KNOCKBACK_SCALE, LEVEL, SHIELD, SPIN, TORNADO, TOWER, loadoutKey } from './config.js';
-import { heroPrimary, heroVolley } from './abilities.js';
+import { ANTI, BLOCK, COMBAT, HERO_KNOCKBACK, HOMING_TURN, KNOCKBACK_SCALE, LEVEL, SHIELD, SPIN, TORNADO, TOWER, loadoutKey } from './config.js';
+import { heroVolley } from './abilities.js';
 import { dashMult, isEvading, levelReachMult, reachOf, chargeMult } from './characters.js';
 import { applyImpulse } from './physics.js';
 import { rrand } from './rng.js';
@@ -15,11 +15,6 @@ export function startAttack(e) {
   if (!canAttack(e)) return false;
   const w = e.stats.weapon;
   e.attackTimer = w.duration; e.cooldown = w.cooldown; e.didHit = false;
-  // Kılıçlı kahraman kombosu: COMBO.window içinde peş peşe vuruşlar zinciri ilerletir (2. geniş yay, 3. girdap; bkz. abilities.heroPrimary).
-  if (isHeroUnit(e) && w.label === 'Kılıç') {
-    e.combo = e.comboTimer > 0 ? (e.combo || 0) + 1 : 1; e.comboTimer = COMBO.window;
-    e.comboArcMult = e.combo === 2 ? COMBO.secondArcMult : 1;
-  }
   return true;
 }
 
@@ -89,7 +84,6 @@ export function updateCombat(world, dt) {
     if (e.cooldown > 0) e.cooldown -= dt;
     if (e.stun > 0) e.stun -= dt;
     if (e.hitFlash > 0) e.hitFlash -= dt;
-    if (e.comboTimer > 0) { e.comboTimer -= dt; if (e.comboTimer <= 0) { e.combo = 0; e.comboArcMult = 1; } }
     if (e.attackTimer <= 0) continue;
     e.attackTimer -= dt;
     const w = e.stats.weapon;
@@ -97,8 +91,6 @@ export function updateCombat(world, dt) {
     if (!e.didHit && elapsed >= w.windup) {
       e.didHit = true;
       if (w.ranged) shootArrow(world, e); else resolveSwing(world, e);
-      // Kahramanın sete özel ek etkisi (Kılıçlı girdap, Mızraklı saplama; bkz. abilities.heroPrimary).
-      if (isHeroUnit(e)) heroPrimary(world, e);
     }
     if (e.attackTimer < 0) e.attackTimer = 0;
   }
@@ -154,13 +146,35 @@ export function nearestHostileStructure(world, e, range) {
   return null;
 }
 
+/** Koridor vuruşu (mızraklı kahraman): bakış yönünde length uzunluk, width genişlikte dikdörtgen; içindeki herkes vurulur. */
+function resolveCorridor(world, attacker, corridor, damage, knockback, fx, fz) {
+  const half = corridor.width / 2, len = corridor.length;
+  let landed = false;
+  const inside = (o, pad) => { const dx = o.pos.x - attacker.pos.x, dz = o.pos.z - attacker.pos.z; const along = dx * fx + dz * fz, side = Math.abs(dx * fz - dz * fx); return along > -pad * 0.5 && along <= len + pad && side <= half + pad; };
+  for (const t of world.entities) {
+    if (t === attacker || !t.alive || t.faction === attacker.faction || isEvading(t) || !inside(t, t.radius)) continue;
+    landed = true;
+    damageEntity(world, t, hitDamage(attacker, t, damage), fx, fz, knockback, attacker);
+  }
+  for (const s of world.structures) {
+    if (!s.alive || s.faction === attacker.faction || !inside(s, s.radius)) continue;
+    landed = true; damageStructure(world, s, damage, attacker);
+  }
+  if (attacker.isPlayer && world.nodes) for (const n of world.nodes) {
+    if (!inside(n, n.radius * 0.8)) continue;
+    landed = true; world.onNodeHit(n, attacker);
+  }
+  if (!landed) burst(world, attacker.pos.x + fx * 1.4, 0.9, attacker.pos.z + fz * 1.4, '#ffffff', 3, 0.25);
+}
+
 function resolveSwing(world, attacker) {
   const { knockback } = attacker.stats.weapon;
-  const { range, arc } = heroReach(attacker);
+  const { range, arc, corridor } = heroReach(attacker);
   // Mızraklı Atlı hücumu: hasar o anki hıza göre artar (chargeMult); öbür setlerde 1.
   const damage = attacker.stats.weapon.damage * damageMult(attacker) * chargeMult(attacker);
-  const cosHalf = Math.cos(arc * 0.5);
   const fx = Math.sin(attacker.facing), fz = Math.cos(attacker.facing);
+  if (corridor) { resolveCorridor(world, attacker, corridor, damage, knockback, fx, fz); return; }
+  const cosHalf = Math.cos(arc * 0.5);
   let landed = false;
 
   for (const t of world.entities) {

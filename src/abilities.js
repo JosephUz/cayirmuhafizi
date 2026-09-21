@@ -1,30 +1,17 @@
 import * as T from '/vendor/three.module.js';
-import { CHARGE, COMBO, DASH, KIT, TORNADO } from './config.js';
+import { CHARGE, DASH, KIT, TORNADO } from './config.js';
 import { dashMult, isEvading, kitOf, reachOf } from './characters.js';
-import { burst, damageEntity, damageMult, damageStructure, fireArrow, heroArrows, hitDamage, ring, spawnSpin } from './combat.js';
+import { burst, damageEntity, damageMult, damageStructure, fireArrow, heroArrows, hitDamage, ring } from './combat.js';
 import { applyImpulse } from './physics.js';
 
 /**
  * Kahraman yetenek setleri (bkz. config KIT): set silah x at ile belirlenir, kalkan atılma vurulmazlığını uzatır.
- *  - Sol tık: silahın kendi vuruşunun (yay / ok) **üstüne** sete özel etki: Kılıçlı girdap (dönen bıçak çemberi),
- *    Mızraklı saplama (uzun şerit), Okçu yelpaze yaylımı, Kılıçlı Atlı geniş kesik (silah değerlerinde), Mızraklı Atlı
- *    hücum (hıza bağlı hasar, characters.chargeMult), Atlı Okçu koşarken çift ok.
+ *  - Sol tık: silahın kendi vuruşu, silaha göre şekli farklı (characters.reachOf): Kılıçlı çevresine 360°, Mızraklı önüne
+ *    koridor, Okçu yelpaze yaylımı (heroVolley). Atlılarda üstüne geniş kesik (silah değerlerinde), hücum (hıza bağlı hasar,
+ *    characters.chargeMult) ya da koşarken çift ok biner. Basılı tutup bırakma şarjlı vuruştur (heroCharged).
  *  - Sağ tık: her sette **ileri atılma** + silaha göre durduğun yerde 2 sn süren alan: kılıç fırtınası, kazık alanı, ok yağmuru.
  *    Atlı setlerde alan açılırken **vakum** çevredeki düşmanları merkeze çeker. Süreli etkiler world.zones'da yaşar (updateZones).
  */
-
-/** Sol tık: silah vuruşundan sonra sete özel ek etki. Kılıçta girdap yalnızca kombonun COMBO.spinAt. vuruşunda çıkar. */
-export function heroPrimary(world, e) {
-  const kit = kitOf(e);
-  if (kit === 'sword') {
-    if ((e.combo || 0) >= COMBO.spinAt) {
-      spawnSpin(world, e); e.combo = 0; e.comboTimer = 0; e.comboArcMult = 1;
-      if (e.isPlayer && world.ui) world.ui.float('Girdap!', { x: e.pos.x, y: 2.6, z: e.pos.z }, '#ffe9a8');
-    }
-  }
-  else if (kit === 'spear') spearThrust(world, e);
-  // bow / horsebow: yaylım heroVolley'de; horsesword / horsespear: silah değerleri (yay, itme) ve chargeMult.
-}
 
 /** Ok atan kahramanın yaylımı: seviyesi kadar ok (atlı okçuda iki katı) yelpaze halinde, her ok kendi yönündeki düşmana kilitlenir. */
 export function heroVolley(world, e, dir) {
@@ -42,8 +29,8 @@ export function heroVolley(world, e, dir) {
 /**
  * Şarjlı vuruş (sol tık basılı tutup bırakma). c: şarj oranı 0..1; hasar 1 + (damage - 1) x c. Vuruş anında iner, silahın
  * vuruş animasyonu oynar (attackTimer), normal vuruş tetiklenmez (didHit) ve bekleme CHARGE.cooldownMult kat uzar.
- *  - Kılıç: ağır kesik (geniş yay, sert itme, öne kayma), girdap yok, kombo sıfırlanır.
- *  - Mızrak: delici saplama (uzun şerit, herkesi deler, en yakını çeker).
+ *  - Kılıç: ağır kesik (360°, uzun menzil, sert itme, öne kayma).
+ *  - Mızrak: delici saplama (koridor uzar, herkesi deler, en yakını çeker).
  *  - Yay: delici ok (tek kalın ok, uzun menzil, delip geçer).
  */
 export function heroCharged(world, p, c) {
@@ -53,7 +40,6 @@ export function heroCharged(world, p, c) {
   const fx = ad > 0.2 ? ax / ad : Math.sin(p.facing), fz = ad > 0.2 ? az / ad : Math.cos(p.facing);
   p.facing = Math.atan2(fx, fz); p.aimLocked = true;
   p.attackTimer = w.duration; p.didHit = true; p.cooldown = w.cooldown * CHARGE.cooldownMult;
-  p.combo = 0; p.comboTimer = 0; p.comboArcMult = 1;
   const base = w.damage * damageMult(p);
   if (w.ranged) {
     const k = CHARGE.bow, dir = new T.Vector3(fx, 0, fz);
@@ -62,7 +48,8 @@ export function heroCharged(world, p, c) {
     return;
   }
   if (w.label === 'Mızrak') {
-    const k = CHARGE.spear, r = reachOf(p), len = r.range * (k.lenMin + (k.lenMax - k.lenMin) * c), half = k.width / 2;
+    const k = CHARGE.spear, r = reachOf(p), cor = r.corridor || { length: r.range * 2, width: 1.8 };
+    const len = cor.length * (k.lenMin + (k.lenMax - k.lenMin) * c), half = cor.width / 2;
     const dmg = base * (1 + (k.damage - 1) * c);
     let nearest = null, nd = Infinity;
     for (const t of world.entities) {
@@ -80,36 +67,25 @@ export function heroCharged(world, p, c) {
     }
     // En yakın delinen hedef mızrağın ucundan kahramana doğru çekilir.
     if (nearest) { applyImpulse(nearest, -fx, -fz, k.pull * (0.5 + 0.5 * c) / nearest.invMass); burst(world, nearest.pos.x, 1.1, nearest.pos.z, '#ffe9a8', 6, 0.1); }
-    strip(world, p.pos.x, p.pos.z, fx, fz, len, 0.34, '#ffd27a', 0.35);
+    strip(world, p.pos.x, p.pos.z, fx, fz, len, cor.width, '#ffd27a', 0.35);
     return;
   }
-  // Kılıç: ağır kesik.
-  const k = CHARGE.sword, r = reachOf(p), range = r.range * k.rangeMult, cosHalf = Math.cos(k.arc / 2);
+  // Kılıç: 360° ağır kesik, menzil uzar.
+  const k = CHARGE.sword, range = reachOf(p).range * k.rangeMult;
   const dmg = base * (1 + (k.damage - 1) * c), knock = w.knockback * k.knockMult;
   for (const t of world.entities) {
     if (t === p || !t.alive || t.faction === p.faction || isEvading(t)) continue;
     const dx = t.pos.x - p.pos.x, dz = t.pos.z - p.pos.z, d = Math.hypot(dx, dz) || 1;
-    if (d > range + t.radius || (fx * dx + fz * dz) / d < cosHalf) continue;
+    if (d > range + t.radius) continue;
     damageEntity(world, t, hitDamage(p, t, dmg), dx / d, dz / d, knock, p);
   }
   for (const s of world.structures) {
     if (!s.alive || s.faction === p.faction) continue;
-    const dx = s.pos.x - p.pos.x, dz = s.pos.z - p.pos.z, d = Math.hypot(dx, dz) || 1;
-    if (d > range + s.radius || (fx * dx + fz * dz) / d < cosHalf * 0.6) continue;
+    if (Math.hypot(s.pos.x - p.pos.x, s.pos.z - p.pos.z) > range + s.radius) continue;
     damageStructure(world, s, dmg, p);
   }
   applyImpulse(p, fx, fz, k.lunge * 4.2 / p.invMass);
-  arcFlash(world, p.pos.x, p.pos.z, p.facing, range, k.arc, '#ffe9a8', 0.3);
-}
-
-/** Yere paralel, bakış yönüne ortalanmış yay dilimi (ağır kesik izi). */
-function arcFlash(world, x, z, yaw, radius, arc, color, life) {
-  const g = new T.Group();
-  const m = new T.Mesh(new T.RingGeometry(radius * 0.45, radius, 32, 1, Math.PI * 1.5 - arc / 2, arc), new T.MeshBasicMaterial({ color, transparent: true, opacity: 0.75, side: T.DoubleSide, depthWrite: false }));
-  m.rotation.x = -Math.PI / 2; m.position.y = 0.9;
-  g.add(m); g.position.set(x, 0, z); g.rotation.y = yaw;
-  world.scene.add(g);
-  world.effects.push({ m, life, maxLife: life, fade: 0.75, parent: g });
+  ring(world, p.pos.x, p.pos.z, '#ffe9a8', range, 0.35);
 }
 
 /** Verilen yönde (cosTol açı payıyla) menzildeki en yakın düşman birim. */
@@ -122,29 +98,6 @@ function hostileAlong(world, e, ux, uz, range, cosTol) {
     if (d < bd) { bd = d; best = t; }
   }
   return best;
-}
-
-/** Mızraklı: saplama. Bakış yönünde menzilin thrustLen katı uzunlukta ince şerit; yayın dışında kalanları deler. */
-function spearThrust(world, e) {
-  const k = KIT.spear, r = reachOf(e), len = r.range * k.thrustLen, half = k.thrustWidth / 2;
-  const fx = Math.sin(e.facing), fz = Math.cos(e.facing);
-  const dmg = e.stats.weapon.damage * damageMult(e) * k.thrustDamage;
-  for (const t of world.entities) {
-    if (t === e || !t.alive || t.faction === e.faction || isEvading(t)) continue;
-    const dx = t.pos.x - e.pos.x, dz = t.pos.z - e.pos.z;
-    const along = dx * fx + dz * fz, side = Math.abs(dx * fz - dz * fx);
-    // Yakındakiler zaten yay vuruşunda vurulmuştur: şerit menzilin ötesini deler.
-    if (along < r.range * 0.8 || along > len || side > half + t.radius) continue;
-    damageEntity(world, t, hitDamage(e, t, dmg), fx, fz, e.stats.weapon.knockback * 0.5, e);
-  }
-  for (const s of world.structures) {
-    if (!s.alive || s.faction === e.faction) continue;
-    const dx = s.pos.x - e.pos.x, dz = s.pos.z - e.pos.z;
-    const along = dx * fx + dz * fz, side = Math.abs(dx * fz - dz * fx);
-    if (along < r.range * 0.8 || along > len + s.radius || side > half + s.radius) continue;
-    damageStructure(world, s, dmg, e);
-  }
-  strip(world, e.pos.x, e.pos.z, fx, fz, len, 0.28, '#ffe9a8', 0.3);
 }
 
 /** Yerden az yukarıda, yön boyunca uzanan ve sönen parlak şerit. */

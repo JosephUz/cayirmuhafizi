@@ -49,13 +49,25 @@ export function reachOf(e) {
   const w = e.stats.weapon;
   if (!(e.isPlayer || e.isHero)) return { range: w.range, arc: w.arc };
   if (w.ranged) return { range: w.range * bowRangeMult(e), arc: w.arc };
-  // comboArcMult: kılıç kombosunun ikinci vuruşu daha geniş yay (bkz. combat.startAttack).
-  return { range: w.range * levelReachMult(e), arc: Math.min(Math.PI * 1.9, w.arc * levelArcMult(e) * (e.comboArcMult || 1)) };
+  const range = w.range * levelReachMult(e);
+  // Kılıçlı kahraman çevresine 360° vurur; mızraklı kahraman yay değil, önüne koridor açar (bkz. KIT.spear.corridorLen / Width).
+  if (w.label === 'Kılıç') return { range, arc: Math.PI * 2 };
+  if (w.label === 'Mızrak') return { range, arc: w.arc, corridor: { length: range * KIT.spear.corridorLen, width: KIT.spear.corridorWidth } };
+  return { range, arc: Math.min(Math.PI * 1.9, w.arc * levelArcMult(e)) };
 }
 
 /** Vuruş yayı geometrisi: gerçek menzil ve açıyla çizilir, böylece gösterge alanı birebir gösterir. */
-const swingGeo = e => { const { range, arc } = reachOf(e); return new T.RingGeometry(0.9, range, 44, 1, Math.PI / 2 - arc / 2, arc); };
-const swingEdgeGeo = e => { const { range, arc } = reachOf(e); return new T.RingGeometry(Math.max(0.95, range - 0.42), range, 48, 1, Math.PI / 2 - arc / 2, arc); };
+// Vuruş alanı görseli: yay (kılıç / asker), tam çember (kılıçlı kahraman) ya da koridor (mızraklı kahraman: ileri uzanan dikdörtgen).
+const swingGeo = e => {
+  const r = reachOf(e);
+  if (r.corridor) return new T.PlaneGeometry(r.corridor.width, r.corridor.length).translate(0, r.corridor.length / 2, 0);
+  return new T.RingGeometry(0.9, r.range, 44, 1, Math.PI / 2 - r.arc / 2, r.arc);
+};
+const swingEdgeGeo = e => {
+  const r = reachOf(e);
+  if (r.corridor) return new T.PlaneGeometry(r.corridor.width, 0.42).translate(0, r.corridor.length - 0.21, 0);
+  return new T.RingGeometry(Math.max(0.95, r.range - 0.42), r.range, 48, 1, Math.PI / 2 - r.arc / 2, r.arc);
+};
 
 /** Seviye değişince kahramanın vuruş alanı göstergesini yeni menzile / açıya göre yeniden çizer. */
 export function rebuildSwing(e) {

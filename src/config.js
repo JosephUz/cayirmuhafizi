@@ -70,34 +70,32 @@ export const SPIN = { duration: 1, tick: 0.2, damageMult: 0.5, minRadius: 2.4, b
  */
 export const CHARGE = {
   delay: 0.22, full: 0.6, minRelease: 0.15, speedMult: 0.5, cooldownMult: 1.5,
-  sword: { arc: Math.PI, rangeMult: 1.15, damage: 2, knockMult: 3, lunge: 0.8 },
-  spear: { lenMin: 1.5, lenMax: 3, width: 1.4, damage: 2, pull: 7 },
+  /** Kılıç: 360° tek ağır kesik, menzil rangeMult kat. */
+  sword: { rangeMult: 1.4, damage: 2, knockMult: 3, lunge: 0.8 },
+  /** Mızrak: koridor lenMin..lenMax kat uzar (şarja göre), 2x hasar, en yakın delinen hedef pull ile çekilir. */
+  spear: { lenMin: 1.3, lenMax: 1.8, damage: 2, pull: 7 },
   bow: { damage: 2.5, rangeMult: 1.5, scale: 2.2 },
 };
-/** Kılıç kombosu: window sn içinde peş peşe vuruşlar zinciri ilerletir; 2. vuruş yayı secondArcMult kat geniş, spinAt. vuruşta girdap. */
-export const COMBO = { window: 1.2, secondArcMult: 1.35, spinAt: 3 };
-
 export const KIT = {
   /**
    * Girdap: çevrede 1 sn dönen bıçak çemberi (SPIN). Kılıç fırtınası: hortumla aynı alan sayıları (yarıçap, süre, tempo, hasar)
    * ama görselde durduğun yerde savrulan kılıçlar (blades tane, farklı yarıçap ve yüksekliklerde dönüp takla atar).
    */
-  sword: { label: 'Kılıçlı', primary: 'Üçlü kesik', secondary: 'Kılıç fırtınası', charge: 'Ağır kesik',
+  sword: { label: 'Kılıçlı', primary: 'Çevre kesik', secondary: 'Kılıç fırtınası', charge: 'Ağır kesik',
     fieldRadius: TORNADO.radius, fieldLife: TORNADO.duration, fieldTick: TORNADO.tick, fieldDamage: TORNADO.damageMult, fieldKnock: TORNADO.knockback, blades: 10,
-    primaryDesc: `peş peşe vuruşlar zincir kurar: ikincisi daha geniş yay, üçüncüsü çevrende ${SPIN.duration} sn dönen girdap (360°, ${SPIN.tick} sn'de bir vuruşun ${SPIN.damageMult} katı)`,
-    chargeDesc: '180° tek ağır kesik, 2x hasar, üç kat itme, yarım adım öne atılırsın',
+    primaryDesc: 'kılıç çevrende 360° döner: menzilindeki her düşman vurulur (menzil seviyeyle büyür)',
+    chargeDesc: '360° ağır kesik, menzilin 1.4 katı, 2x hasar, üç kat itme, yarım adım öne atılırsın',
     secondaryDesc: `durduğun yerde ${TORNADO.duration} sn boyunca savrulan kılıçlar (${TORNADO.radius} birim yarıçap, ${TORNADO.tick} sn'de bir vuruşun ${TORNADO.damageMult} katı)` },
   /**
-   * Saplama: bakış yönünde menzilin thrustLen katı uzunlukta şerit, yayın ötesindekileri deler.
-   * Kazık alanı: hortum gibi **durduğun yerde** açılır; yerden yükselen kazıklar fieldLife sn boyunca fieldTick sn'de bir
-   * yarıçaptaki herkese vuruşun fieldDamage katını verir ve dışa iter. Yarıçap dashMult ile büyür.
+   * Koridor: mızrak vuruşu yay değil, bakış yönünde corridorLen x menzil uzunluğunda, corridorWidth genişliğinde bir
+   * koridordur; içindeki herkes vurulur (delip geçer). Kazık alanı: hortum gibi **durduğun yerde** açılır; yerden yükselen
+   * kazıklar fieldLife sn boyunca fieldTick sn'de bir yarıçaptaki herkese vuruşun fieldDamage katını verir ve dışa iter.
    */
-  spear: { label: 'Mızraklı', primary: 'Saplama', secondary: 'Kazık alanı', charge: 'Delici saplama',
-    chargeDesc: 'şerit menzilin 3 katına uzar, hattaki herkesi 2x hasarla deler ve en yakınını sana çeker', charge: 'Delici saplama',
-    chargeDesc: 'şerit menzilin 3 katına uzar, hattaki herkesi 2x hasarla deler ve en yakınını sana çeker',
-    thrustLen: 2.2, thrustWidth: 1.4, thrustDamage: 1,
+  spear: { label: 'Mızraklı', primary: 'Koridor', secondary: 'Kazık alanı', charge: 'Delici saplama',
+    corridorLen: 2, corridorWidth: 1.8,
     fieldRadius: 3.2, fieldLife: 2, fieldTick: 0.25, fieldDamage: 0.6, fieldKnock: 3, stakes: 16,
-    primaryDesc: 'vuruşun ötesine menzilin 2.2 katı uzunlukta ince şerit: hattaki herkesi tam hasarla deler',
+    primaryDesc: 'mızrak önüne menzilin 2 katı uzunlukta, 1.8 birim genişlikte bir koridor açar: içindeki herkes vurulur',
+    chargeDesc: 'koridor 1.8 katına uzar, hattaki herkesi 2x hasarla deler ve en yakınını sana çeker',
     secondaryDesc: 'durduğun yerde 2 sn boyunca yerden kazıklar çıkar (3.2 birim yarıçap, 0.25 sn\'de bir vuruşun 0.6 katı, dışa iter)' },
   /**
    * Yelpaze: seviye kadar ok fanMax dereceye kadar dağılır, her ok kendi yönündeki (homingDeg) düşmana kilitlenir.
