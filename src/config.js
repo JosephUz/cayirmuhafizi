@@ -467,6 +467,11 @@ export const ENEMY_AI = {
 export const ECONOMY = {
   /** Başlangıç envanteri (her iki taraf). Kaynaklar envanterde birikir: altın + yiyecek asker, altın işçi, odun bina. */
   start: { gold: 60, wood: 60, food: 40 },
+  /**
+   * **Deneme ayarı**: yalnızca **oyuncunun** başlangıç altını (rakip her zaman start.gold ile başlar, dengesi bozulmasın).
+   * Kahraman türlerini, binaları ve orduyu beklemeden denemek içindir. Normal oyuna dönmek için: null yap.
+   */
+  playerTestGold: 1000000,
   /** Kaynak noktaları tükenmez: çalışan işçi çevreye bir ürün fırlatır, sonra onu alır. Bir altın ürünü bu kadar altın. */
   gold: { value: 7 },
   /** Yiyecek yalnızca envantere girer; kahramanı iyileştirmez (can yalnızca sancak alanında yenilenir). */

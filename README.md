@@ -293,6 +293,9 @@ normal exp verir (yaya 10, atlı 24, mancınık 14). Minimapte kamplar yeşil (y
 
 Üç kaynak envanterde birikir: **altın** (maden), **odun** (odunluk / ağaçlar), **yiyecek** (tarla).
 Askerler altın + yiyecek, işçiler altın, binalar yalnızca odun. Her iki taraf 60 altın, 60 odun, 40 yiyecekle başlar.
+
+> **Deneme ayarı**: şu an **oyuncu 1.000.000 altınla** başlar (`config.js` → `ECONOMY.playerTestGold`), böylece kahraman
+> türleri, binalar ve ordu beklemeden denenebilir. Rakip her zaman normal 60 altınla başlar. Normal oyuna dönmek için bu ayarı `null` yap.
 Ordunun sürekli büyüyebilmesi için ekonomi cömerttir: bir altın ürünü **7 altın**, bir çalışma **1.0 sn** sürer ve
 **ölen her asker 2 yiyecek** bırakır (kahramanların topladığı ganimet).
 

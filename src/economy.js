@@ -16,7 +16,10 @@ import { bannerOf, canPlace, createStructure, placementError, reviveCamp, struct
  * yapı odun bırakır (ganimet, base=null): bunları yalnızca kahramanlar toplar. Rakibin altını zorluk çarpanıyla ölçeklenir.
  */
 export function createEconomy() {
-  return { ...ECONOMY.start, hintTimer: 0, soldiersSpawned: 0, work: { spot: null, timer: 0 } };
+  const eco = { ...ECONOMY.start, hintTimer: 0, soldiersSpawned: 0, work: { spot: null, timer: 0 } };
+  // Deneme ayarı (bkz. ECONOMY.playerTestGold): yalnızca oyuncu bol altınla başlar, rakip normal başlar.
+  if (ECONOMY.playerTestGold != null) eco.gold = ECONOMY.playerTestGold;
+  return eco;
 }
 export function createEnemyEconomy() {
   return { ...ECONOMY.start, soldiersSpawned: 0, spawnTimer: 2, typeIndex: 0, attacking: false, launchSize: 0 };
