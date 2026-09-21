@@ -1,15 +1,15 @@
 import * as T from '/vendor/three.module.js';
 import { DASH, KIT, TORNADO } from './config.js';
 import { dashMult, isEvading, kitOf, reachOf } from './characters.js';
-import { burst, damageEntity, damageMult, damageStructure, fireArrow, heroArrows, hitDamage, ring, spawnSpin, spawnTornado } from './combat.js';
+import { burst, damageEntity, damageMult, damageStructure, fireArrow, heroArrows, hitDamage, ring, spawnSpin } from './combat.js';
 
 /**
  * Kahraman yetenek setleri (bkz. config KIT): set silah x at ile belirlenir, kalkan atılma vurulmazlığını uzatır.
  *  - Sol tık: silahın kendi vuruşunun (yay / ok) **üstüne** sete özel etki: Kılıçlı girdap (dönen bıçak çemberi),
  *    Mızraklı saplama (uzun şerit), Okçu yelpaze yaylımı, Kılıçlı Atlı geniş kesik (silah değerlerinde), Mızraklı Atlı
  *    hücum (hıza bağlı hasar, characters.chargeMult), Atlı Okçu koşarken çift ok.
- *  - Sağ tık: her sette **ileri atılma** + sete özel ikinci etki: hortum, kazık alanı, ok yağmuru (üçü de durduğun yerde
- *    2 sn süren alan), yarıp geçme, mızrak hücumu, geriye yaylım. Süreli etkiler world.zones listesinde yaşar (updateZones).
+ *  - Sağ tık: her sette **ileri atılma** + sete özel ikinci etki: kılıç fırtınası, kazık alanı, ok yağmuru (üçü de durduğun
+ *    yerde 2 sn süren alan), yarıp geçme, mızrak hücumu, geriye yaylım. Süreli etkiler world.zones listesinde yaşar (updateZones).
  */
 
 /** Sol tık: silah vuruşundan sonra sete özel ek etki. */
@@ -96,21 +96,38 @@ export function heroDash(world, p, bx, bz) {
       world.zones.push({ kind: 'impact', source: p, faction: p.faction, life: DASH.duration + 0.02, damage: dmg * k.impactDamage, k });
       break;
     case 'horsebow': parthian(world, p, bx, bz, k); break;
-    default: spawnTornado(world, p);
+    default: spawnField(world, p, k, dmg, 'blades');
   }
 }
 
 /**
- * Durduğun yerde açılan alan etkisi (hortum gibi): kind 'spikes' (Mızraklı: yerden yükselen kazıklar) ya da 'rain'
- * (Okçu: gökten ok yağmuru). fieldLife boyunca fieldTick'te bir yarıçaptaki bütün düşmanlara (birim ve yapı) vurur.
+ * Durduğun yerde açılan alan etkisi (üç yakın dövüş / okçu setinde aynı mantık): kind 'blades' (Kılıçlı: savrulan kılıçlar),
+ * 'spikes' (Mızraklı: yerden yükselen kazıklar) ya da 'rain' (Okçu: gökten ok yağmuru). fieldLife boyunca fieldTick'te bir
+ * yarıçaptaki bütün düşmanlara (birim ve yapı) vurur.
  */
+const FIELD_COLOR = { blades: '#ffe9a8', spikes: '#d9c98a', rain: '#ffd86b' };
 function spawnField(world, p, k, dmg, kind) {
   const radius = k.fieldRadius * dashMult(p), x = p.pos.x, z = p.pos.z;
-  const g = new T.Group(), mats = [], stakes = [];
+  const g = new T.Group(), mats = [], stakes = [], blades = [];
   const base = new T.Mesh(new T.RingGeometry(radius * 0.55, radius, 40),
-    new T.MeshBasicMaterial({ color: kind === 'spikes' ? '#d9c98a' : '#ffd86b', transparent: true, opacity: 0.4, side: T.DoubleSide, depthWrite: false }));
+    new T.MeshBasicMaterial({ color: FIELD_COLOR[kind], transparent: true, opacity: 0.4, side: T.DoubleSide, depthWrite: false }));
   base.rotation.x = -Math.PI / 2; base.position.y = 0.07; mats.push({ m: base.material, o: 0.4 }); g.add(base);
-  if (kind === 'spikes') {
+  if (kind === 'blades') {
+    // Savrulan kılıçlar: her biri kendi yarıçapında ve hızında merkez çevresinde döner, yükselip alçalır ve takla atar.
+    for (let i = 0; i < k.blades; i++) {
+      const item = new T.Group();
+      const blade = new T.Mesh(new T.BoxGeometry(0.09, 0.035, 1.05), new T.MeshBasicMaterial({ color: '#e8eef5', transparent: true, opacity: 0.95, depthWrite: false }));
+      blade.position.z = 0.35;
+      const guard = new T.Mesh(new T.BoxGeometry(0.34, 0.06, 0.07), new T.MeshBasicMaterial({ color: '#c9a13d', transparent: true, opacity: 0.95, depthWrite: false }));
+      guard.position.z = -0.2;
+      const grip = new T.Mesh(new T.BoxGeometry(0.07, 0.07, 0.3), new T.MeshBasicMaterial({ color: '#5a3a24', transparent: true, opacity: 0.95, depthWrite: false }));
+      grip.position.z = -0.38;
+      item.add(blade, guard, grip);
+      mats.push({ m: blade.material, o: 0.95 }, { m: guard.material, o: 0.95 }, { m: grip.material, o: 0.95 });
+      blades.push({ item, a0: (i / k.blades) * Math.PI * 2, r: radius * (0.35 + 0.6 * ((i * 7) % k.blades) / k.blades), w: (i % 2 ? 1 : -1) * (5 + (i % 3) * 1.4), h: 0.7 + (i % 4) * 0.35, phase: i * 1.3, tumble: 6 + (i % 3) * 2 });
+      g.add(item);
+    }
+  } else if (kind === 'spikes') {
     // Kazıklar: yarıçapa dağılmış, hafif eğik ahşap kazıklar; ilk 0.3 sn yerden yükselir, sonda geri gömülür.
     for (let i = 0; i < k.stakes; i++) {
       const a = (i / k.stakes) * Math.PI * 2 + (i % 2) * 0.2, r = radius * (i % 3 === 0 ? 0.35 : i % 3 === 1 ? 0.65 : 0.92);
@@ -126,8 +143,8 @@ function spawnField(world, p, k, dmg, kind) {
   }
   g.position.set(x, 0, z);
   world.scene.add(g);
-  world.zones.push({ kind, source: p, faction: p.faction, g, mats, stakes, x, z, radius, life: k.fieldLife, maxLife: k.fieldLife, tick: 0, tickEvery: k.fieldTick, damage: dmg * k.fieldDamage, knock: k.fieldKnock, arrows: heroArrows(p) });
-  burst(world, x, 0.6, z, kind === 'spikes' ? '#d9c98a' : '#ffd86b', 10, 0.12);
+  world.zones.push({ kind, source: p, faction: p.faction, g, mats, stakes, blades, x, z, radius, life: k.fieldLife, maxLife: k.fieldLife, tick: 0, tickEvery: k.fieldTick, damage: dmg * k.fieldDamage, knock: k.fieldKnock, arrows: heroArrows(p) });
+  burst(world, x, 0.6, z, FIELD_COLOR[kind], 10, 0.12);
 }
 
 /** Alan etkisinin bir vuruşu: yarıçaptaki düşman birim ve yapılara hasar; okçuda gökten inen ok görselleri. */
@@ -167,17 +184,27 @@ function parthian(world, p, bx, bz, k) {
   }
 }
 
-/** Süreli set etkileri: kazık alanı, ok yağmuru, yarıp geçme, mızrak hücumu. */
+/** Süreli set etkileri: kılıç fırtınası, kazık alanı, ok yağmuru, yarıp geçme, mızrak hücumu. */
 export function updateZones(world, dt) {
   const list = world.zones;
   for (let i = list.length - 1; i >= 0; i--) {
     const z = list[i], e = z.source;
     z.life -= dt;
     if (!e.alive) { dispose(world, z); list.splice(i, 1); continue; }
-    if (z.kind === 'spikes' || z.kind === 'rain') {
+    if (z.kind === 'blades' || z.kind === 'spikes' || z.kind === 'rain') {
       const k = Math.max(0, z.life) / z.maxLife, age = z.maxLife - z.life;
       // Kazıklar ilk 0.3 sn yerden çıkar, son 0.3 sn geri gömülür; halka ve kazıklar sonda söner.
       if (z.stakes.length) { const up = Math.min(1, age / 0.3, Math.max(0, z.life) / 0.3); for (const st of z.stakes) st.position.y = -1.2 + up * 2.15; }
+      // Kılıçlar: ilk 0.25 sn merkezden dışa saçılır, sonra kendi yarıçaplarında döner, dalgalanır ve takla atar.
+      if (z.blades.length) {
+        const out = Math.min(1, age / 0.25);
+        for (const b of z.blades) {
+          const a = b.a0 + age * b.w, r = b.r * out;
+          b.item.position.set(Math.sin(a) * r, b.h + Math.sin(age * 4 + b.phase) * 0.45, Math.cos(a) * r);
+          // Uç dönüş yönüne bakar (yatay savrulma), gövde uzun ekseni etrafında takla atar.
+          b.item.rotation.set(Math.sin(age * 2.3 + b.phase) * 0.6, a + (b.w > 0 ? Math.PI / 2 : -Math.PI / 2), age * b.tumble);
+        }
+      }
       const fade = k < 0.2 ? k / 0.2 : 1;
       for (const it of z.mats) it.m.opacity = it.o * fade;
       z.tick -= dt;

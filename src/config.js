@@ -61,10 +61,14 @@ export const SPIN = { duration: 1, tick: 0.2, damageMult: 0.5, minRadius: 2.4, b
  * menziliyle (seviyeyle) büyür, ok sayıları heroArrows (seviye) ile artar. Uygulama: abilities.js.
  */
 export const KIT = {
-  /** Girdap: çevrede 1 sn dönen bıçak çemberi (SPIN). Hortum: durduğu yerde kalan hortum (TORNADO). */
-  sword: { label: 'Kılıçlı', primary: 'Girdap', secondary: 'Hortum',
+  /**
+   * Girdap: çevrede 1 sn dönen bıçak çemberi (SPIN). Kılıç fırtınası: hortumla aynı alan sayıları (yarıçap, süre, tempo, hasar)
+   * ama görselde durduğun yerde savrulan kılıçlar (blades tane, farklı yarıçap ve yüksekliklerde dönüp takla atar).
+   */
+  sword: { label: 'Kılıçlı', primary: 'Girdap', secondary: 'Kılıç fırtınası',
+    fieldRadius: TORNADO.radius, fieldLife: TORNADO.duration, fieldTick: TORNADO.tick, fieldDamage: TORNADO.damageMult, fieldKnock: TORNADO.knockback, blades: 10,
     primaryDesc: `çevrende ${SPIN.duration} sn dönen bıçak çemberi (360°, ${SPIN.tick} sn'de bir vuruşun ${SPIN.damageMult} katı)`,
-    secondaryDesc: `durduğun yerde ${TORNADO.duration} sn kalan hortum (${TORNADO.tick} sn'de bir vuruşun ${TORNADO.damageMult} katı)` },
+    secondaryDesc: `durduğun yerde ${TORNADO.duration} sn boyunca savrulan kılıçlar (${TORNADO.radius} birim yarıçap, ${TORNADO.tick} sn'de bir vuruşun ${TORNADO.damageMult} katı)` },
   /**
    * Saplama: bakış yönünde menzilin thrustLen katı uzunlukta şerit, yayın ötesindekileri deler.
    * Kazık alanı: hortum gibi **durduğun yerde** açılır; yerden yükselen kazıklar fieldLife sn boyunca fieldTick sn'de bir

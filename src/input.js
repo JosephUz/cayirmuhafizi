@@ -9,7 +9,7 @@ import { pickOwnStructure } from './structures.js';
 
 /**
  * Kahraman girdisi: WASD hareket, Shift koşu, Boşluk zıplama, **vuruş yalnızca sol tıkla** ve nişan noktasına doğru
- * (kendi yapına tıklarsa seçer), sağ tık atılma + hortum, Esc vazgeç / duraklat.
+ * (kendi yapına tıklarsa seçer), sağ tık atılma + set etkisi, Esc vazgeç / duraklat.
  * İki kamera (V ile geçilir, world.cam):
  *  - 'iso': izometrik; WASD ekrana göre, nişan fare imlecinin zemindeki izdüşümü.
  *  - 'tps': omuz üstü (üçüncü şahıs); fare kilitliyken bakış fareyle döner (world.look yaw / pitch), WASD kameraya göre,
@@ -240,11 +240,11 @@ export function updatePlayerControl(world, dt) {
   p.moveDir.set(dx, 0, dz);
   const moving = len > 0;
 
-  // Kalkan tutma yok: sağ tık her kahraman türünde hortum çağırma hamlesidir.
+  // Kalkan tutma yok: sağ tık her kahraman türünde atılma + set etkisidir.
   p.blocking = false;
   p.sprinting = (k.has('ShiftLeft') || k.has('ShiftRight')) && moving;
 
-  // Sağ tık: her sette imlece doğru **ileri atılma** + sete özel ikinci etki (Kılıçlı hortum, Mızraklı kazık alanı, Okçu ok yağmuru,
+  // Sağ tık: her sette imlece doğru **ileri atılma** + sete özel ikinci etki (Kılıçlı kılıç fırtınası, Mızraklı kazık alanı, Okçu ok yağmuru,
   // atlılarda yarıp geçme / mızrak hücumu / geriye yaylım; bkz. abilities.heroDash). Atılma mesafesi seviyeyle büyür.
   if (input.dodgeQueued) {
     input.dodgeQueued = false;
@@ -256,7 +256,7 @@ export function updatePlayerControl(world, dt) {
         if (ad > 0.6) { bx = ax / ad; bz = az / ad; }
       }
       p.facing = yawFromDir(bx, bz);
-      // Önce set etkisi (fırlamadan önceki nokta: hortum / duvar geride kalır), sonra atılma.
+      // Önce set etkisi (fırlamadan önceki nokta: alan etkisi geride kalır), sonra atılma.
       heroDash(world, p, bx, bz);
       // İtme sürtünmeyle sönerek toplam dashDistance kadar yol aldırır (mesafe = itme / pushDrag).
       applyImpulse(p, bx, bz, dashDistance(p) * PHYSICS.pushDrag / p.invMass);

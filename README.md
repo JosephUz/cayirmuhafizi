@@ -61,14 +61,14 @@ setin ek etkisi bunun üstüne biner; sağ tık her zaman **ileri atılma**dır 
 
 | Set | Sol tık: vuruş + … | Sağ tık: atılma + … |
 | --- | --- | --- |
-| **Kılıçlı** | **Girdap**: çevrende 1 sn dönen bıçak çemberi, 360°, 0.2 sn'de bir vuruşun 0.5 katı (yarıçap vuruş menzilin) | **Hortum**: durduğun yerde 2 sn kalan hortum, 0.25 sn'de bir vuruşun 0.6 katı |
+| **Kılıçlı** | **Girdap**: çevrende 1 sn dönen bıçak çemberi, 360°, 0.2 sn'de bir vuruşun 0.5 katı (yarıçap vuruş menzilin) | **Kılıç fırtınası**: durduğun yerde 2 sn boyunca savrulan kılıçlar; 3.2 birim yarıçap, 0.25 sn'de bir vuruşun 0.6 katı |
 | **Mızraklı** | **Saplama**: bakış yönünde menzilin 2.2 katı uzunlukta ince şerit, yayın ötesindeki herkesi tam hasarla deler | **Kazık alanı**: hortum gibi durduğun yerde açılır, 2 sn boyunca yerden kazıklar yükselir; 3.2 birim yarıçap, 0.25 sn'de bir vuruşun 0.6 katı, dışa iter |
 | **Okçu** | **Yelpaze**: seviyen kadar ok en çok 70° yelpaze açar (ok başına 8°), her ok kendi yönündeki düşmana kilitlenir | **Ok yağmuru**: hortum gibi durduğun yerde açılır, 2 sn boyunca gökten ok yağar; 3.2 birim yarıçap, 0.25 sn'de bir vuruşun 0.6 katı |
 | **Kılıçlı Atlı** | **Geniş kesik**: vuruş yayı 180°, itme iki kat | **Yarıp geçme**: atılma yolunda geçtiğin her düşmana bir tam vuruş, yana savurur |
 | **Mızraklı Atlı** | **Hücum**: vururken yavaşlamazsın, hasar hızınla artar (tam koşuda 2x) | **Mızrak hücumu**: atılmanın bittiği yerde önüne 90° koni, vuruşun 2 katı, dört kat itme |
 | **Atlı Okçu** | **Koşarken atış**: atarken yavaşlamazsın, seviyenin iki katı ok dar (20°) yelpazede | **Geriye yaylım**: atılırken arkana (geldiğin yöne) seviyen kadar takipli ok |
 
-Anti kuralı bütün set etkilerinde geçerlidir: antisi olduğun türe girdap, saplama, kazık alanı, ok yağmuru da tek atar (yarım güçlü etkiler
+Anti kuralı bütün set etkilerinde geçerlidir: antisi olduğun türe girdap, saplama, kılıç fırtınası, kazık alanı, ok yağmuru da tek atar (yarım güçlü etkiler
 hasarı aynı oranda ölçekler, bkz. Birim üstünlükleri). Rakip kahraman sol tık etkilerini kullanır (sağ tık yetenekleri yalnızca oyuncuda).
 Bilgi kartı seçili setin iki yeteneğini yazar; sancaktaki **Geliştir** menüsünde her türün düğmesi setini gösterir.
 
@@ -82,7 +82,7 @@ geçirir, tekrar basınca izometriğe döner. Omuz üstünde:
   imleçle yapı seç, bina dik, toplanma noktası kur, tıkladığın yöne vur, alt banttaki düğmelere bas. **Tekrar orta tuş** bakışı
   kaldığı açıdan kilitler. **Esc** de kilidi bırakır (oyunu duraklatmaz); duraklatma, oyun sonu ve yeni oyun ekranı kilidi kendiliğinden bırakır.
 - **WASD kameraya göredir**: W baktığın yöne, S geri, A / D yana. Kahramanın yüzü hep kameranın baktığı yöne döner.
-- **Kilitliyken nişan ekran ortasındaki artıdır**: sol tık artının zemine değdiği noktaya vuruş (okçuda oklar oraya gider), sağ tık o yöne atılma + hortum,
+- **Kilitliyken nişan ekran ortasındaki artıdır**: sol tık artının zemine değdiği noktaya vuruş (okçuda oklar oraya gider), sağ tık o yöne atılma + set etkisi,
   inşa ve toplanma noktası da artının gösterdiği yere konur, kendi yapına nişan alıp tıklamak onu seçer. Serbest farede nişan imleçtir.
 - Kamera kahramanın sağ omzunun üstünden bakar (sayılar `config.js` → `CAMERA.tps`: uzaklık 9, yükseklik 2.4, açı 62°, fare duyarlılığı).
   **Savaş sisi düzlemi bu modda yoktur**: görünürlük **görüş mesafesiyle** işler (`CAMERA.tps.viewDist`, 90 birim): düşman birim ve yapılar
@@ -107,7 +107,7 @@ yönetilmez; **toplanma alanları** (soldaki ⚑ düğmeleri) hem varış noktas
 | `Boşluk` | Zıplama; havadayken hiçbir şeye takılmazsın, yakın vuruşlar ıskalar, oklar altından geçer |
 | Sol tık | Kendi yapına gelirse **seçer** (çift tık: o türdeki tüm binalar); inşa modunda yapıyı **diker**; yoksa **tıkladığın yöne vuruş**. Kahraman kendiliğinden vurmaz: her vuruş bir sol tıktır ve nişan tıklandığı noktada kilitlenir |
 | Sol tık | **Vuruş + set etkisi**: silahın kendi vuruşunun (yakın dövüşte yay, okçuda ok) üstüne kahramanın **yetenek setine** özel ek etki (bkz. Kahraman yetenek setleri). Kahraman kendiliğinden vurmaz: her vuruş bir sol tıktır |
-| Sağ tık | **İleri atılma + set etkisi**: imlece doğru fırlarsın. **Atılma mesafesi** başlangıçta **4.8 birim**, **seviye başına +0.12** (en çok 12); atılırken 0.5 sn vurulmazsın (kalkanlı setlerde 0.9 sn). Atılmaya setine özel ikinci etki eşlik eder: hortum, kazık alanı, ok yağmuru (üçü de durduğun yerde 2 sn), yarıp geçme, mızrak hücumu ya da geriye yaylım. İki kullanım arası **1.4 sn** |
+| Sağ tık | **İleri atılma + set etkisi**: imlece doğru fırlarsın. **Atılma mesafesi** başlangıçta **4.8 birim**, **seviye başına +0.12** (en çok 12); atılırken 0.5 sn vurulmazsın (kalkanlı setlerde 0.9 sn). Atılmaya setine özel ikinci etki eşlik eder: kılıç fırtınası, kazık alanı, ok yağmuru (üçü de durduğun yerde 2 sn), yarıp geçme, mızrak hücumu ya da geriye yaylım. İki kullanım arası **1.4 sn** |
 | Maden / ağaç / tarlaya vur | Kaynak düşer; üstünden geçince **doğrudan envantere** girer (ok da işler) |
 
 **Yapı ve ordu komutası** (kahraman modunda, alt banttan):
@@ -224,7 +224,7 @@ Askerler 100 can (at ve kalkan can bonusu yalnızca kahramanda: +50 / +30). Kalk
 
 - **Anti vuruşun gücü**: askere canının **1.5 katı** (kalkanın %30 emişini de deler, yine tek vuruşta ölür); kahramana sabit
   **150 hasar**: sv 1 kahraman (140 can) antisi olan **askere bile tek vuruşta** düşer; her seviye +10 can verdiği için sv 3'ten sonra
-  iki vuruş gerekir. Vuran kahramansa seviye çarpanı (+%8 / sv) da biner. Dönerek vuruş (0.5x) ve hortum (0.6x) anti hasarı aynı oranda ölçekler.
+  iki vuruş gerekir. Vuran kahramansa seviye çarpanı (+%8 / sv) da biner. Dönerek vuruş (0.5x) ve alan etkileri (0.6x) anti hasarı aynı oranda ölçekler.
 - Anti dışı eşleşmeler **1x**; yalnızca **ok zayıftır**: kalkanlıya 0.15x, atlıya 0.5x. Okçu dışındaki silahlar alan vuruşu yapar
   (kılıç 112°, mızrak 81°): yayın içindeki her antisi tek vuruşta ölür.
 - Tablo **karşılıklı tek atma çifti** içermez: kim kimin antisiyse tek yönlüdür. Kalkanlı atlıları yalnızca mızrak durdurur, bedelleri de en yüksektir.
