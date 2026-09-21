@@ -112,21 +112,25 @@ export const KIT = {
     primaryDesc: 'seviyen kadar ok 70°\'ye kadar yelpaze açar, her ok kendi yönündeki düşmana kilitlenir',
     secondaryDesc: 'durduğun yerde 2 sn boyunca ok yağmuru (3.2 birim yarıçap, 0.25 sn\'de bir vuruşun 0.6 katı)' },
   /** Geniş kesik: yay 180°, itme 2x (silah değerlerinde). Yarıp geçme: atılma yolundaki herkese bir vuruş. */
-  horsesword: { label: 'Kılıçlı Atlı', primary: 'Geniş kesik', secondary: 'Yarıp geçme',
-    /** trailRadius birim aralığından (PHYSICS.unitSpacing) büyük olmalı, yoksa at önündeki yayaya hiç değmez; trailLife itmenin sönme süresi. */
-    arcMult: 1.6, knockMult: 2, trailRadius: 2.2, trailDamage: 1, trailLife: 0.6,
+  /**
+   * Atlı setler: sağ tık alan etkisi yayanınkiyle aynıdır (KIT[silah] alan sayıları) ve üstüne **vakum** gelir: tık anında
+   * alanın merkezinden vacuum.radius (alan yarıçapının katı) içindeki düşmanlar vacuum.life sn boyunca merkeze çekilir
+   * (vacuum.pull: çekme itmesi, kütleden bağımsız), böylece alanın içine toplanıp vuruşları yerler.
+   */
+  horsesword: { label: 'Kılıçlı Atlı', primary: 'Geniş kesik', secondary: 'Kılıç fırtınası + vakum', field: 'blades',
+    arcMult: 1.6, knockMult: 2, vacuum: { radius: 2.4, life: 0.6, pull: 42 },
     primaryDesc: 'vuruş yayı 180°, itme iki kat: önündeki kalabalığı biçer ve savurur',
-    secondaryDesc: 'atılma yolunda geçtiğin her düşmana tam vuruş, yana savurur' },
+    secondaryDesc: 'durduğun yerde 2 sn savrulan kılıçlar; tık anında çevredeki düşmanlar alanın merkezine çekilir' },
   /** Hücum: vururken yavaşlamaz, hasar hıza göre artar (tam koşuda 1+chargeBonus). Mızrak hücumu: atılma bitince öne koni vuruşu. */
-  horsespear: { label: 'Mızraklı Atlı', primary: 'Hücum', secondary: 'Mızrak hücumu',
-    chargeBonus: 1, attackControl: 1, impactRange: 1.5, impactArc: Math.PI / 2, impactDamage: 2, impactKnock: 4,
+  horsespear: { label: 'Mızraklı Atlı', primary: 'Hücum', secondary: 'Kazık alanı + vakum', field: 'spikes',
+    chargeBonus: 1, attackControl: 1, vacuum: { radius: 2.4, life: 0.6, pull: 42 },
     primaryDesc: 'vururken yavaşlamazsın, hasar hızınla artar (tam koşuda 2x)',
-    secondaryDesc: 'atılmanın bittiği yerde önüne 90° koni: vuruşun 2 katı, dört kat itme' },
+    secondaryDesc: 'durduğun yerde 2 sn yerden çıkan kazıklar; tık anında çevredeki düşmanlar alanın merkezine çekilir' },
   /** Koşarken atış: yavaşlamaz, ok sayısı arrowMult katı, dar yelpaze. Geriye yaylım: atılırken arkaya takipli oklar. */
-  horsebow: { label: 'Atlı Okçu', primary: 'Koşarken atış', secondary: 'Geriye yaylım',
-    attackControl: 1, arrowMult: 2, fanStep: 3, fanMax: 20, homingDeg: 8, backFan: 30,
+  horsebow: { label: 'Atlı Okçu', primary: 'Koşarken atış', secondary: 'Ok yağmuru + vakum', field: 'rain',
+    attackControl: 1, arrowMult: 2, fanStep: 3, fanMax: 20, homingDeg: 8, vacuum: { radius: 2.4, life: 0.6, pull: 42 },
     primaryDesc: 'atarken yavaşlamazsın ve seviyenin iki katı ok dar yelpazede gider',
-    secondaryDesc: 'atılırken arkana (geldiğin yöne) seviyen kadar takipli ok bırakırsın' },
+    secondaryDesc: 'durduğun yerde 2 sn ok yağmuru; tık anında çevredeki düşmanlar alanın merkezine çekilir' },
 };
 
 /** Vuruşların hedefi itme çarpanı (asker ve kule vuruşları). 0 = itmez. */

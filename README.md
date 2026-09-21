@@ -64,9 +64,9 @@ setin ek etkisi bunun üstüne biner; sağ tık her zaman **ileri atılma**dır 
 | **Kılıçlı** | **Üçlü kesik**: peş peşe vuruşlar (1.2 sn içinde) zincir kurar; 2. vuruş %35 geniş yay, 3. vuruşta **girdap** (çevrende 1 sn dönen bıçak çemberi, 360°, 0.2 sn'de bir vuruşun 0.5 katı). **Basılı tut → Ağır kesik**: 180° tek vuruş, 2x hasar, üç kat itme, yarım adım öne | **Kılıç fırtınası**: durduğun yerde 2 sn boyunca savrulan kılıçlar; 3.2 birim yarıçap, 0.25 sn'de bir vuruşun 0.6 katı |
 | **Mızraklı** | **Saplama**: bakış yönünde menzilin 2.2 katı uzunlukta ince şerit, yayın ötesindeki herkesi tam hasarla deler. **Basılı tut → Delici saplama**: şerit menzilin 3 katına uzar, 2x hasar, en yakın hedefi sana çeker | **Kazık alanı**: hortum gibi durduğun yerde açılır, 2 sn boyunca yerden kazıklar yükselir; 3.2 birim yarıçap, 0.25 sn'de bir vuruşun 0.6 katı, dışa iter |
 | **Okçu** | **Yelpaze**: seviyen kadar ok en çok 70° yelpaze açar (ok başına 8°), her ok kendi yönündeki düşmana kilitlenir. **Basılı tut → Delici ok**: tek kalın ok, 2.5x hasar, 1.5x menzil, çarptığı her düşmanı delip geçer | **Ok yağmuru**: hortum gibi durduğun yerde açılır, 2 sn boyunca gökten ok yağar; 3.2 birim yarıçap, 0.25 sn'de bir vuruşun 0.6 katı |
-| **Kılıçlı Atlı** | **Geniş kesik**: vuruş yayı 180°, itme iki kat | **Yarıp geçme**: atılma yolunda geçtiğin her düşmana bir tam vuruş, yana savurur |
-| **Mızraklı Atlı** | **Hücum**: vururken yavaşlamazsın, hasar hızınla artar (tam koşuda 2x) | **Mızrak hücumu**: atılmanın bittiği yerde önüne 90° koni, vuruşun 2 katı, dört kat itme |
-| **Atlı Okçu** | **Koşarken atış**: atarken yavaşlamazsın, seviyenin iki katı ok dar (20°) yelpazede | **Geriye yaylım**: atılırken arkana (geldiğin yöne) seviyen kadar takipli ok |
+| **Kılıçlı Atlı** | **Geniş kesik**: vuruş yayı 180°, itme iki kat | **Kılıç fırtınası + vakum**: yayanınkiyle aynı alan; tık anında alan yarıçapının 2.4 katı içindeki düşmanlar 0.6 sn boyunca merkeze çekilir |
+| **Mızraklı Atlı** | **Hücum**: vururken yavaşlamazsın, hasar hızınla artar (tam koşuda 2x) | **Kazık alanı + vakum**: yayanınkiyle aynı alan; tık anında çevredeki düşmanlar merkeze çekilir |
+| **Atlı Okçu** | **Koşarken atış**: atarken yavaşlamazsın, seviyenin iki katı ok dar (20°) yelpazede | **Ok yağmuru + vakum**: yayanınkiyle aynı alan; tık anında çevredeki düşmanlar merkeze çekilir |
 
 **Şarjlı vuruş (sol tık basılı tutma)**: tık anında normal vuruş iner; fare 0.22 sn'den uzun basılı kalırsa kahramanın üstünde bir
 çubuk 0.6 sn'de dolar (dolunca altın), bu sırada hız yarıya iner ve yüz imleci izler. Bırakınca silaha özgü güçlü vuruş çıkar; hasar şarj
@@ -112,7 +112,7 @@ yönetilmez; **toplanma alanları** (soldaki ⚑ düğmeleri) hem varış noktas
 | `Boşluk` | Zıplama; havadayken hiçbir şeye takılmazsın, yakın vuruşlar ıskalar, oklar altından geçer |
 | Sol tık | Kendi yapına gelirse **seçer** (çift tık: o türdeki tüm binalar); inşa modunda yapıyı **diker**; yoksa **tıkladığın yöne vuruş**. Kahraman kendiliğinden vurmaz: her vuruş bir sol tıktır ve nişan tıklandığı noktada kilitlenir |
 | Sol tık | **Vuruş + set etkisi**: silahın kendi vuruşunun (yakın dövüşte yay, okçuda ok) üstüne kahramanın **yetenek setine** özel ek etki (bkz. Kahraman yetenek setleri). Kahraman kendiliğinden vurmaz: her vuruş bir sol tıktır |
-| Sağ tık | **İleri atılma + set etkisi**: imlece doğru fırlarsın. **Atılma mesafesi** başlangıçta **4.8 birim**, **seviye başına +0.12** (en çok 12); atılırken 0.5 sn vurulmazsın (kalkanlı setlerde 0.9 sn). Atılmaya setine özel ikinci etki eşlik eder: kılıç fırtınası, kazık alanı, ok yağmuru (üçü de durduğun yerde 2 sn), yarıp geçme, mızrak hücumu ya da geriye yaylım. İki kullanım arası **1.4 sn** |
+| Sağ tık | **İleri atılma + set etkisi**: imlece doğru fırlarsın. **Atılma mesafesi** başlangıçta **4.8 birim**, **seviye başına +0.12** (en çok 12); atılırken 0.5 sn vurulmazsın (kalkanlı setlerde 0.9 sn). Atılmaya silahına göre durduğun yerde 2 sn süren alan etkisi eşlik eder: kılıç fırtınası, kazık alanı ya da ok yağmuru; atlı setlerde alan açılırken **vakum** çevredeki düşmanları merkeze çeker. İki kullanım arası **1.4 sn** |
 | Maden / ağaç / tarlaya vur | Kaynak düşer; üstünden geçince **doğrudan envantere** girer (ok da işler) |
 
 **Yapı ve ordu komutası** (kahraman modunda, alt banttan):

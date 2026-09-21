@@ -9,8 +9,8 @@ import { applyImpulse } from './physics.js';
  *  - Sol tık: silahın kendi vuruşunun (yay / ok) **üstüne** sete özel etki: Kılıçlı girdap (dönen bıçak çemberi),
  *    Mızraklı saplama (uzun şerit), Okçu yelpaze yaylımı, Kılıçlı Atlı geniş kesik (silah değerlerinde), Mızraklı Atlı
  *    hücum (hıza bağlı hasar, characters.chargeMult), Atlı Okçu koşarken çift ok.
- *  - Sağ tık: her sette **ileri atılma** + sete özel ikinci etki: kılıç fırtınası, kazık alanı, ok yağmuru (üçü de durduğun
- *    yerde 2 sn süren alan), yarıp geçme, mızrak hücumu, geriye yaylım. Süreli etkiler world.zones listesinde yaşar (updateZones).
+ *  - Sağ tık: her sette **ileri atılma** + silaha göre durduğun yerde 2 sn süren alan: kılıç fırtınası, kazık alanı, ok yağmuru.
+ *    Atlı setlerde alan açılırken **vakum** çevredeki düşmanları merkeze çeker. Süreli etkiler world.zones'da yaşar (updateZones).
  */
 
 /** Sol tık: silah vuruşundan sonra sete özel ek etki. Kılıçta girdap yalnızca kombonun COMBO.spinAt. vuruşunda çıkar. */
@@ -157,7 +157,7 @@ function strip(world, x, z, ux, uz, len, width, color, life) {
 }
 
 /**
- * Sağ tık: atılma zamanlayıcıları + sete özel ikinci etki. (bx, bz) atılma yönü. Çağıran ardından itmeyi uygular.
+ * Sağ tık: atılma zamanlayıcıları + silaha göre alan etkisi (atlıda vakumlu). (bx, bz) atılma yönü. Çağıran ardından itmeyi uygular.
  * Kalkanlı setlerde vurulmazlık DASH.shieldInvulnMult kat uzundur.
  */
 export function heroDash(world, p, bx, bz) {
@@ -165,19 +165,12 @@ export function heroDash(world, p, bx, bz) {
   p.dodgeCd = TORNADO.cooldown; p.dodgeTimer = DASH.duration; p.attackTimer = 0;
   p.invuln = DASH.invuln * (p.loadout.shield ? DASH.shieldInvulnMult : 1);
   const dmg = p.stats.weapon.damage * damageMult(p);
-  switch (kit) {
-    case 'spear': spawnField(world, p, k, dmg, 'spikes'); break;
-    case 'bow': spawnField(world, p, k, dmg, 'rain'); break;
-    case 'horsesword':
-      world.zones.push({ kind: 'trail', source: p, faction: p.faction, life: Math.max(DASH.duration, k.trailLife), hit: new Set(), damage: dmg * k.trailDamage, radius: k.trailRadius, x0: p.pos.x, z0: p.pos.z, knock: p.stats.weapon.knockback });
-      break;
-    case 'horsespear':
-      world.zones.push({ kind: 'impact', source: p, faction: p.faction, life: DASH.duration + 0.02, damage: dmg * k.impactDamage, k });
-      break;
-    case 'horsebow': parthian(world, p, bx, bz, k); break;
-    default: spawnField(world, p, k, dmg, 'blades');
-  }
+  // Alan etkisi silaha göre (kılıç fırtınası / kazık alanı / ok yağmuru); atlı setlerde üstüne vakum biner.
+  const weapon = p.loadout.weapon, base = KIT[weapon] || KIT.sword;
+  const kind = base === KIT.sword ? 'blades' : base === KIT.spear ? 'spikes' : 'rain';
+  spawnField(world, p, base, dmg, kind, k.vacuum || null);
 }
+
 
 /**
  * Durduğun yerde açılan alan etkisi (üç yakın dövüş / okçu setinde aynı mantık): kind 'blades' (Kılıçlı: savrulan kılıçlar),
@@ -185,9 +178,21 @@ export function heroDash(world, p, bx, bz) {
  * yarıçaptaki bütün düşmanlara (birim ve yapı) vurur.
  */
 const FIELD_COLOR = { blades: '#ffe9a8', spikes: '#d9c98a', rain: '#ffd86b' };
-function spawnField(world, p, k, dmg, kind) {
+function spawnField(world, p, k, dmg, kind, vacuum = null) {
   const radius = k.fieldRadius * dashMult(p), x = p.pos.x, z = p.pos.z;
-  const g = new T.Group(), mats = [], stakes = [], blades = [];
+  const g = new T.Group(), mats = [], stakes = [], blades = [], sparks = [];
+  if (vacuum) {
+    // Vakum kıvılcımları: çekme yarıçapından merkeze süzülen küçük noktalar (görsel).
+    const vr = radius * vacuum.radius;
+    for (let i = 0; i < 14; i++) {
+      const a = (i / 14) * Math.PI * 2 + Math.random() * 0.4, r = vr * (0.7 + Math.random() * 0.3);
+      const m = new T.Mesh(new T.SphereGeometry(0.09, 6, 5), new T.MeshBasicMaterial({ color: FIELD_COLOR[kind], transparent: true, opacity: 0.9, depthWrite: false }));
+      m.position.set(Math.sin(a) * r, 0.5 + Math.random() * 1.2, Math.cos(a) * r);
+      mats.push({ m: m.material, o: 0.9 }); sparks.push({ m, x0: m.position.x, z0: m.position.z, y0: m.position.y, delay: Math.random() * 0.15 });
+      g.add(m);
+    }
+    ring(world, x, z, FIELD_COLOR[kind], vr, vacuum.life);
+  }
   const base = new T.Mesh(new T.RingGeometry(radius * 0.55, radius, 40),
     new T.MeshBasicMaterial({ color: FIELD_COLOR[kind], transparent: true, opacity: 0.4, side: T.DoubleSide, depthWrite: false }));
   base.rotation.x = -Math.PI / 2; base.position.y = 0.07; mats.push({ m: base.material, o: 0.4 }); g.add(base);
@@ -222,7 +227,7 @@ function spawnField(world, p, k, dmg, kind) {
   }
   g.position.set(x, 0, z);
   world.scene.add(g);
-  world.zones.push({ kind, source: p, faction: p.faction, g, mats, stakes, blades, x, z, radius, life: k.fieldLife, maxLife: k.fieldLife, tick: 0, tickEvery: k.fieldTick, damage: dmg * k.fieldDamage, knock: k.fieldKnock, arrows: heroArrows(p) });
+  world.zones.push({ kind, source: p, faction: p.faction, g, mats, stakes, blades, sparks, vacuum: vacuum ? { radius: radius * vacuum.radius, life: vacuum.life, maxLife: vacuum.life, pull: vacuum.pull } : null, x, z, radius, life: k.fieldLife, maxLife: k.fieldLife, tick: 0, tickEvery: k.fieldTick, damage: dmg * k.fieldDamage, knock: k.fieldKnock, arrows: heroArrows(p) });
   burst(world, x, 0.6, z, FIELD_COLOR[kind], 10, 0.12);
 }
 
@@ -252,18 +257,7 @@ function fieldTick(world, z) {
   }
 }
 
-/** Atlı okçu: atılırken arkaya (geldiği yöne) seviyesi kadar takipli ok. */
-function parthian(world, p, bx, bz, k) {
-  const n = heroArrows(p), fan = Math.min(k.backFan, k.fanStep * 2 * (n - 1)) * Math.PI / 180;
-  const base = Math.atan2(-bx, -bz), range = reachOf(p).range, cosTol = Math.cos(k.homingDeg * 2 * Math.PI / 180);
-  for (let i = 0; i < n; i++) {
-    const a = base + (n > 1 ? (i / (n - 1) - 0.5) * fan : 0);
-    const d = new T.Vector3(Math.sin(a), 0, Math.cos(a));
-    fireArrow(world, p, d, hostileAlong(world, p, d.x, d.z, range * 1.1, cosTol), 1, 0);
-  }
-}
-
-/** Süreli set etkileri: kılıç fırtınası, kazık alanı, ok yağmuru, yarıp geçme, mızrak hücumu. */
+/** Süreli set etkileri: kılıç fırtınası, kazık alanı, ok yağmuru (atlıda vakumlu). */
 export function updateZones(world, dt) {
   const list = world.zones;
   for (let i = list.length - 1; i >= 0; i--) {
@@ -284,47 +278,22 @@ export function updateZones(world, dt) {
           b.item.rotation.set(Math.sin(age * 2.3 + b.phase) * 0.6, a + (b.w > 0 ? Math.PI / 2 : -Math.PI / 2), age * b.tumble);
         }
       }
+      // Vakum (atlı setler): ilk vacuum.life sn boyunca çekme yarıçapındaki düşmanlar merkeze çekilir (kütleden bağımsız).
+      if (z.vacuum && z.vacuum.life > 0) {
+        const v = z.vacuum; v.life -= dt;
+        for (const t of world.entities) {
+          if (t === e || !t.alive || t.faction === z.faction || t.isWorker) continue;
+          const dx = z.x - t.pos.x, dz = z.z - t.pos.z, d = Math.hypot(dx, dz);
+          if (d > v.radius || d < 0.4) continue;
+          applyImpulse(t, dx / d, dz / d, v.pull * dt / t.invMass);
+        }
+        const prog = 1 - Math.max(0, v.life) / v.maxLife;
+        for (const sp of z.sparks) { const q = Math.min(1, Math.max(0, (prog - sp.delay) / (1 - sp.delay))); sp.m.position.set(sp.x0 * (1 - q), sp.y0 + q * 0.4, sp.z0 * (1 - q)); sp.m.material.opacity = 0.9 * (1 - q * q); }
+      } else for (const sp of z.sparks) sp.m.material.opacity = 0;
       const fade = k < 0.2 ? k / 0.2 : 1;
-      for (const it of z.mats) it.m.opacity = it.o * fade;
+      for (const it of z.mats) if (!z.sparks.some(sp => sp.m.material === it.m)) it.m.opacity = it.o * fade;
       z.tick -= dt;
       if (z.tick <= 0 && z.life > 0) { z.tick = z.tickEvery; fieldTick(world, z); }
-    } else if (z.kind === 'trail') {
-      // Atılma boyunca yolda geçilen her düşmana bir kez vurulur; itme geçiş yönüne dik (yana savurur).
-      const vx = e.vel.x + e.push.x, vz = e.vel.z + e.push.z, sp = Math.hypot(vx, vz) || 1;
-      const ux = vx / sp, uz = vz / sp;
-      for (const t of world.entities) {
-        if (t === e || !t.alive || t.faction === z.faction || z.hit.has(t) || isEvading(t)) continue;
-        const dx = t.pos.x - e.pos.x, dz = t.pos.z - e.pos.z, d = Math.hypot(dx, dz) || 1;
-        if (d > z.radius + t.radius) continue;
-        z.hit.add(t);
-        const side = dx * uz - dz * ux >= 0 ? 1 : -1;
-        damageEntity(world, t, hitDamage(e, t, z.damage), uz * side, -ux * side, z.knock, e);
-        burst(world, t.pos.x, 1.1, t.pos.z, '#ffe9a8', 6, 0.1);
-      }
-      for (const s of world.structures) {
-        if (!s.alive || s.faction === z.faction || z.hit.has(s)) continue;
-        if (Math.hypot(s.pos.x - e.pos.x, s.pos.z - e.pos.z) > z.radius + s.radius) continue;
-        z.hit.add(s); damageStructure(world, s, z.damage, e);
-      }
-      if (z.life <= 0) { const dx = e.pos.x - z.x0, dz = e.pos.z - z.z0, len = Math.hypot(dx, dz); if (len > 0.5) strip(world, z.x0, z.z0, dx / len, dz / len, len, 0.5, '#ffe9a8', 0.35); }
-    } else if (z.kind === 'impact' && z.life <= 0) {
-      // Atılma bitti: vardığı noktada önüne koni vuruşu (2x hasar, sert itme).
-      const k = z.k, r = reachOf(e).range * k.impactRange, cosHalf = Math.cos(k.impactArc / 2);
-      const fx = Math.sin(e.facing), fz = Math.cos(e.facing), knock = e.stats.weapon.knockback * k.impactKnock;
-      for (const t of world.entities) {
-        if (t === e || !t.alive || t.faction === z.faction || isEvading(t)) continue;
-        const dx = t.pos.x - e.pos.x, dz = t.pos.z - e.pos.z, d = Math.hypot(dx, dz) || 1;
-        if (d > r + t.radius || (fx * dx + fz * dz) / d < cosHalf) continue;
-        damageEntity(world, t, hitDamage(e, t, z.damage), dx / d, dz / d, knock, e);
-      }
-      for (const s of world.structures) {
-        if (!s.alive || s.faction === z.faction) continue;
-        const dx = s.pos.x - e.pos.x, dz = s.pos.z - e.pos.z, d = Math.hypot(dx, dz) || 1;
-        if (d > r + s.radius || (fx * dx + fz * dz) / d < cosHalf * 0.6) continue;
-        damageStructure(world, s, z.damage, e);
-      }
-      ring(world, e.pos.x + fx * r * 0.5, e.pos.z + fz * r * 0.5, '#ffd27a', r, 0.4);
-      burst(world, e.pos.x + fx * 1.2, 1, e.pos.z + fz * 1.2, '#ffd27a', 12, 0.12);
     }
     if (z.life <= 0) { dispose(world, z); list.splice(i, 1); }
   }
