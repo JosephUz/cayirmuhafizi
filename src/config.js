@@ -66,7 +66,8 @@ export const SPIN = { duration: 1, tick: 0.2, damageMult: 0.5, minRadius: 2.4, b
  * 1 + (damage - 1) x c). Şarj sırasında hız speedMult; şarjlı vuruştan sonra bekleme cooldownMult kat.
  *  - Kılıç **ağır kesik**: arc yayında tek vuruş, itme knockMult kat, kahraman lunge birim öne kayar; girdap çıkmaz.
  *  - Mızrak **delici saplama**: şerit menzilin lenMin..lenMax katına uzar, hattaki herkesi deler, en yakın hedefi pull ile çeker.
- *  - Yay **delici ok**: tek kalın ok (scale), menzil rangeMult, çarptığı her düşmanı delip geçer (yapıda durur).
+ *  - Yay **hızlı yaylım**: normal sol tık atışını (yelpaze) peş peşe shots kez, gap sn arayla yapar; şarj yarımsa atış
+ *    sayısı da yarıdır. Atışlar sırasında nişan imleci izler, yani yaylımı süpürebilirsin.
  */
 export const CHARGE = {
   delay: 0.22, full: 0.6, minRelease: 0.15, speedMult: 0.5, cooldownMult: 1.5,
@@ -74,7 +75,8 @@ export const CHARGE = {
   sword: { rangeMult: 1.4, damage: 2, knockMult: 3, lunge: 0.8 },
   /** Mızrak: koridor lenMin..lenMax kat uzar (şarja göre), 2x hasar, en yakın delinen hedef pull ile çekilir. */
   spear: { lenMin: 1.3, lenMax: 1.8, damage: 2, pull: 7 },
-  bow: { damage: 2.5, rangeMult: 1.5, scale: 2.2 },
+  /** Yay: normal yaylımı shots kez, gap sn arayla tekrarlar (tam şarjda 5 atış). */
+  bow: { shots: 5, gap: 0.12 },
 };
 export const KIT = {
   /**
@@ -102,30 +104,31 @@ export const KIT = {
    * Ok yağmuru: hortum gibi **durduğun yerde** açılır; fieldLife sn boyunca fieldTick sn'de bir yarıçaptaki herkese
    * vuruşun fieldDamage katı ok düşer (görselde her tick gökten oklar iner). Yarıçap dashMult ile büyür.
    */
-  bow: { label: 'Okçu', primary: 'Yelpaze', secondary: 'Ok yağmuru', charge: 'Delici ok',
-    chargeDesc: 'tek kalın ok, 2.5x hasar, 1.5x menzil, çarptığı her düşmanı delip geçer', charge: 'Delici ok',
-    chargeDesc: 'tek kalın ok, 2.5x hasar, 1.5x menzil, çarptığı her düşmanı delip geçer',
+  bow: { label: 'Okçu', primary: 'Yelpaze', secondary: 'Ok yağmuru', charge: 'Hızlı yaylım',
+    chargeDesc: 'peş peşe 5 yaylım (her biri normal sol tık atışı), 0.12 sn arayla; nişan imleci izler',
     fanStep: 8, fanMax: 70, homingDeg: 10, arrowMult: 1,
     fieldRadius: 3.2, fieldLife: 2, fieldTick: 0.25, fieldDamage: 0.6, fieldKnock: 1,
     primaryDesc: 'seviyen kadar ok 70°\'ye kadar yelpaze açar, her ok kendi yönündeki düşmana kilitlenir',
     secondaryDesc: 'durduğun yerde 2 sn boyunca ok yağmuru (3.2 birim yarıçap, 0.25 sn\'de bir vuruşun 0.6 katı)' },
-  /** Geniş kesik: yay 180°, itme 2x (silah değerlerinde). Yarıp geçme: atılma yolundaki herkese bir vuruş. */
   /**
    * Atlı setler: sağ tık alan etkisi yayanınkiyle aynıdır (KIT[silah] alan sayıları) ve üstüne **vakum** gelir: tık anında
    * alanın merkezinden vacuum.radius (alan yarıçapının katı) içindeki düşmanlar vacuum.life sn boyunca merkeze çekilir
    * (vacuum.pull: çekme itmesi, kütleden bağımsız), böylece alanın içine toplanıp vuruşları yerler.
    */
   horsesword: { label: 'Kılıçlı Atlı', primary: 'Geniş kesik', secondary: 'Kılıç fırtınası + vakum', field: 'blades',
+    charge: 'Ağır kesik', chargeDesc: '360° ağır kesik, menzilin 1.4 katı, 2x hasar, üç kat itme',
     arcMult: 1.6, knockMult: 2, vacuum: { radius: 2.4, life: 0.6, pull: 42 },
     primaryDesc: 'vuruş yayı 180°, itme iki kat: önündeki kalabalığı biçer ve savurur',
     secondaryDesc: 'durduğun yerde 2 sn savrulan kılıçlar; tık anında çevredeki düşmanlar alanın merkezine çekilir' },
   /** Hücum: vururken yavaşlamaz, hasar hıza göre artar (tam koşuda 1+chargeBonus). Mızrak hücumu: atılma bitince öne koni vuruşu. */
   horsespear: { label: 'Mızraklı Atlı', primary: 'Hücum', secondary: 'Kazık alanı + vakum', field: 'spikes',
+    charge: 'Delici saplama', chargeDesc: 'koridor 1.8 katına uzar, hattaki herkesi 2x hasarla deler ve en yakınını sana çeker',
     chargeBonus: 1, attackControl: 1, vacuum: { radius: 2.4, life: 0.6, pull: 42 },
     primaryDesc: 'vururken yavaşlamazsın, hasar hızınla artar (tam koşuda 2x)',
     secondaryDesc: 'durduğun yerde 2 sn yerden çıkan kazıklar; tık anında çevredeki düşmanlar alanın merkezine çekilir' },
   /** Koşarken atış: yavaşlamaz, ok sayısı arrowMult katı, dar yelpaze. Geriye yaylım: atılırken arkaya takipli oklar. */
   horsebow: { label: 'Atlı Okçu', primary: 'Koşarken atış', secondary: 'Ok yağmuru + vakum', field: 'rain',
+    charge: 'Hızlı yaylım', chargeDesc: 'peş peşe 5 yaylım (her biri normal sol tık atışı, seviyenin iki katı ok), 0.12 sn arayla',
     attackControl: 1, arrowMult: 2, fanStep: 3, fanMax: 20, homingDeg: 8, vacuum: { radius: 2.4, life: 0.6, pull: 42 },
     primaryDesc: 'atarken yavaşlamazsın ve seviyenin iki katı ok dar yelpazede gider',
     secondaryDesc: 'durduğun yerde 2 sn ok yağmuru; tık anında çevredeki düşmanlar alanın merkezine çekilir' },
@@ -384,17 +387,18 @@ export const HERO_UPGRADE = {
   /** Sancak alanında saniyede kazanılan can ve tepede çıkan can baloncuklarının aralığı (saniye). */
   range: 12, regenPerSecond: 9, bubbleEvery: 0.28, startLoadout: { weapon: 'sword', shield: false, horse: false },
   /**
-   * Tür değiştirme bedeli: en ucuz tür (yaya kılıç / mızrak) convertBase altındır; donanım eklendikçe belirgin artar.
-   * Yay + kalkan + at üst üste binebilir (en pahalı: kalkanlı atlı 3000 altın).
+   * Tür değiştirme bedeli **tür tür sabittir** (formül yok): yaya türler ucuz, kalkan belirgin pahalı, **atlılar çok
+   * pahalı** — kahramanı ata bindirmek oyunun geç aşamasıdır ve uzun bir ekonomi kurmayı gerektirir. Kılıçlı
+   * başlangıç türüdür, en ucuzu odur (ona geri dönmek kolay olsun diye).
    */
-  convertBase: 1000, convertBow: 600, convertShield: 800, convertHorse: 1200,
+  convertCost: {
+    sword: 2500, spear: 5000, bow: 10000, swordshield: 10000, spearshield: 20000,
+    horsesword: 100000, horsespear: 100000, horsebow: 100000,
+    horseswordshield: 150000, horsespearshield: 150000,
+  },
 };
-/** Kahramanın o türe dönüşme bedeli (altın): taban + yay / kalkan / at ek ücretleri. */
-export const heroConvertCost = t =>
-  HERO_UPGRADE.convertBase
-  + (t.weapon === 'bow' ? HERO_UPGRADE.convertBow : 0)
-  + (t.shield ? HERO_UPGRADE.convertShield : 0)
-  + (t.horse ? HERO_UPGRADE.convertHorse : 0);
+/** Kahramanın o türe dönüşme bedeli (altın); tabloda olmayan tür (mancınık / işçi) menüde çıkmaz. */
+export const heroConvertCost = t => HERO_UPGRADE.convertCost[t.key] ?? HERO_UPGRADE.convertCost.sword;
 
 export const ENEMY = {
   aggro: 16,

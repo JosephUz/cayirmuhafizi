@@ -31,7 +31,7 @@ export function heroVolley(world, e, dir) {
  * vuruş animasyonu oynar (attackTimer), normal vuruş tetiklenmez (didHit) ve bekleme CHARGE.cooldownMult kat uzar.
  *  - Kılıç: ağır kesik (360°, uzun menzil, sert itme, öne kayma).
  *  - Mızrak: delici saplama (koridor uzar, herkesi deler, en yakını çeker).
- *  - Yay: delici ok (tek kalın ok, uzun menzil, delip geçer).
+ *  - Yay: hızlı yaylım (normal atışı peş peşe CHARGE.bow.shots kez; sürerken nişan imleci izler, bkz. updateZones 'volley').
  */
 export function heroCharged(world, p, c) {
   const w = p.stats.weapon, kit = kitOf(p);
@@ -42,9 +42,13 @@ export function heroCharged(world, p, c) {
   p.attackTimer = w.duration; p.didHit = true; p.cooldown = w.cooldown * CHARGE.cooldownMult;
   const base = w.damage * damageMult(p);
   if (w.ranged) {
-    const k = CHARGE.bow, dir = new T.Vector3(fx, 0, fz);
-    fireArrow(world, p, dir, null, 1 + (k.damage - 1) * c, 0, { pierce: true, scale: k.scale, rangeMult: k.rangeMult });
+    // Hızlı yaylım: ilki hemen, kalanı gap aralıklarla (updateZones 'volley'). Nişan kilitlenmez ki yaylımı süpürebilesin.
+    const k = CHARGE.bow, n = Math.max(1, Math.round(k.shots * c));
+    p.aimLocked = false;
+    heroVolley(world, p, new T.Vector3(fx, 0, fz));
     burst(world, p.pos.x + fx * 0.8, 1.3, p.pos.z + fz * 0.8, '#ffd86b', 6, 0.08);
+    if (n > 1) world.zones.push({ kind: 'volley', source: p, faction: p.faction, left: n - 1, gap: k.gap, tick: k.gap, life: (n - 1) * k.gap + 0.05 });
+    if (p.isPlayer && world.ui) world.ui.float(`Hızlı yaylım x${n}`, { x: p.pos.x, y: 2.6, z: p.pos.z }, '#ffd86b');
     return;
   }
   if (w.label === 'Mızrak') {
@@ -86,6 +90,15 @@ export function heroCharged(world, p, c) {
   }
   applyImpulse(p, fx, fz, k.lunge * 4.2 / p.invMass);
   ring(world, p.pos.x, p.pos.z, '#ffe9a8', range, 0.35);
+}
+
+/** Hızlı yaylımın bir atışı: kahraman o anki nişanına döner, yaylımı atar, yay animasyonu oynar (vuruş yeniden çözülmez). */
+function burstVolley(world, p) {
+  const ax = p.aim.x - p.pos.x, az = p.aim.z - p.pos.z, ad = Math.hypot(ax, az);
+  const fx = ad > 0.2 ? ax / ad : Math.sin(p.facing), fz = ad > 0.2 ? az / ad : Math.cos(p.facing);
+  p.facing = Math.atan2(fx, fz);
+  p.attackTimer = p.stats.weapon.duration; p.didHit = true;
+  heroVolley(world, p, new T.Vector3(fx, 0, fz));
 }
 
 /** Verilen yönde (cosTol açı payıyla) menzildeki en yakın düşman birim. */
@@ -247,6 +260,10 @@ export function updateZones(world, dt) {
       for (const it of z.mats) if (!z.sparks.some(sp => sp.m.material === it.m)) it.m.opacity = it.o * fade;
       z.tick -= dt;
       if (z.tick <= 0 && z.life > 0) { z.tick = z.tickEvery; fieldTick(world, z); }
+    } else if (z.kind === 'volley') {
+      // Hızlı yaylımın kalan atışları: her biri normal sol tık atışıdır ve o anki nişana gider.
+      z.tick -= dt;
+      if (z.tick <= 0 && z.left > 0) { z.tick = z.gap; z.left--; burstVolley(world, e); }
     }
     if (z.life <= 0) { dispose(world, z); list.splice(i, 1); }
   }

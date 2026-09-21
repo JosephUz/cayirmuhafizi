@@ -40,8 +40,9 @@ sancağı seç, **Geliştir** düğmesiyle menüyü aç (kahraman sancağa 12 bi
   durdukça saniyede **9 can** kazanır ve tepesinden **yeşil can baloncukları** çıkıp yükselerek söner; alandan çıkınca durur. **Başka hiçbir yol canı doldurmaz**: yiyecek
   yalnızca envantere girer, seviye atlamak azami canı artırır ama mevcut canı doldurmaz. Yeniden doğan kahraman dolu başlar.
   Aynı kural rakip kahraman için kendi sancağında geçerlidir.
-- **Türe dönüş**: 10 asker türünden birine dönüş, **en az 1000 altın**: taban 1000 + **yay 600** + **kalkan 800** +
-  **at 1200** (yaya kılıç/mızrak 1000, okçu 1600, kalkanlı yaya 1800, atlı 2200, atlı okçu 2800, kalkanlı atlı 3000).
+- **Türe dönüş**: 10 asker türünden birine dönüş, bedeli **tür tür sabittir** (`config.js` → `HERO_UPGRADE.convertCost`):
+  kılıçlı **2.500**, mızraklı **5.000**, okçu ve kılıç kalkan **10.000**, mızrak kalkan **20.000**, atlı kılıç / mızrak / okçu
+  **100.000**, kalkanlı atlılar **150.000** altın. Atlı olmak oyunun geç aşamasıdır: uzun süre işçi, maden ve ganimet biriktirmeyi gerektirir.
   **Seviyen ve exp'in korunur**
   (yeni türün taban canına seviyelerinin can artışı eklenir). Donanım (silah, kalkan, at) ve
   görünüm değişir, **seviye 1'e döner**. Yetenek seti silah x at ile değişir (bkz. Kahraman yetenek setleri); kalkan can (+30), üstünlük
@@ -63,7 +64,7 @@ setin ek etkisi bunun üstüne biner; sağ tık her zaman **ileri atılma**dır 
 | --- | --- | --- |
 | **Kılıçlı** | **Çevre kesik**: kılıç çevrende 360° döner, menzilindeki (2.2, seviyeyle büyür) her düşman vurulur. **Basılı tut → Ağır kesik**: 360°, menzilin 1.4 katı, 2x hasar, üç kat itme, yarım adım öne | **Kılıç fırtınası**: durduğun yerde 2 sn boyunca savrulan kılıçlar; 3.2 birim yarıçap, 0.25 sn'de bir vuruşun 0.6 katı |
 | **Mızraklı** | **Koridor**: yay yok; mızrak önüne menzilin 2 katı (6.2) uzunlukta, 1.8 birim genişlikte bir koridor açar, içindeki herkes vurulur. **Basılı tut → Delici saplama**: koridor 1.8 katına (11 birim) uzar, 2x hasar, en yakın hedefi sana çeker | **Kazık alanı**: hortum gibi durduğun yerde açılır, 2 sn boyunca yerden kazıklar yükselir; 3.2 birim yarıçap, 0.25 sn'de bir vuruşun 0.6 katı, dışa iter |
-| **Okçu** | **Yelpaze**: seviyen kadar ok en çok 70° yelpaze açar (ok başına 8°), her ok kendi yönündeki düşmana kilitlenir. **Basılı tut → Delici ok**: tek kalın ok, 2.5x hasar, 1.5x menzil, çarptığı her düşmanı delip geçer | **Ok yağmuru**: hortum gibi durduğun yerde açılır, 2 sn boyunca gökten ok yağar; 3.2 birim yarıçap, 0.25 sn'de bir vuruşun 0.6 katı |
+| **Okçu** | **Yelpaze**: seviyen kadar ok en çok 70° yelpaze açar (ok başına 8°), her ok kendi yönündeki düşmana kilitlenir. **Basılı tut → Hızlı yaylım**: normal sol tık atışını peş peşe **5 kez**, 0.12 sn arayla yapar (yarım şarj = yarı atış); yaylım sürerken nişan imleci izler, süpürebilirsin | **Ok yağmuru**: hortum gibi durduğun yerde açılır, 2 sn boyunca gökten ok yağar; 3.2 birim yarıçap, 0.25 sn'de bir vuruşun 0.6 katı |
 | **Kılıçlı Atlı** | **Geniş kesik**: vuruş yayı 180°, itme iki kat | **Kılıç fırtınası + vakum**: yayanınkiyle aynı alan; tık anında alan yarıçapının 2.4 katı içindeki düşmanlar 0.6 sn boyunca merkeze çekilir |
 | **Mızraklı Atlı** | **Hücum**: vururken yavaşlamazsın, hasar hızınla artar (tam koşuda 2x) | **Kazık alanı + vakum**: yayanınkiyle aynı alan; tık anında çevredeki düşmanlar merkeze çekilir |
 | **Atlı Okçu** | **Koşarken atış**: atarken yavaşlamazsın, seviyenin iki katı ok dar (20°) yelpazede | **Ok yağmuru + vakum**: yayanınkiyle aynı alan; tık anında çevredeki düşmanlar merkeze çekilir |

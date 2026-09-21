@@ -103,7 +103,9 @@ export function createUI(root, world, actions) {
   const heroTypeLabel = p => { const t = SOLDIER_TYPES.find(x => !x.worker && x.weapon === p.loadout.weapon && x.shield === p.loadout.shield && x.horse === p.loadout.horse); return t ? t.label : 'Kılıçlı'; };
 
   // ---- Komut ızgarası
-  const costOf = o => [o.cost ? `${o.cost}◉` : '', o.food ? `${o.food}🌾` : '', o.wood ? `${o.wood}🪵` : ''].filter(Boolean).join(' ');
+  /** Düğme etiketinde büyük altın sayısı kısaltılır (150000 -> 150k), küçükler olduğu gibi yazılır. */
+  const shortGold = n => (n >= 10000 ? `${Math.round(n / 1000)}k` : `${n}`);
+  const costOf = o => [o.cost ? `${shortGold(o.cost)}◉` : '', o.food ? `${o.food}🌾` : '', o.wood ? `${o.wood}🪵` : ''].filter(Boolean).join(' ');
   const slot = (o) => `<button type="button" class="slot${o.active ? ' active' : ''}${o.big ? ' big' : ''}" ${Object.entries(o.data || {}).map(([k, v]) => `data-${k}="${v}"`).join(' ')} title="${o.title || o.label}" ${o.disabled ? 'disabled' : ''}><span class="ico">${o.icon}</span><span class="lbl">${o.label}</span>${o.cost != null ? `<span class="cost">${costOf(o)}</span>` : ''}</button>`;
   function cmdSlots() {
     const s = sel(), out = [], aoe = world.mode === 'aoe';
@@ -114,7 +116,7 @@ export function createUI(root, world, actions) {
         const same = p.loadout.weapon === t.weapon && p.loadout.shield === t.shield && p.loadout.horse === t.horse;
         const cc = heroConvertCost(t);
         const kit = KIT[kitKey(t)], kitText = kit ? ` · Sol tık: ${kit.primary} · Sağ tık: atılma + ${kit.secondary}${t.shield ? ' · Kalkan: atılmada daha uzun vurulmazlık' : ''}` : '';
-        out.push({ icon: t.icon, label: t.label, cost: cc, data: { herotype: t.key }, active: same, title: (same ? `Şu anki türün: ${t.label}` : `${t.label} ol (${cc} altın). Seviyen ve exp'in korunur.`) + kitText });
+        out.push({ icon: t.icon, label: t.label, cost: cc, data: { herotype: t.key }, active: same, title: (same ? `Şu anki türün: ${t.label}` : `${t.label} ol (${cc.toLocaleString('tr-TR')} altın). Seviyen ve exp'in korunur.`) + kitText });
       }
       out.push({ icon: '↩', label: 'Geri', data: { heromenu: 1 }, title: 'Sancak menüsüne dön' });
       out.push({ icon: '✖', label: 'Kapat', data: { close: 1 }, title: 'Menüyü ve seçimi kapat (Esc ile aynı)' });
