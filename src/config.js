@@ -314,8 +314,9 @@ export const RALLY = {
  *  - `army`: sahadaki bütün asker türlerinin **toplamı** (mancınık dahil, kahraman hariç) en fazla bu kadar olur.
  *    Takım oyununda oyuncu başı sınır min(army, armyTotal / oyuncu sayısı): 1v1'de 200, 3v3'te 100, 5v5'te 60; böylece
  *    haritadaki toplam asker armyTotal'ı aşmaz.
- *    Sınır dolunca **asker çıkmaz**: emir sıraya bile alınmaz, sırada bekleyen emir de sınır açılana kadar bekletilir
- *    (bkz. production.js updateProduction).
+ *    Sınır **sıraya almayı engellemez** (Age of tarzı): doluyken de asker basılır, ücreti düşer ve emir sırada bekler;
+ *    sahada yer açılınca (asker ölünce) sıradaki hemen çıkar. Sayım yalnızca **sahadaki** askerlerdir; sırada bekleyenler
+ *    HUD'da ⏳ ile ayrı gösterilir (bkz. production.js updateProduction).
  *  - `workers`: bütün işçi türlerinin (madenci / oduncu / çiftçi) **toplamı** en fazla bu kadar olur; tür başına ayrı
  *    sınır yoktur. Takım oyununda oyuncu başı sınır min(workers, workersTotal / oyuncu sayısı): 1v1'de 100, 2v2'de 75,
  *    3v3'te 50, 4v4'te 38, 5v5'te 30. İşçiler birleştiği için sayım kademe (tier) toplamıdır: x3 bir madenci 3 işçi sayılır. Sınır dolunca
@@ -366,8 +367,10 @@ export const ARMY = {
  * (lethalVsHeroes) kahramanı tek atışta öldürür. Menzilde asker varsa önce askere, kahramana en son atar.
  * soldierDamageMult: askerlerin (kahraman dışı birimlerin) kuleye verdiği hasarın çarpanı.
  */
+/** Kule menzili: kulenin hem atış hem görüş yarıçapı, ayrıca kuleler arası en az açıklığın yarısı. */
+const TOWER_RANGE = 27;
 export const TOWER = {
-  range: 27, damage: 14, cooldown: 1.3, arrowSpeed: 20, lethalVsSoldiers: 1.5,
+  range: TOWER_RANGE, damage: 14, cooldown: 1.3, arrowSpeed: 20, lethalVsSoldiers: 1.5,
   /**
    * **Menzil tavanı**: mancınık dışındaki her birimin (asker ve kahraman, seviye artışları dahil) vuruş mesafesi
    * en çok kule menzilinin bu katıdır — kule 27 iken tavan 9. Uzaktan dövmek yalnızca mancınığın işidir.
@@ -378,10 +381,12 @@ export const TOWER = {
   /** Mancınık taşı kuleye bu katla vurur: kule kırmanın yolu kuşatmadır (220 x 2.5 = 550). */
   siegeDamageMult: 2.5,
   /**
-   * Yerleştirme: yola bu kadar yakın olmalı; iki kule arası en az minGap. Menzil (18) minGap'ten büyük olduğu için
-   * kuleler artık birbirinin menzilinde durabilir: yan yana dikilen kuleler aynı noktayı birlikte döver.
+   * Yerleştirme: yola bu kadar yakın olmalı; iki kule arası en az minGap = **menzilin iki katı** (54). Böylece
+   * hiçbir kulenin atış alanı bir başkasınınkiyle **çakışmaz**: her kule kendi bölgesini korur, kule yığmak yoktur.
+   * Kural kendi ve rakip kuleleri için birlikte işler (bkz. structures.js placementError). Oyunun her oyuncuya
+   * kurduğu **başlangıç kulesi** bu kuraldan muaftır (takım oyununda müttefik üsler birbirine daha yakındır).
    */
-  laneDist: 4.5, minGap: 18,
+  laneDist: 4.5, minGap: TOWER_RANGE * 2,
 };
 
 /**
@@ -395,7 +400,7 @@ export const BUILDINGS = {
   archery: { label: 'Okçuluk', from: 'okçuluktan', icon: '🎯', cost: 0, wood: 80, loot: 3, hp: 220, radius: 1.6, vision: 11, buildTime: 6, produces: ['bow', 'horsebow'], desc: 'Okçu ve atlı okçu basar' },
   stable: { label: 'Ahır', from: 'ahırdan', icon: '🐴', cost: 0, wood: 100, loot: 3, hp: 280, radius: 1.9, vision: 11, buildTime: 8, produces: ['horsespear', 'horsesword', 'horseswordshield', 'horsespearshield'], desc: 'Dört tür atlı basar' },
   siege: { label: 'Kuşatma', from: 'kuşatma binasından', icon: '⚙', cost: 0, wood: 150, loot: 3, hp: 240, radius: 1.8, vision: 11, buildTime: 8, produces: ['catapult'], desc: 'Mancınık basar: kule menzili dışından her hedefi döver, kuleyi yeğler' },
-  tower: { label: 'Kule', from: 'kuleden', icon: '🏰', cost: 0, wood: 1000, loot: 3, hp: 2000, radius: 1.0, vision: 14, buildTime: 5, produces: [], desc: 'Menzile gireni okla vurur; kuleler ayaktayken sancak vurulamaz' },
+  tower: { label: 'Kule', from: 'kuleden', icon: '🏰', cost: 0, wood: 1000, loot: 3, hp: 2000, radius: 1.0, /** Kule gördüğü kadar vurur: görüşü menzilinin tıpatıp aynısıdır. */ vision: TOWER.range, buildTime: 5, produces: [], desc: 'Menzile gireni okla vurur (gördüğü kadar vurur); kuleler ayaktayken sancak vurulamaz' },
   /** Tarafsız kamp: oyuncu dikemez, harita kurulurken yerleşir (bkz. CAMPS). Yıkılınca yıkıntısı kalır ve geri sayımla yeniden kurulur. */
   camp: { label: 'Yaratık Kampı', from: 'kamptan', icon: '⛺', cost: 0, wood: 0, loot: 4, hp: 900, radius: 2.2, vision: 12, buildTime: 0, produces: [], desc: 'Tarafsız kamp: çevresinde muhafızlar bekler, akıncı kamplar dakikada bir dalga çıkarır' },
 };
@@ -403,7 +408,7 @@ export const BUILDINGS = {
 /**
  * İnşa: her bina (iki taraf için de) kahramanın heroRadius yarıçapı içine dikilir. Kule dışındaki binalar ayrıca
  * kendi sancağının çemberi (bannerRadius, sancağın çevresindeki halka) içinde olmalıdır. Kuleler çemberle sınırlı
- * değildir ama yalnızca yollara ve birbirinden TOWER.minGap uzağa dikilebilir.
+ * değildir ama yalnızca yollara ve birbirinden TOWER.minGap (menzilin iki katı) uzağa dikilebilir: atış alanları çakışmaz.
  */
 export const BUILD = { heroRadius: 14, bannerRadius: 30 };
 
@@ -530,12 +535,13 @@ export const ENEMY_AI = {
   /** Ek bina yerleri (sırayla, boş olan ilki). Ek kuleler yol üstüne kurulur (bkz. creep), sabit yer listesi yok. */
   buildSpots: [{ back: 4, side: 19 }, { back: 17, side: -11 }, { back: 22, side: 4 }, { back: 4, side: -19 }, { back: 24, side: -8 }, { back: 26, side: 12 }],
   /**
-   * Kule zinciri: taklit hedefleri tamamsa rakip, en ileri kulesinden mavi sancağa doğru step adımla yeni kule dikerek
+   * Kule zinciri: taklit hedefleri tamamsa rakip, en ileri kulesinden mavi sancağa doğru step adımla (kuleler arası en az
+   * açıklıktan biraz büyük: atış alanları çakışamaz) yeni kule dikerek
    * ilerler (parite üstü, en çok maxTowers kule); mavi sancağın çemberine (stopDist = BUILD.bannerRadius) girmez:
    * rakip sancak çemberine kule dikmek iki taraf için de yasaktır (bkz. placementError). Mavi kule menzilinin (+ avoidTower)
    * içine kule dikmez (kahraman inşaya giderken ölmesin). Odun biriktirmek için oduncu hedefine extraWoodcutters ekler.
    */
-  creep: { step: 20, stopDist: 30, maxTowers: 10, avoidTower: 4, extraWoodcutters: 3 },
+  creep: { step: TOWER.minGap + 4, stopDist: 30, maxTowers: 10, avoidTower: 4, extraWoodcutters: 3 },
   /**
    * Kule kuralı: sende ayakta kule varken rakip, canlı bir mancınığı yoksa saldırıya kalkmaz, saldırıdaysa çekilir
    * (savaş aletleri kurup mancınık için kaynak biriktirir). Askerleri kulelere hiç vurmaz ve kule menzilinin

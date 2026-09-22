@@ -6,6 +6,7 @@ import { botRally, spawnUnit } from './economy.js';
  * Üretim kuyruğu (Age of tarzı): birim anında çıkmaz, binanın sırasına alınır ve
  * türün üretim süresi dolunca binanın yanında (toplanma bayrağı varsa oraya yürüyerek) çıkar.
  * Ücret **binanın sahibinin** kasasından sıraya alınırken düşer, iptalde geri gelir. Bina başına en fazla QUEUE.max emir.
+ * Nüfus sınırı sıraya almayı engellemez (Age of tarzı): sınır doluyken emir alınır, asker sahada yer açılınca çıkar.
  * Sayımlar oyuncu başınadır (owner: players.js oyuncusu); sınırlar world.limits'ten okunur.
  */
 export const typeOf = key => SOLDIER_TYPES.find(t => t.key === key);
@@ -65,9 +66,10 @@ export function enqueue(world, building, typeKey, owner = building && building.o
   if (!building.ready) return `${BUILDINGS[building.kind].label} henüz inşa ediliyor`;
   if (building.kind !== type.building) return `${type.label} ${BUILDINGS[type.building].from} basılır`;
   if (building.queue.length >= QUEUE.max) return `Sıra dolu (en fazla ${QUEUE.max} emir)`;
-  // Nüfus sınırı: asker türlerinin toplamı world.limits.army (oyuncu başına). İşçide sınır **toplamdır** ve emri geri
-  // çevirmez: sınır doluyken çıkan işçi en kalabalık türden bir kademe eksiltip onun yerine geçer (bkz. economy.js trimWorkers).
-  if (!type.worker && armyCount(world, owner) >= world.limits.army) return `Asker sınırı dolu (en fazla ${world.limits.army} asker)`;
+  // Nüfus sınırı emri **geri çevirmez** (Age of tarzı): asker sınırı doluyken de sıraya alınır ve ücreti şimdi düşer;
+  // sahada yer açılınca (asker ölünce ya da sınır büyüyünce) sıradaki hemen çıkar (bkz. updateProduction).
+  // İşçide de sınır emri engellemez: sınır doluyken çıkan işçi en kalabalık türden bir kademe eksiltip onun yerine geçer
+  // (bkz. economy.js trimWorkers).
   const bag = owner.eco, wood = type.wood || 0;
   if (bag.gold < type.cost || bag.food < type.food || bag.wood < wood) {
     if (wood) return `Yetersiz kaynak: ${type.label} ${type.cost} altın + ${wood} odun`;
@@ -97,11 +99,15 @@ export function updateProduction(world, dt) {
   for (const s of world.structures) {
     if (!s.alive || !s.ready || !s.queue.length) { s.progress = 0; continue; }
     const type = typeOf(s.queue[0]);
-    // Asker sınırı dolduysa üretim durur: emir sırada bekler, asker ölüp yer açılınca hemen çıkar.
+    // Sahadaki asker sınırı doluysa **çıkış** durur (sıraya alma değil): emir sırada bekler, üretim süresi dolmuş olarak
+    // tutulur ve asker ölüp yer açılınca sıradaki hemen çıkar. Uyarı bina başına değil oyuncu başına verilir:
+    // onlarca kışla aynı anda beklerken mesaj tekrarlanmasın.
     if (!type.worker && fieldOf(s.owner) >= world.limits.army) {
       s.progress = Math.min(s.progress + dt, type.train);
-      s.holdMsg = (s.holdMsg || 0) - dt;
-      if (s.owner === world.me && s.holdMsg <= 0) { s.holdMsg = 6; world.ui.say(`Asker sınırı dolu (${world.limits.army}): üretim bekliyor`, 1800); }
+      if (s.owner === world.me && world.time - (world.holdMsgAt ?? -99) > 6) {
+        world.holdMsgAt = world.time;
+        world.ui.say(`Asker sınırı dolu (${world.limits.army}): sıradakiler sahada yer açılınca çıkar`, 2000);
+      }
       continue;
     }
     s.progress += dt;

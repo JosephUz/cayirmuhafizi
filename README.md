@@ -203,10 +203,11 @@ kenara itilirler); yalnızca **düşman birimi**, başka yapı, çalışma yeri 
 
 **Nereye dikilir**: kule dışındaki binalar kendi **sancağının çemberi** (sancağın çevresindeki 30 birimlik halka) içine ve
 kahramanın 14 birim yakınına dikilir. **Kuleler** kendi çemberine bağlı değildir ama yalnızca **yollara**, başka kulelerden (kendi ya da rakip) en az
-**18 birim** uzağa ve **rakibin sancak çemberinin (30 birim) dışına** dikilir; kimse düşman üssünün dibine kule dikemez.
-Menzil (27) bu aralıktan büyük olduğu için kulelerin atış alanları **üst üste biner**: yan yana dikilen kuleler aynı
-noktayı birlikte döver. Aynı kural bot'un ilerleyen kule zinciri için de geçerlidir: zincir
-rakip çemberinin kenarında durur.
+**54 birim** uzağa ve **rakibin sancak çemberinin (30 birim) dışına** dikilir; kimse düşman üssünün dibine kule dikemez.
+Bu aralık **menzilin (27) tam iki katıdır**: hiçbir kulenin atış alanı bir başkasınınkiyle **çakışmaz**, kule yığmak yoktur,
+her kule kendi bölgesini korur. İnşa hayaletindeki menzil halkası yer uygunsa yeşil, çakışma varsa kırmızı yanar.
+Aynı kural bot'un ilerleyen kule zinciri için de geçerlidir (adımı bu aralıktan biraz büyüktür); zincir rakip çemberinin
+kenarında durur. Oyunun her oyuncuya kurduğu **başlangıç kulesi** bu kuraldan muaftır.
 
 **Yapı sınırı**: ayakta **en fazla 10 kule** ve **en fazla 10 bina** (kışla / okçuluk / ahır / kuşatma; sancak sayılmaz),
 ayrı ayrı sayılır ve HUD'da `🏰 3/10 🏠 1/10` olarak görünür. Sınır dolunca o türün inşa düğmesi kapanır; yer açmak için
@@ -215,9 +216,10 @@ yapıyı seçip ızgaradaki **🧨 Binayı yık / Kuleyi yık** düğmesine basa
 **Nüfus sınırı**: bütün asker türlerinin toplamı en fazla **200** (mancınık dahil, kahraman hariç), işçiler ise
 **toplam en fazla 100** (tür başına ayrı sınır yok). İki sınır da takım oyununda oyuncu sayısına bölünür: asker 1v1 200 /
 2v2 150 / 3v3 100 / 4v4 75 / 5v5 60, işçi 1v1 100 / 2v2 75 / 3v3 50 / 4v4 38 / 5v5 30 (`LIMITS.armyTotal`, `LIMITS.workersTotal`). İşçiler birleştiği için sayım kademe toplamıdır (x3 madenci = 3
-işçi). Sırada bekleyen emirler de sayılır. Asker sınırı dolunca o türün düğmesi kapanır, sıraya alınmaz ve **asker
-çıkışı durur**: sırada bekleyen emir de asker ölüp yer açılana kadar bekler ("Asker sınırı dolu (200): üretim bekliyor"),
-yer açılınca hemen çıkar. **İşçide
+işçi). **Asker sınırı üretimi engellemez (Age of tarzı)**: sınır doluyken de düğmeler açıktır, emir sıraya girer ve ücreti
+düşer; yalnızca **çıkış** bekler ("Asker sınırı dolu (200): sıradakiler sahada yer açılınca çıkar"). Sahada bir asker ölür
+ölmez sıradaki hemen çıkar. Sayım **sahadaki** askerlerdir; sırada bekleyenler nüfusa girmez ve HUD'da ⏳ ile ayrı görünür
+(`⚔ 60/60 ⏳7`). **İşçide
 düğme kapanmaz**: 100 doluyken çıkan yeni işçi **en kalabalık türden bir kademe eksiltir** ve onun yerine kendi türünde
 gelir (toplam 100'de kalır, dağılım bastığın türe kayar — "İşçi sınırı dolu: 1 madenci azaldı, yerine çiftçi geldi").
 Aynı sınırlar rakip için de geçerlidir (rakip sınır dolunca yeni işçi basmaz).
@@ -339,7 +341,7 @@ Ordunun sürekli büyüyebilmesi için ekonomi cömerttir: bir altın ürünü *
 
 ## Savaş sisi ve görüş
 
-Harita başta karanlıktır. Takımının her birimi ve yapısı görüş açar: kahraman (15), asker (10), işçi (8), sancak (18), kule (14) ve binalar (11);
+Harita başta karanlıktır. Takımının her birimi ve yapısı görüş açar: kahraman (15), asker (10), işçi (8), sancak (18), **kule (27: menzilinin tıpatıp aynısı, gördüğü kadar vurur)** ve binalar (11);
 görülen alan kalıcı olarak keşfedilmiş sayılır (loş). Sisin içindeki düşman birimleri görünmez ve emir verilemez;
 düşman yapıları bir kez görülünce haritada kalır. Minimap da aynı sisi gösterir.
 

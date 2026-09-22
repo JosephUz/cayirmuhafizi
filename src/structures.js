@@ -176,7 +176,8 @@ export function bannerShielded(world, s) {
 
 /**
  * Yapı kuralı: kule dışındaki binalar kendi sancağının çemberi içine; kuleler yalnızca yollara, başka kulelere
- * en az TOWER.minGap uzağa (kendi ve rakip kuleleri dahil) ve **rakibin sancak çemberinin dışına** dikilir.
+ * en az TOWER.minGap = **menzilin iki katı** uzağa (kendi ve rakip kuleleri dahil; böylece atış alanları çakışmaz)
+ * ve **rakibin sancak çemberinin dışına** dikilir.
  * Uygunsa null, değilse sebep döner.
  */
 export function placementError(world, kind, x, z, owner) {
@@ -191,7 +192,7 @@ export function placementError(world, kind, x, z, owner) {
     }
     for (const s of world.structures) {
       if (!s.alive || s.kind !== 'tower') continue;
-      if (Math.hypot(s.pos.x - x, s.pos.z - z) < TOWER.minGap) return `Kuleler arası en az ${TOWER.minGap} birim olmalı`;
+      if (Math.hypot(s.pos.x - x, s.pos.z - z) < TOWER.minGap) return `Kulelerin atış alanları çakışamaz: kuleler arası en az ${TOWER.minGap} birim`;
     }
     return null;
   }

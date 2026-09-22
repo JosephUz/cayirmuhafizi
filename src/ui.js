@@ -3,7 +3,7 @@ import { ANTI, BUILDINGS, DIFFICULTY, HERO_UPGRADE, KIT, LEVEL, QUEUE, RALLY, SO
 import { kitKey } from './characters.js';
 import { clearSelection, selectStructureGroup, setSelection, unlockPointer } from './input.js';
 import { bannerShielded, structureCount } from './structures.js';
-import { armyCount, bestProducer, unitClass, workerTotal } from './production.js';
+import { bestProducer, queuedSoldiers, unitClass, workerTotal } from './production.js';
 import { damageMult, heroArrows } from './combat.js';
 import { dashDistance, dashMult, reachOf, xpNeeded } from './characters.js';
 
@@ -160,12 +160,11 @@ export function createUI(root, world, actions) {
       els.cmd.innerHTML = html;
     }
     const eco = world.me.eco, b = busy();
-    // Nüfus sınırı dolan tür basılamaz: düğme kapanır.
+    // Nüfus sınırı düğmeyi **kapatmaz** (Age of tarzı): sınır doluyken de emir sıraya alınır, sahada yer açılınca çıkar.
+    // Düğmeyi yalnızca kaynak yetmezliği kapatır.
     for (const el of els.cmd.querySelectorAll('button[data-soldier]')) {
       const t = typeOf(el.dataset.soldier);
-      // İşçide sınır düğmeyi kapatmaz: sınır doluyken yeni işçi en kalabalık türün yerine geçer.
-      const capped = !t.worker && armyCount(world, world.me) >= world.limits.army;
-      el.disabled = b || capped || eco.gold < t.cost || eco.food < t.food;
+      el.disabled = b || eco.gold < t.cost || eco.food < t.food;
     }
     // Kule / bina sınırı dolunca inşa düğmesi de kapanır.
     for (const el of els.cmd.querySelectorAll('button[data-build]')) {
@@ -473,8 +472,10 @@ export function createUI(root, world, actions) {
       // Kendi tarafın: işçiler ve askerler tür tür; rakip tarafta yalnızca kule sayısı ve sancak canı.
       els.workers.textContent = `👷 ${workerTotal(world, world.me)}/${world.limits.workers} · ⛏ ${c.gold} 🪓 ${c.wood} 🌾 ${c.food}`;
       els.workers.title = `İşçilerin (kademeleriyle): ${c.gold} madenci · ${c.wood} oduncu · ${c.food} çiftçi · toplam en fazla ${world.limits.workers}; sınır dolunca yeni işçi en kalabalık türden bir kademe eksiltip onun yerine geçer`;
-      els.army.textContent = `⚔ ${c.army}/${world.limits.army} · 🛡 ${c.foot} 🏹 ${c.archer} 🐎 ${c.cavalry} 🪨 ${c.siege}`;
-      els.army.title = `Ordun: ${c.foot} piyade · ${c.archer} okçu · ${c.cavalry} süvari · ${c.siege} mancınık · toplam ${c.army} (sınır ${world.limits.army}; dolunca üretim durur)`;
+      // Sıradaki askerler nüfusa girmez; sınır doluyken de emir alınır, sahada yer açılınca çıkarlar (⏳ sırada bekleyen sayısı).
+      const queued = queuedSoldiers(world, world.me);
+      els.army.textContent = `⚔ ${c.army}/${world.limits.army}${queued ? ` ⏳${queued}` : ''} · 🛡 ${c.foot} 🏹 ${c.archer} 🐎 ${c.cavalry} 🪨 ${c.siege}`;
+      els.army.title = `Ordun: ${c.foot} piyade · ${c.archer} okçu · ${c.cavalry} süvari · ${c.siege} mancınık · toplam ${c.army} (sınır ${world.limits.army})${queued ? ` · ⏳ ${queued} asker sırada` : ''} · sınır dolsa da emir sıraya alınır, sahada yer açılınca sıradaki çıkar`;
       const cnt = (f, k) => structureCount(world, f, k);
       els.towers.textContent = `🏰 ${cnt(world.me, 1)}/${world.limits.towers} 🏠 ${cnt(world.me, 0)}/${world.limits.buildings}`;
       els.towers.title = `Ayakta kulelerin (en fazla ${world.limits.towers}) ve binaların (en fazla ${world.limits.buildings}); sınır dolunca birini yıkabilirsin`;
