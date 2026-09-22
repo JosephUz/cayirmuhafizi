@@ -1,6 +1,6 @@
 import * as T from '/vendor/three.module.js';
 import { ball, box, clamp, makeHpBar, mesh, ownMat, removeGroup, setHpBar } from './builders.js';
-import { COLORS, COMBAT, DASH, HERO, HORSE, KIT, LEVEL, PLAYER_BASE, SHIELD, SOLDIER_BASE, SPRINT_MULT, WEAPONS } from './config.js';
+import { COLORS, COMBAT, DASH, HERO, HORSE, KIT, LEVEL, PLAYER_BASE, SHIELD, SOLDIER_BASE, SPRINT_MULT, TOWER, WEAPONS } from './config.js';
 
 let nextId = 1;
 
@@ -44,15 +44,19 @@ export const levelArcMult = e => Math.min(LEVEL.maxReachMult, 1 + LEVEL.arcPerLe
 /** Yaylı kahramanın menzil çarpanı: her LEVEL.bowRangeEvery seviyede bir kademe büyür (ok sayısı ayrı, seviye kadar). */
 export const bowRangeMult = e => 1 + LEVEL.bowRangeStep * Math.floor(e.level / LEVEL.bowRangeEvery);
 
-/** Gerçek vuruş alanı: kahramanda seviyeyle büyür (yayda kademeli menzil), askerde silahın kendi değerleri. */
+/** Mancınık dışındaki birimlerin menzil tavanı: kule menzilinin üçte biri (seviye artışları da bunu aşamaz). */
+export const rangeCap = w => (w.siege ? Infinity : TOWER.range * TOWER.unitRangeMax);
+
+/** Gerçek vuruş alanı: kahramanda seviyeyle büyür (yayda kademeli menzil), askerde silahın kendi değerleri; tavanla sınırlı. */
 export function reachOf(e) {
-  const w = e.stats.weapon;
-  if (!(e.isPlayer || e.isHero)) return { range: w.range, arc: w.arc };
-  if (w.ranged) return { range: w.range * bowRangeMult(e), arc: w.arc };
-  const range = w.range * levelReachMult(e);
+  const w = e.stats.weapon, cap = rangeCap(w);
+  if (!(e.isPlayer || e.isHero)) return { range: Math.min(w.range, cap), arc: w.arc };
+  if (w.ranged) return { range: Math.min(w.range * bowRangeMult(e), cap), arc: w.arc };
+  const range = Math.min(w.range * levelReachMult(e), cap);
   // Kılıçlı kahraman çevresine 360° vurur; mızraklı kahraman yay değil, önüne koridor açar (bkz. KIT.spear.corridorLen / Width).
   if (w.label === 'Kılıç') return { range, arc: Math.PI * 2 };
-  if (w.label === 'Mızrak') return { range, arc: w.arc, corridor: { length: range * KIT.spear.corridorLen, width: KIT.spear.corridorWidth } };
+  // Koridorun boyu da tavanı aşmaz: mızraklı kahramanın gerçek vuruş mesafesi koridorun uzunluğudur.
+  if (w.label === 'Mızrak') return { range, arc: w.arc, corridor: { length: Math.min(range * KIT.spear.corridorLen, cap), width: KIT.spear.corridorWidth } };
   return { range, arc: Math.min(Math.PI * 1.9, w.arc * levelArcMult(e)) };
 }
 

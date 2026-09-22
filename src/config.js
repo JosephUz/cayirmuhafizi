@@ -162,18 +162,20 @@ export const COMBAT = {
 export const WEAPONS = {
   sword: { label: 'Kılıç', range: 2.2, arc: Math.PI * 0.62, damage: 26, cooldown: 0.46, windup: 0.13, duration: 0.4, knockback: 12 },
   spear: { label: 'Mızrak', range: 3.1, arc: Math.PI * 0.45, damage: 22, cooldown: 0.6, windup: 0.18, duration: 0.5, knockback: 9 },
-  /** soldierMult: asker okçular kahramandan daha zayıf atar. */
-  bow: { label: 'Yay', range: 14, arc: 0, damage: 18, cooldown: 0.85, windup: 0.25, duration: 0.45, knockback: 0, ranged: true, arrowSpeed: 17, soldierMult: 0.65 },
+  /**
+   * Menzili birim tavanıdır (TOWER.range x TOWER.unitRangeMax = 9): oyundaki en uzun asker menzili budur, kuleyi
+   * hiçbir asker dışarıdan dövemez. soldierMult: asker okçular kahramandan daha zayıf atar.
+   */
+  bow: { label: 'Yay', range: 9, arc: 0, damage: 18, cooldown: 0.85, windup: 0.25, duration: 0.45, knockback: 0, ranged: true, arrowSpeed: 17, soldierMult: 0.65 },
   /** İşçi aleti: saldırmaz. */
   tool: { label: 'Kazma', range: 1, arc: 0.5, damage: 0, cooldown: 1, windup: 0.1, duration: 0.3, knockback: 0 },
   /**
-   * Mancınık: kule menzilinin (9) **iki katı** uzaktan taş atar ve öbür askerler gibi **her hedefe** (birim, bina, kule)
-   * saldırır; yalnız hedef seçerken kuleyi yeğler. Kulede asker hasar çarpanı uygulanmaz, TOWER.siegeDamageMult katı
-   * hasar geçer (220 x 2.5 = 550); canlı hedefte taş dağıldığı için yalnızca unitMult katı (220 x 0.35 = 77) iner.
-   * Atış arası kısadır (2.2 sn).
+   * Mancınık: **uzaktan vurabilen tek birim**. Menzili kule menzilinin (27) 9 birim dışındadır (36), böylece kuşatma
+   * kulenin atış alanına girmeden dövebilir; menzil tavanı (TOWER.unitRangeMax) yalnızca ona işlemez.
+   * **Vuruş gücü artık normaldir**: 40 hasar, 2.2 sn'de bir — canlı hedefe olduğu gibi iner (dağılma çarpanı kalktı),
+   * kuleye TOWER.siegeDamageMult katı geçer (40 x 2.5 = 100). Siege silahlara asker hasar çarpanı (0.55) uygulanmaz.
    */
-  // Menzili kule menzilinden (TOWER.range 18) 9 birim uzundur: kuşatma kulenin atış alanı dışından dövmeye dayanır.
-  catapult: { label: 'Mancınık', range: 27, arc: 0, damage: 220, cooldown: 2.2, windup: 0.45, duration: 0.9, knockback: 0, ranged: true, arrowSpeed: 16, siege: true, unitMult: 0.35 },
+  catapult: { label: 'Mancınık', range: 36, arc: 0, damage: 40, cooldown: 2.2, windup: 0.45, duration: 0.9, knockback: 0, ranged: true, arrowSpeed: 16, siege: true },
 };
 
 /** Mancınık gövdesi: askerlere karşı çok dayanıksız, yavaş, geniş. */
@@ -335,7 +337,12 @@ export const ARMY = {
  * soldierDamageMult: askerlerin (kahraman dışı birimlerin) kuleye verdiği hasarın çarpanı.
  */
 export const TOWER = {
-  range: 18, damage: 14, cooldown: 1.3, arrowSpeed: 20, lethalVsSoldiers: 1.5,
+  range: 27, damage: 14, cooldown: 1.3, arrowSpeed: 20, lethalVsSoldiers: 1.5,
+  /**
+   * **Menzil tavanı**: mancınık dışındaki her birimin (asker ve kahraman, seviye artışları dahil) vuruş mesafesi
+   * en çok kule menzilinin bu katıdır — kule 27 iken tavan 9. Uzaktan dövmek yalnızca mancınığın işidir.
+   */
+  unitRangeMax: 1 / 3,
   /** Kule oku kahramanı da tek atışta öldürür (zıplayana değil). */
   lethalVsHeroes: true, soldierDamageMult: 0.4,
   /** Mancınık taşı kuleye bu katla vurur: kule kırmanın yolu kuşatmadır (220 x 2.5 = 550). */

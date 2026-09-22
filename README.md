@@ -31,7 +31,7 @@ sancağı seç, **Geliştir** düğmesiyle menüyü aç (kahraman sancağa 12 bi
   (sv 1→2: 30, 2→3: 45, 3→4: 60 …), artan exp bir sonrakine sayılır; **sınırsız** (üst seviye yok). HUD'da `★ 3 · 24/60 exp`
   görünür. Her seviye **+10 can**,
   **+%8 vuruş gücü** (yakın vuruş ve ok; sv 10'da 1.72x, sv 20'de 2.52x), **+%10 yapı hasarı** ve **vuruş alanı**: kılıç / mızrak menzili +%12, yay açısı +%10 (en çok 3 kat); okçu kahraman
-  **seviyesi kadar ok** atar (sv 1: 1 ok, sv 12: 12 ok; en çok 40 — oklar dağılmaz, hepsi aynı hedefe yan yana gider) ve **yay menzili de her 10 seviyede +%20** büyür. Seviye başına **kaynak toplama yarıçapı da +0.2** büyür
+  **seviyesi kadar ok** atar (sv 1: 1 ok, sv 12: 12 ok; en çok 40 — oklar dağılmaz, hepsi aynı hedefe yan yana gider) ve **yay menzili de her 10 seviyede +%20** büyür (menzil tavanı 9'a kadar). Seviye başına **kaynak toplama yarıçapı da +0.2** büyür
   (2.5'ten başlar, en çok 14) ve **her 10 seviyede kaynak vuruşu başına bir ürün daha** düşer (sv 1-9: 1, 10-19: 2, 20-29: 3…);
   aynısı kahramanın bir çalışma yerinde durarak ürettiğinde de geçerlidir. Vuruş anında beliren şeffaf yay, kahramanın **gerçek vuruş alanını** (menzil ve açı) birebir
   gösterir; kenarı altın çizgiyle vurgulanır ve seviye atladıkça büyür. Hız seviyeyle değişmez; bilgi kartı seviyeli hasarı (x çarpanıyla) yazar. Geniş alan vuran yüksek seviye kahraman kalabalığa karşı koyar: oyun strateji ile de, kahramanı geliştirerek
@@ -63,7 +63,7 @@ setin ek etkisi bunun üstüne biner; sağ tık her zaman **ileri atılma**dır 
 | Set | Sol tık: vuruş + … | Sağ tık: atılma + … |
 | --- | --- | --- |
 | **Kılıçlı** | **Çevre kesik**: kılıç çevrende 360° döner, menzilindeki (2.2, seviyeyle büyür) her düşman vurulur. **Basılı tut → Şok dalgası**: peş peşe **3 kez** 360° vuruş (menzilin 1x, 1.2x, 1.4x katı), her biri normal güçte, üç kat iter | **Kılıç fırtınası**: durduğun yerde 2 sn boyunca savrulan kılıçlar; 3.2 birim yarıçap, 0.25 sn'de bir vuruşun 0.6 katı |
-| **Mızraklı** | **Koridor**: yay yok; mızrak önüne menzilin 2 katı (6.2) uzunlukta, 1.8 birim genişlikte bir koridor açar, içindeki herkes vurulur. **Basılı tut → Şok dalgası**: peş peşe **3 koridor dalgası** (koridorun 1x, 1.4x, 1.8x katı), her biri normal güçte, en yakın hedefi sana çeker | **Kazık alanı**: hortum gibi durduğun yerde açılır, 2 sn boyunca yerden kazıklar yükselir; 3.2 birim yarıçap, 0.25 sn'de bir vuruşun 0.6 katı, dışa iter |
+| **Mızraklı** | **Koridor**: yay yok; mızrak önüne menzilin 2 katı (6.2; menzil tavanıyla en çok 9) uzunlukta, 1.8 birim genişlikte bir koridor açar, içindeki herkes vurulur. **Basılı tut → Şok dalgası**: peş peşe **3 koridor dalgası** (koridorun 1x, 1.4x, 1.8x katı), her biri normal güçte, en yakın hedefi sana çeker | **Kazık alanı**: hortum gibi durduğun yerde açılır, 2 sn boyunca yerden kazıklar yükselir; 3.2 birim yarıçap, 0.25 sn'de bir vuruşun 0.6 katı, dışa iter |
 | **Okçu** | **Yelpaze**: seviyen kadar ok en çok 70° yelpaze açar (ok başına 8°), her ok kendi yönündeki düşmana kilitlenir. **Basılı tut → Hızlı yaylım**: normal sol tık atışını peş peşe **5 kez**, 0.12 sn arayla yapar (yarım şarj = yarı atış); yaylım sürerken nişan imleci izler, süpürebilirsin | **Ok yağmuru**: hortum gibi durduğun yerde açılır, 2 sn boyunca gökten ok yağar; 3.2 birim yarıçap, 0.25 sn'de bir vuruşun 0.6 katı |
 | **Kılıçlı Atlı** | **Geniş kesik**: vuruş yayı 180°, itme iki kat | **Kılıç fırtınası + vakum**: yayanınkiyle aynı alan; tık anında alan yarıçapının 2.4 katı içindeki düşmanlar 0.6 sn boyunca merkeze çekilir |
 | **Mızraklı Atlı** | **Hücum**: vururken yavaşlamazsın, hasar hızınla artar (tam koşuda 2x) | **Kazık alanı + vakum**: yayanınkiyle aynı alan; tık anında çevredeki düşmanlar merkeze çekilir |
@@ -181,10 +181,11 @@ fiyat aralığındadır.
 | Sancak | Oduncu · Madenci · Çiftçi | 10 | 0 | 1 sn |
 | Kuşatma (savaş aletleri) | Mancınık | 45 | **30 odun** (yiyecek yok) | 3.2 sn |
 
-**Mancınık**: kule menzilinin (18) **9 birim dışından** — 27 menzille — **2.2 saniyede bir** taş atar ve **öbür askerler gibi
-her hedefe saldırır** (birim, bina, kule); hedef seçerken kuleyi yeğler, yanındaki düşman birimini de döver.
-Kuleye hasarı **2.5 katına** çıkar (220 × 2.5 = **550**, yani 2000 canlı kule 4 taşta düşer) ve askerlerin 0.4x kule çarpanı
-ona uygulanmaz; canlı hedefte taş dağıldığı için hasarın **0.35 katı** (**77**) iner. 40 canla askerlere karşı çok
+**Mancınık**: **uzaktan vurabilen tek birim**. Kule menzilinin (27) **9 birim dışından** — 36 menzille — **2.2 saniyede bir**
+taş atar ve **öbür askerler gibi her hedefe saldırır** (birim, bina, kule); hedef seçerken kuleyi yeğler, yanındaki düşman
+birimini de döver. **Vuruş gücü artık normaldir**: 40 hasar, canlı hedefe olduğu gibi iner (eski 0.35x dağılma çarpanı
+kalktı, eski 220 hasar da yok). Kuleye hasarı **2.5 katına** çıkar (40 × 2.5 = **100**, yani 2000 canlı kule 20 taşta
+düşer — tek mancınıkla ~44 sn, dört mancınıkla ~11 sn) ve askerlerin 0.4x kule çarpanı ona uygulanmaz. 40 canla askerlere karşı çok
 dayanıksızdır, korunması gerekir. Rakip de sende görürse savaş aletleri kurup mancınık basar. **Asker mancınığının taşı hedefi takip etmez**: atış anındaki
 konuma düz uçar, yer değiştiren birimi ıskalayabilir (binalar ve kuleler durduğu için onları hep bulur). Hedef takip eden
 mermiler yalnızca **kahramanın** (okçu ve mancınık türlerinde) ve **kulelerin** atışlarıdır.
@@ -194,8 +195,9 @@ kenara itilirler); yalnızca **düşman birimi**, başka yapı, çalışma yeri 
 
 **Nereye dikilir**: kule dışındaki binalar kendi **sancağının çemberi** (sancağın çevresindeki 30 birimlik halka) içine ve
 kahramanın 14 birim yakınına dikilir. **Kuleler** kendi çemberine bağlı değildir ama yalnızca **yollara**, başka kulelerden (kendi ya da rakip) en az
-**18 birim** uzağa ve **rakibin sancak çemberinin (30 birim) dışına** dikilir; böylece atış alanları üst üste binmez
-ve kimse düşman üssünün dibine kule dikemez. Aynı kural bot'un ilerleyen kule zinciri için de geçerlidir: zincir
+**18 birim** uzağa ve **rakibin sancak çemberinin (30 birim) dışına** dikilir; kimse düşman üssünün dibine kule dikemez.
+Menzil (27) bu aralıktan büyük olduğu için kulelerin atış alanları **üst üste biner**: yan yana dikilen kuleler aynı
+noktayı birlikte döver. Aynı kural bot'un ilerleyen kule zinciri için de geçerlidir: zincir
 rakip çemberinin kenarında durur.
 
 **Yapı sınırı**: ayakta **en fazla 10 kule** ve **en fazla 10 bina** (kışla / okçuluk / ahır / kuşatma; sancak sayılmaz),
@@ -213,8 +215,12 @@ Aynı sınırlar rakip için de geçerlidir (rakip sınır dolunca yeni işçi b
 
 Yapılar yalnızca odun ister: Kışla 60, Okçuluk 80, Ahır 100, Kuşatma 150, Kule **1000** (**2000 can**; askerlerin kuleye hasarı 0.4x, kahraman yapılara vuramaz).
 Kule oku **hedefi takip eder ve mutlaka vurur** (kaçış, zıplama, vurulmazlık savuşturamaz); **askeri, işçiyi ve kahramanı tek atışta
-öldürür**. Menzilde asker varsa **önce askere**, kahramana en son atar. Kuleleri mancınık, ordu (0.4x) ya da kahraman yıkar; kahraman kule menziline (**18**) girmemeli. Başlangıçta her tarafta
+öldürür**. Menzilde asker varsa **önce askere**, kahramana en son atar. Kuleleri mancınık, ordu (0.4x) ya da kahraman yıkar; kahraman kule menziline (**27**) girmemeli. Başlangıçta her tarafta
 sancak, kışla ve üç hat kulesi vardır; diğerleri sancak menüsünden seçilip yeşil / kırmızı hayaletle kahramanın 14 birim çevresine dikilir.
+
+**Menzil tavanı**: mancınık dışında hiçbir birim **kule menzilinin üçte birinden** (27 / 3 = **9**) uzağa vuramaz —
+kılıç 2.2, mızrak 3.1, **yay 9** ve kahramanın seviyeyle büyüyen menzili de bu tavanda durur (mızraklı kahramanın
+koridoru dahil). Yani kuleyi **yalnızca mancınık** dışarıdan dövebilir; öbür herkes kulenin atış alanına girmek zorundadır.
 
 **Sancak ve kuleler**: sancakların canı **10000**'dir. Bir tarafın en az bir kulesi ayaktayken (inşası sürse bile) sancağının
 **canı azalmaz**: vuruş sancağa **iner** ama kalkana çarpar, hasar yazılmaz. Her vuruş kuleleri **ele verir**: o tarafın bütün
