@@ -206,7 +206,8 @@ export const PLAYER_BASE = { speed: 6.2, accel: 15, hp: 140, radius: 0.45, invMa
  * farkları can, hız ve seviyeyle büyüyen vuruş alanı / ok sayısıdır. İşçiler dahil her düşmana vurur; yapılara
  * (bina, kule, sancak) türünün asker hasarıyla vurur, bu hasar seviye başına LEVEL.structureDamagePerLevel artar. Kafaları sarıdır.
  */
-export const HERO = { damageLikeSoldier: true, headColor: '#ffd12e' };
+/** Kahraman kafası takıma göre: senin takımın (mavi) kahramanları sarı, rakip takımın kahramanları kırmızı kafalıdır. */
+export const HERO = { damageLikeSoldier: true, headColor: '#ffd12e', enemyHeadColor: '#e0362b' };
 export const SOLDIER_BASE = { speed: 3.8, accel: 9, hp: 100, radius: 0.45, invMass: 1.15, damageMult: 0.55 };
 export const HORSE = { speedMult: 1.7, hpBonus: 50, radius: 0.62, invMassMult: 0.6, damageMult: 1.2 };
 export const SHIELD = { hpBonus: 30, /** Kalkan taşıyan birim belirgin yavaştır. */ speedMult: 0.8, /** Yapay zekâ kalkanlıları önden gelen vuruşu pasif azaltır. */ passiveFrontMult: 0.7 };

@@ -365,7 +365,7 @@ Aşağıdaki her şey **her bot** için (rakip ya da müttefik) kendi sancağı,
 edilen "sen", takım oyununda **rakip takımın toplamının takımdaki oyuncu sayısına bölümüdür**. Mesajlar 1v1'de "Rakip …",
 takım oyununda "Rakip Aslan …" / "Müttefik Kurt …" diye başlar; sık mesajlar (asker basıyor) yalnızca 1v1'de gösterilir.
 
-- Kırmızı sancakta bir **rakip kahraman** (mızrak kalkan atlısı, sarı kafa): kaynak toplar, ganimet alır, keşfe çıkar, bina yerine
+- Kırmızı sancakta bir **rakip kahraman** (mızrak kalkan atlısı, **kırmızı kafa**; senin takımının kahramanları sarı kafalıdır): kaynak toplar, ganimet alır, keşfe çıkar, bina yerine
   gider ve **görüşüne giren düşman askerine saldırır** (alan vuruşu, asker hasarı); canı %35'in altına inince kaçar, ölürse 8 sn sonra doğar.
   Rakibin askerleri toplanma noktasına (sancağa en yakın kulenin önü) çıkar.
 - Rakip **seni taklit eder**: her 3 saniyede işçi (türe göre), asker (canlı + sırada), bina (türe göre sayı) ve kule

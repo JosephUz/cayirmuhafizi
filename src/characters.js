@@ -160,9 +160,10 @@ export function buildView(scene, e) {
   const g = new T.Group(), body = new T.Group();
   g.add(body); body.position.y = horse ? 0.78 : 0;
   box(body, tunicMat, 0, 1, 0, 0.62, 0.72, 0.36);
-  // Kahramanların kafası sarı: iki tarafta da kahraman olduğu anlaşılır.
-  box(body, e.isPlayer || e.isHero ? HERO.headColor : '#e1b48a', 0, 1.64, 0, 0.57, 0.57, 0.52);
-  box(body, e.isPlayer || e.isHero ? HERO.headColor : beast ? COLORS.beastHead : e.isWorker ? '#d8c27a' : blue ? '#433e36' : '#818b83', 0, 1.95, 0, 0.62, 0.15, 0.57);
+  // Kahraman kafası takım rengini söyler: senin takımınınki sarı, rakip takımınki kırmızı (müttefik bot kahramanı da sarı).
+  const headColor = e.faction === 'red' ? HERO.enemyHeadColor : HERO.headColor;
+  box(body, e.isPlayer || e.isHero ? headColor : '#e1b48a', 0, 1.64, 0, 0.57, 0.57, 0.52);
+  box(body, e.isPlayer || e.isHero ? headColor : beast ? COLORS.beastHead : e.isWorker ? '#d8c27a' : blue ? '#433e36' : '#818b83', 0, 1.95, 0, 0.62, 0.15, 0.57);
   if (e.isWorker) { mesh(body, new T.CylinderGeometry(0.55, 0.6, 0.06, 10), '#d8c27a', 0, 1.94, 0); box(body, '#8a6a44', 0, 0.62, -0.28, 0.5, 0.45, 0.22); }
   for (const x of [-0.13, 0.13]) box(body, '#30372f', x, 1.7, 0.268, 0.065, 0.07, 0.03);
 
