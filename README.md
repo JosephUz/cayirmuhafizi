@@ -86,12 +86,12 @@ Oyun izometrik kamerayla başlar; **V** tuşu ya da minimap altındaki **🎥** 
 geçirir, tekrar basınca izometriğe döner. Omuz üstünde:
 
 - Geçişte **fare kilitlenir** ve imleç kaybolur; fare hareketi bakışı döndürür (sağa-sola sınırsız, yukarı-aşağı sınırlı).
-- **Orta tuş (tekerlek) fareyi serbest bırakır**: imleç görünür, kamera son açısında kalır ve tıklar **izometrikteki gibi** işler:
-  imleçle yapı seç, bina dik, toplanma noktası kur, tıkladığın yöne vur, alt banttaki düğmelere bas. **Tekrar orta tuş** bakışı
+- **Tab fareyi serbest bırakır**: imleç görünür, kamera son açısında kalır ve tıklar **izometrikteki gibi** işler:
+  imleçle yapı seç, bina dik, orta tıkla toplanma alanı kur, tıkladığın yöne vur, alt banttaki düğmelere bas. **Tekrar Tab** bakışı
   kaldığı açıdan kilitler. **Esc** de kilidi bırakır (oyunu duraklatmaz); duraklatma, oyun sonu ve yeni oyun ekranı kilidi kendiliğinden bırakır.
 - **WASD kameraya göredir**: W baktığın yöne, S geri, A / D yana. Kahramanın yüzü hep kameranın baktığı yöne döner.
 - **Kilitliyken nişan ekran ortasındaki artıdır**: sol tık artının zemine değdiği noktaya vuruş (okçuda oklar oraya gider), sağ tık o yöne atılma + set etkisi,
-  inşa ve toplanma noktası da artının gösterdiği yere konur, kendi yapına nişan alıp tıklamak onu seçer. Serbest farede nişan imleçtir.
+  inşa ve (orta tıkla) toplanma alanı da artının gösterdiği yere konur, kendi yapına nişan alıp tıklamak onu seçer. Serbest farede nişan imleçtir.
 - Kamera kahramanın sağ omzunun üstünden bakar (sayılar `config.js` → `CAMERA.tps`: uzaklık 9, yükseklik 2.4, açı 62°, fare duyarlılığı).
   **Savaş sisi düzlemi bu modda yoktur**: görünürlük **görüş mesafesiyle** işler (`CAMERA.tps.viewDist`, 90 birim): düşman birim ve yapılar
   kahramana bu uzaklıktan yakınsa görünür, sahne pusu 30 birimde başlayıp 90'da tam kapanır, ufuk arka plana karışır. Sis ızgarası arka planda
@@ -106,7 +106,7 @@ kısayol harfi yoktur. Klavyede yalnızca hareket (WASD / ok tuşları), Shift (
 ## Tek mod: kahraman
 
 Komutan (RTS) modu **kaldırıldı**: oyun hep kahraman modunda oynanır, kamerayı kahraman sürükler. Ordu tek tek
-yönetilmez; **toplanma alanları** (soldaki ⚑ düğmeleri) hem varış noktası hem savaş bölgesidir.
+yönetilmez; **orta tıkla** dikilen tek **toplanma alanı** bütün ordu için hem varış noktası hem savaş bölgesidir.
 
 | Girdi | Etki |
 | --- | --- |
@@ -124,11 +124,11 @@ yönetilmez; **toplanma alanları** (soldaki ⚑ düğmeleri) hem varış noktas
 | --- | --- |
 | Sol tık | Kendi yapını seç (üretim / menü); boşluğa tıklayınca seçim kalkar |
 | Çift tık | Aynı türdeki **bütün** binaları seç: üretim emirleri aralarında paylaştırılır |
-| ⚑ **Piyade / Okçu / Süvari / Mancınık / Hepsi** + sol tık | O sınıfın **toplanma alanını** kur: hem varış noktası hem hedef bölgesi |
+| **Orta tık** | İmlecin yerine ordunun **toplanma alanını** kur: bütün askerler oraya yürür; hem varış noktası hem hedef bölgesi. Tekrar orta tık bayrağı taşır |
 | Sağ tık | Açık modu kapat (birim emri yok) |
 
-Her iki modda: inşa (kışla, okçuluk, ahır, kuşatma, kule) ve sınıf toplanma alanları **yalnızca hiçbir şey seçili değilken**
-soldaki düğmelerle (sancak menüsünde bina düğmesi yoktur), birim üretimi bina ızgarasındaki düğmelerle;
+İnşa (kışla, okçuluk, ahır, kuşatma, kule) **yalnızca hiçbir şey seçili değilken** soldaki düğmelerle (sancak menüsünde bina
+düğmesi yoktur), birim üretimi bina ızgarasındaki düğmelerle, toplanma alanı her an orta tıkla;
 `Esc` açık modu kapat / duraklat. Kahramanın yakın vuruşları çevresindekileri biraz iter; asker ve kule vuruşları itmez.
 
 Oyuncunun askerleri **kafasına göre hareket etmez**: durduğu yeri tutar, yalnızca yakına gelen düşmanla dövüşür,
@@ -155,13 +155,13 @@ kaldığı yerden sürer.
 ## Üretim kuyruğu
 
 Birimler anında çıkmaz: binanın sırasına alınır (bina başına en fazla **30 emir**), süre dolunca binanın yanında,
-sınıfının toplanma yeri varsa oraya yürüyerek çıkar. Kaliteli birim geç çıkar. Maliyet sıraya alınırken düşer.
+toplanma alanı varsa oraya yürüyerek çıkar. Kaliteli birim geç çıkar. Maliyet sıraya alınırken düşer.
 
-**Toplanma alanları** binalara değil sınıflara bağlıdır ve aynı zamanda **hedef tayinidir**: hiçbir şey seçili değilken soldaki
-⚑ **Piyade / Okçu / Süvari / Mancınık** düğmesine bas, haritada bir yere tıkla (bina diker gibi). O sınıftaki **tüm askerler**
-oraya yürür, yeni çıkanlar da oraya gider ve **yalnızca bayrağın 22 birim çevresinde**, sisin kalktığı yerde dövüşürler:
-haritada başıboş gezmezler. Bayrağı düşman kulesinin yanına dikersen ordu oraya yürüyüp orayı döver. ⚑ **Hepsi** bütün sınıfları
-aynı noktaya alır. Her sınıfın kendi renkli bayrağı vardır. **Kahraman toplanma alanlarına hiç gitmez**: onu sen yürütürsün.
+**Toplanma alanı** tektir ve bütün ordu içindir; aynı zamanda **hedef tayinidir**: haritada bir yere **orta tıkla** (fare tekerleği),
+imlecin yerine sarı bayrak dikilir. **Tüm askerler** (piyade, okçu, süvari, mancınık) oraya yürür, yeni çıkanlar da oraya gider ve
+**yalnızca bayrağın 22 birim çevresinde**, sisin kalktığı yerde dövüşürler: haritada başıboş gezmezler. Bayrağı düşman kulesinin
+yanına dikersen ordu oraya yürüyüp orayı döver; tekrar orta tık bayrağı taşır. Omuz üstü kamerada orta tık artının gösterdiği yere
+diker. Sınıf sınıf bayrak yoktur: ordu bir bütün olarak yönetilir. **Kahraman toplanma alanına hiç gitmez**: onu sen yürütürsün.
 
 **Hedef önceliği** (her iki taraf): görünen düşman **birimleri** → **kuleler** → **binalar** → **sancak**. Sancak, o tarafın
 ayakta kulesi kaldıkça can kaybetmez (vuruş yine iner ve kuleleri ele verir); diğer binalar sancağı korumaz.
@@ -340,7 +340,7 @@ yuvalar iki takımda da **botlarla** dolar (yanında n-1 müttefik, karşında n
 komuta ve kasa **sahibe**: her oyuncunun (sen ve her bot) kendi sancağı, üssü (tarla / maden / odunluk), kasası,
 ordusu, sınırları ve kahramanı vardır.
 
-- **Askerler sahibine aittir.** Toplanma bayrakların yalnızca **kendi** askerlerini yürütür; müttefik bot kendi
+- **Askerler sahibine aittir.** Toplanma bayrağın yalnızca **kendi** askerlerini yürütür; müttefik bot kendi
   askerine kendi emrini verir, kendi kasasıyla basar, kendi kahramanıyla haydut avlar ve kendi kulesini savunur
   (bkz. aşağıda "Rakip ve zorluk": aynı bot döngüsü iki takımda da çalışır, senin takımındaki botlar rakip takımı
   taklit eder). Sen yalnızca kendi yapını seçebilir ve yıkabilirsin.
@@ -423,7 +423,7 @@ Büyük takım oyunlarında yüzlerce birim aynı anda sahadadır; oyun şu yoll
 | `src/main.js` | Sahne, izometrik + omuz üstü kamera (V), sabit adımlı döngü, sis / görünürlük, kuleler, ganimet, yaşam döngüsü |
 | `src/environment.js` | Arena yerleşimi (takım büyüklüğüne göre üsler, hatlar, kule yerleri), kaynak düğümleri; ağaç, çalı, yol ve tarla parçaları InstancedMesh; her oyunda yeniden kurulur |
 | `src/players.js` | Oyuncular (sen + botlar): takım, sahip, kasa, bot durumu, sınırlar, en yakın rakip sancak / oyuncu |
-| `src/structures.js` | Yapılar: görünüm, kurma, yerleştirme denetimi, inşa, yıkım, sınıf toplanma bayrağı |
+| `src/structures.js` | Yapılar: görünüm, kurma, yerleştirme denetimi, inşa, yıkım, toplanma bayrağı |
 | `src/production.js` | Üretim kuyruğu: sıraya alma, iptal, ilerleme, çıkış |
 | `src/fog.js` | Savaş sisi ızgarası ve karartma düzlemi |
 | `src/minimap.js` | 2B baklava minimap ve tıklamaları |

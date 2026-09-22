@@ -54,7 +54,6 @@ export function createUI(root, world, actions) {
     if (d.soldier) ui.requestSoldier(d.soldier, e.ctrlKey ? QUEUE.batchCtrl : e.shiftKey ? QUEUE.batchShift : 1);
     else if (d.build) ui.startPlacing(d.build);
     else if (d.demolish) ui.demolish();
-    else if (d.rally) ui.setRallyMode(d.rally);
     else if (d.cancel) ui.cancelModes();
     else if (d.close) ui.cancelModes();
     else if (d.heromenu) ui.toggleHeroMenu();
@@ -136,16 +135,13 @@ export function createUI(root, world, actions) {
     } else {
       // Hiçbir şey seçili değilken: bina dikimi doğrudan buradan (sancağa tıklamak gerekmez).
       for (const k of BUILDINGS.banner.builds) { const b = BUILDINGS[k]; out.push({ icon: b.icon, label: b.label, cost: b.cost, wood: b.wood, data: { build: k }, active: world.placing === k, title: `${b.label}: ${b.desc}, ${b.wood} odun, ${b.buildTime} sn (kahramanın 14 birim çevresine)` }); }
-      // Sınıf toplanma yerleri: bina seçmeden, bina diker gibi haritada nokta seçilir.
-      for (const c of RALLY.classes) out.push({ icon: '⚑' + c.icon, label: c.label, data: { rally: c.key }, active: world.rallyMode === c.key, title: `${c.label} toplanma alanı: haritada bir yere tıkla. Bu sınıftaki tüm askerler oraya yürür, yeni çıkanlar oraya gider ve yalnızca oranın ${RALLY.engageRadius} birim çevresinde dövüşür` });
-      out.push({ icon: '⚑', label: RALLY.allLabel, data: { rally: 'all' }, active: world.rallyMode === 'all', title: 'Tüm sınıfların toplanma alanını aynı noktaya al: bütün ordu oraya yürür ve orada dövüşür (kahraman gitmez)' });
     }
     // Seçili kendi yapın (sancak hariç): yıkma düğmesi. Yer açmanın ve yanlış yere dikileni kaldırmanın yolu.
     if (s.structure && s.structure.owner === world.me && s.structure.kind !== 'banner') {
       const tower = s.structure.kind === 'tower';
       out.push({ icon: '🧨', label: tower ? 'Kuleyi yık' : 'Binayı yık', data: { demolish: 1 }, title: tower ? 'Seçili kuleyi yık: kule sınırından düşer, enkazından odun çıkar' : 'Seçili binayı yık: bina sınırından düşer, enkazından odun çıkar' });
     }
-    if (world.placing || world.rallyMode) out.push({ icon: '✖', label: 'Vazgeç', data: { cancel: 1 }, title: 'Açık modu bırak' });
+    if (world.placing) out.push({ icon: '✖', label: 'Vazgeç', data: { cancel: 1 }, title: 'Açık modu bırak' });
     // Seçili yapı varken menüyü kapatma düğmesi (Esc ile aynı iş).
     else if (s.structure) out.push({ icon: '✖', label: 'Kapat', data: { close: 1 }, title: 'Seçimi ve menüyü kapat (Esc ile aynı)' });
     return out;
@@ -209,7 +205,7 @@ export function createUI(root, world, actions) {
         const groups = {};
         for (const e of list) { const k = e.isPlayer ? '★' : typeOf(e.typeKey).icon; groups[k] = (groups[k] || 0) + 1; }
         key = `M${list.length}|${Object.entries(groups).map(([k, n]) => k + n).join('')}`;
-        html = `<div class="card"><div class="ico">⚔</div><div class="body"><h3>${list.length} birim seçili</h3><div class="groups">${Object.entries(groups).map(([k, n]) => `<span>${k}<b>${n}</b></span>`).join('')}</div><div class="hint">Ordu tek tek yönetilmez: soldaki ⚑ düğmeleriyle toplanma alanı kur</div></div></div>`;
+        html = `<div class="card"><div class="ico">⚔</div><div class="body"><h3>${list.length} birim seçili</h3><div class="groups">${Object.entries(groups).map(([k, n]) => `<span>${k}<b>${n}</b></span>`).join('')}</div><div class="hint">Ordu tek tek yönetilmez: orta tıkla toplanma alanı kur, bütün ordu oraya yürür</div></div></div>`;
       }
     } else if (!aoe) {
       // Hiçbir şey seçili değilken: kahramanın durumu (seviye, can, exp, vuruş) **ve** sancağının durumu bir arada.
@@ -220,7 +216,7 @@ export function createUI(root, world, actions) {
       html = `<div class="card"><div class="ico">★</div><div class="body"><h3>Kahraman · ${name} · Sv ${p.level}</h3>${bar(p.hp, p.stats.maxHp)}<div class="line"><span data-hp>♥ ${Math.ceil(p.hp)}/${p.stats.maxHp}</span><span>${unitStats(p)}</span></div><div class="line"><span data-banner>⚑ Sancak ${Math.ceil(own.hp)}/${own.maxHp}</span><span>${shielded ? `🛡 ${towers} kule koruyor: can azalmaz` : '⚠ Kule yok: sancak can kaybeder!'}</span><span>★ Sv ${p.level} · ${Math.floor(p.xp || 0)}/${xpNeeded(p.level)} exp</span></div><div class="bar banner"><i data-bbar style="width:${Math.max(0, Math.min(100, own.hp / own.maxHp * 100))}%"></i></div><div class="kitkeys">${(() => { const k = KIT[kitKey(p.loadout)] || KIT.sword; return `<b>Sol tık</b><span>${k.primary} — ${k.primaryDesc}</span>${k.charge ? `<b>Basılı tut</b><span>0.6 sn şarj → ${k.charge} — ${k.chargeDesc}</span>` : ''}<b>Sağ tık</b><span>${dashDistance(p).toFixed(1)} birim atılma + ${k.secondary} — ${k.secondaryDesc}${p.loadout.shield ? '; kalkanla atılmada vurulmazlık uzar' : ''}</span>`; })()}</div></div></div>`;
     } else {
       key = 'A';
-      html = `<div class="card"><div class="ico">🏳</div><div class="body"><h3>Komutan modu</h3><div class="hint">Ordu tek tek yönetilmez: soldaki ⚑ düğmeleriyle sınıfların <b>toplanma alanını</b> kur; askerler oraya gidip yalnızca orada dövüşür. Sol tık: kendi yapını seç · Soldan bina dik · WASD / ok tuşları / minimap: kamera · Sancak > <b>Kahraman</b>: kahraman moduna dön</div></div></div>`;
+      html = `<div class="card"><div class="ico">🏳</div><div class="body"><h3>Komutan modu</h3><div class="hint">Ordu tek tek yönetilmez: orta tıkla <b>toplanma alanını</b> kur; askerler oraya gidip yalnızca orada dövüşür. Sol tık: kendi yapını seç · Soldan bina dik · WASD / ok tuşları / minimap: kamera · Sancak > <b>Kahraman</b>: kahraman moduna dön</div></div></div>`;
     }
     if (key !== infoKey) { infoKey = key; els.info.innerHTML = html; return; }
     // Dinamik alanlar
@@ -276,7 +272,7 @@ export function createUI(root, world, actions) {
       ui.say(world.paused ? 'Duraklatıldı' : 'Devam', world.paused ? 0 : 1200);
       ui.update();
     },
-    // Komutan modu kaldırıldı: oyun hep kahraman modunda oynanır, ordu toplanma alanlarıyla yönetilir.
+    // Komutan modu kaldırıldı: oyun hep kahraman modunda oynanır, ordu tek toplanma alanıyla (orta tık) yönetilir.
 
     // ---- Seçim
     /** Saldırı uyarısı: ekranın kenarları kısa süre kızarır ve üstte kırmızı bir uyarı yazısı çıkar. */
@@ -380,12 +376,12 @@ export function createUI(root, world, actions) {
       if (deadMsg()) return;
       if (group && s) { const n = selectStructureGroup(world, s); if (n > 1) ui.say(`${n} ${BUILDINGS[s.kind].label} seçildi: üretim hepsine dağıtılır`, 1800); }
       else setSelection(world, [], s);
-      world.placing = null; world.rallyMode = false; world.heroMenu = false; ping('select'); ui.update();
+      world.placing = null; world.heroMenu = false; ping('select'); ui.update();
     },
     toggleHeroMenu() {
       if (deadMsg()) return;
       if (!sel().structure || sel().structure.kind !== 'banner') { ui.select(world.me.banner); }
-      world.heroMenu = !world.heroMenu; world.placing = null; world.rallyMode = false;
+      world.heroMenu = !world.heroMenu; world.placing = null;
       if (world.heroMenu && !heroNearBanner()) ui.say('Kahraman sancağa yaklaşmalı (12 birim)', 1600);
       ping('select'); ui.update();
     },
@@ -401,7 +397,7 @@ export function createUI(root, world, actions) {
       if (deadMsg() || busy()) return;
       const spec = BUILDINGS[kind]; if (!spec || kind === 'banner') return;
       if (world.me.eco.gold < spec.cost || world.me.eco.wood < spec.wood) { ui.say(`Yetersiz odun: ${spec.label} ${spec.wood} odun`, 1500); ping('error'); return; }
-      world.placing = kind; world.rallyMode = false;
+      world.placing = kind;
       ui.say(`${spec.label} (${spec.wood} 🪵): kahramanın çevresindeki halka içine sol tıkla · sağ tık / Esc / Vazgeç düğmesi`, 0); ui.update();
     },
     confirmPlace(x, z) {
@@ -411,25 +407,16 @@ export function createUI(root, world, actions) {
       world.placing = null;
       ui.say(`${BUILDINGS[kind].label} kuruluyor (-${BUILDINGS[kind].wood} 🪵), ${BUILDINGS[kind].buildTime} sn`, 2200); ui.update();
     },
-    /** Sınıf toplanma yeri seçme modu (cls: sınıf anahtarı ya da 'all'). */
-    setRallyMode(cls) {
-      if (deadMsg()) return;
-      const c = RALLY.classes.find(k => k.key === cls);
-      if (!c && cls !== 'all') return;
-      world.rallyMode = cls; world.placing = null; world.heroMenu = false;
-      ui.say(`${c ? c.label : RALLY.allLabel} toplanma yeri: haritada bir yere sol tıkla · sağ tık / Esc vazgeç`, 0); ui.update();
+    /** Orta tık: ordunun toplanma alanını (x, z)'ye diker; bütün askerler oraya yürür (kahraman yerde ya da oyun duruksa yok). */
+    setRally(x, z) {
+      if (deadMsg() || busy()) return;
+      const n = actions.setRally(x, z);
+      ui.say(`${RALLY.label} kuruldu${n ? ` · ${n} asker yola çıktı` : ''} · orta tıkla taşınır`, 1800); ping('order'); ui.update();
     },
-    confirmRally(x, z) {
-      const cls = world.rallyMode; world.rallyMode = false;
-      if (!cls || deadMsg()) return;
-      const c = RALLY.classes.find(k => k.key === cls);
-      const n = actions.setRally(cls, x, z);
-      ui.say(`${c ? c.label : RALLY.allLabel} toplanma yeri kuruldu${n ? ` · ${n} asker yola çıktı` : ''}`, 1800); ping('order'); ui.update();
-    },
-    /** Açık bir mod (inşa / toplanma / kahraman menüsü / seçim) varsa kapatır ve true döner. */
+    /** Açık bir mod (inşa / kahraman menüsü / seçim) varsa kapatır ve true döner. */
     cancelModes(keepSelection = false) {
-      const had = world.placing || world.rallyMode || world.heroMenu || (!keepSelection && sel().structure);
-      world.placing = null; world.rallyMode = false; world.heroMenu = false;
+      const had = world.placing || world.heroMenu || (!keepSelection && sel().structure);
+      world.placing = null; world.heroMenu = false;
       if (!keepSelection && had) clearSelection(world);
       if (had) { els.message.hidden = true; ui.update(); }
       return Boolean(had);
@@ -504,7 +491,6 @@ export function createUI(root, world, actions) {
       els.pause.textContent = world.paused ? 'Devam' : 'Duraklat';
       renderCmd(); renderInfo(c);
       root.classList.toggle('placing', Boolean(world.placing));
-      root.classList.toggle('commanding', Boolean(world.rallyMode));
       root.classList.toggle('aoe', world.mode === 'aoe');
       if (els.cam) { els.cam.classList.toggle('active', world.cam === 'tps'); els.cam.textContent = world.cam === 'tps' ? '🎥 İzometrik' : '🎥 Omuz üstü'; }
     },

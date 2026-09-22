@@ -293,13 +293,15 @@ export const SOLDIER_TYPES = [
  * çıkanlar oraya gider. "Hepsi" tüm sınıfların toplanma yerini aynı noktaya alır.
  */
 export const RALLY = {
+  /** Birim sınıfları (HUD sayımı ve üretim binası eşlemesi için; ordu sınıf sınıf değil bütün olarak yönetilir). */
   classes: [
-    { key: 'foot', label: 'Piyade', icon: '🛡', buildings: ['barracks'], color: '#8fd0ff' },
-    { key: 'archer', label: 'Okçu', icon: '🏹', buildings: ['archery'], color: '#c8ff8a' },
-    { key: 'cavalry', label: 'Süvari', icon: '🐎', buildings: ['stable'], color: '#ffd27a' },
-    { key: 'siege', label: 'Mancınık', icon: '🪨', buildings: ['siege'], color: '#d9d9d9' },
+    { key: 'foot', label: 'Piyade', icon: '🛡', buildings: ['barracks'] },
+    { key: 'archer', label: 'Okçu', icon: '🏹', buildings: ['archery'] },
+    { key: 'cavalry', label: 'Süvari', icon: '🐎', buildings: ['stable'] },
+    { key: 'siege', label: 'Mancınık', icon: '🪨', buildings: ['siege'] },
   ],
-  allLabel: 'Hepsi', allColor: '#ffd12e',
+  /** Tek toplanma bayrağı: **orta tık** imlecin (omuz üstünde artının) gösterdiği yere diker; bütün ordu oraya yürür. */
+  label: 'Toplanma alanı', color: '#ffd12e',
   /**
    * Toplanma alanı aynı zamanda hedef tayinidir: askerler bayrağa yürür ve yalnızca bayrağın bu yarıçapı içinde,
    * sisin kalktığı yerde dövüşür (düşman birimi, kule, bina). Dışarıda haritada başıboş gezmezler.

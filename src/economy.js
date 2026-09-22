@@ -4,7 +4,7 @@ import { applyLevelUp, buildView, createEntity } from './characters.js';
 import { burst, ring } from './combat.js';
 import { ANTI, BANDITS, BUILD, BUILDINGS, CAMPS, ECONOMY, ENEMY_AI, ENEMY_HERO, LEVEL, POSITIONS, SIEGE, SOLDIER_BASE, SOLDIER_TYPES, TOWER, VISION, WORKER } from './config.js';
 import { giveOrder, inEnemyTowerRange } from './ai.js';
-import { armyCount, bestProducer, classOf, enqueue, queuedOf, queuedSoldiers, workerTotal } from './production.js';
+import { armyCount, bestProducer, enqueue, queuedOf, queuedSoldiers, workerTotal } from './production.js';
 import { rrand } from './rng.js';
 import { canPlace, createStructure, placementError, reviveCamp, structureCount } from './structures.js';
 import { botSay, enemyOf, nearestEnemyBanner, resourceMult, teamOf } from './players.js';
@@ -399,7 +399,7 @@ export function spawnUnit(world, typeKey, owner, building) {
   const toCenter = Math.atan2(-building.pos.z, -building.pos.x);
   const a = toCenter + rrand(-1.1, 1.1), r = building.radius + rrand(1.2, 2.4);
   const e = createEntity({ faction: owner.faction, owner, loadout: { weapon: type.weapon, shield: type.shield, horse: type.horse }, x: building.pos.x + Math.cos(a) * r, z: building.pos.z + Math.sin(a) * r });
-  e.typeKey = type.key; e.rallyClass = classOf(type); e.vision = type.worker ? VISION.worker : VISION.soldier;
+  e.typeKey = type.key; e.vision = type.worker ? VISION.worker : VISION.soldier;
   if (type.worker) {
     e.isWorker = true; e.workerKind = type.worker;
     e.stats.maxHp = WORKER.hp; e.hp = e.stats.maxHp; e.stats.speed = WORKER.speed;

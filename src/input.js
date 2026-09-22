@@ -13,8 +13,9 @@ import { pickOwnStructure } from './structures.js';
  * İki kamera (V ile geçilir, world.cam):
  *  - 'iso': izometrik; WASD ekrana göre, nişan fare imlecinin zemindeki izdüşümü.
  *  - 'tps': omuz üstü (üçüncü şahıs); fare kilitliyken bakış fareyle döner (world.look yaw / pitch), WASD kameraya göre,
- *    nişan ekran ortasındaki artının zemine değdiği nokta. **Orta tuş** kilidi açar / kapatır: serbestken imleç görünür
+ *    nişan ekran ortasındaki artının zemine değdiği nokta. **Tab** kilidi açar / kapatır: serbestken imleç görünür
  *    ve tıklar izometrikteki gibi işler (yapı seç, inşa, imlece doğru vuruş), kamera son açısında kalır. Esc de kilidi bırakır.
+ * **Orta tık** iki kamerada da ordunun toplanma alanını nişan noktasına diker (izometrikte imleç, kilitli omuz üstünde artı).
  */
 export function createInput() {
   return {
@@ -99,6 +100,15 @@ export function attachInput(world, canvas, camera, dragEl) {
     }
     // V: izometrik / omuz üstü kamera geçişi.
     if (e.code === 'KeyV' && !e.repeat && world.toggleCamera) { world.toggleCamera(); return; }
+    // Tab (omuz üstü): fare kilidini aç / kapat. Serbestken imleç görünür ve tıklar izometrikteki gibi işler (yapı seç,
+    // inşa, tıklanan yöne vuruş); tekrar basınca bakış kaldığı açıdan kilitlenir.
+    if (e.code === 'Tab') {
+      e.preventDefault();
+      if (e.repeat || world.cam !== 'tps' || !world.running) return;
+      if (input.locked) { unlockPointer(); world.ui.say('Fare serbest: imleçle seç, dik, vur · Tab yeniden kilitler', 2200); }
+      else { lockPointer(canvas); world.ui.say('Fare kilitli: bakış fareyle döner · Tab serbest bırakır', 1600); }
+      return;
+    }
     if (MOVE.includes(e.code)) { e.preventDefault(); input.keys.add(e.code); if (e.code === 'Space' && !e.repeat && !aoe) input.jumpQueued = true; }
   });
   window.addEventListener('keyup', e => { input.keys.delete(e.code); input.shift = e.shiftKey; });
@@ -114,7 +124,7 @@ export function attachInput(world, canvas, camera, dragEl) {
       input.pointer.inside = true;
       return;
     }
-    // İzometrik ya da serbest fare (omuz üstünde orta tuş): nişan imlecin zemindeki izdüşümü.
+    // İzometrik ya da serbest fare (omuz üstünde Tab): nişan imlecin zemindeki izdüşümü.
     updateAim(ev);
     if (input.rightDown && !(ev.buttons & 2)) input.rightDown = false;
   });
@@ -128,23 +138,14 @@ export function attachInput(world, canvas, camera, dragEl) {
   canvas.addEventListener('mousedown', e => { if (e.button === 1) e.preventDefault(); });
   canvas.addEventListener('auxclick', e => { if (e.button === 1) e.preventDefault(); });
   canvas.addEventListener('pointerdown', e => {
-    if (world.cam === 'tps') {
-      // Orta tuş: fare kilidini aç / kapat. Serbestken imleç görünür ve tıklar izometrikteki gibi işler (yapı seç,
-      // inşa, tıklanan yöne vuruş); tekrar basınca bakış kaldığı açıdan kilitlenir.
-      if (e.button === 1) {
-        e.preventDefault();
-        if (input.locked) { unlockPointer(); world.ui.say('Fare serbest: imleçle seç, dik, vur · orta tuş yeniden kilitler', 2200); }
-        else { lockPointer(canvas); world.ui.say('Fare kilitli: bakış fareyle döner · orta tuş serbest bırakır', 1600); }
-        return;
-      }
-      // Kilitliyken nişan zaten ekran ortasında (input.aim); serbestken imleçten alınır.
-      if (!input.locked) updateAim(e);
-    } else updateAim(e);
+    // Kilitli omuz üstünde nişan zaten ekran ortasında (input.aim); izometrikte ve serbest farede imleçten alınır.
+    if (!(world.cam === 'tps' && input.locked)) updateAim(e);
     const x = input.aim.x, z = input.aim.z, ui = world.ui;
-    // Birimler tek tek yönetilmez: sol tık yalnızca yapı seçer ya da yerleştirme / toplanma noktasını onaylar.
+    // Orta tık: ordunun toplanma alanı nişan noktasına dikilir; bütün askerler oraya yürür (bkz. main.js setRallyPoint).
+    if (e.button === 1) { e.preventDefault(); if (input.hasAim) ui.setRally(x, z); return; }
+    // Birimler tek tek yönetilmez: sol tık yalnızca yapı seçer ya da yerleştirmeyi onaylar.
     if (e.button === 0) {
       if (world.placing) { ui.confirmPlace(x, z); return; }
-      if (world.rallyMode) { ui.confirmRally(x, z); return; }
       const s = pickOwnStructure(world, x, z);
       if (s) {
         // Çift tık (aynı yapıya 400 ms içinde ikinci tık): o türdeki bütün binaları seçer.
@@ -158,7 +159,7 @@ export function attachInput(world, canvas, camera, dragEl) {
       input.attackQueued = true;
       input.attackHeld = true; input.attackDownAt = world.clock; input.attackReleased = false;
     } else if (e.button === 2) {
-      if (world.placing || world.rallyMode) { ui.cancelModes(true); return; }
+      if (world.placing) { ui.cancelModes(true); return; }
       if (world.mode === 'aoe') return;
       input.rightDown = true; input.dodgeQueued = true;
     }

@@ -71,8 +71,8 @@ export function updateUnit(world, e, dt) {
   else { e.moveDir.set(0, 0, 0); if (o) { b.order = null; b.home = { x: o.x, z: o.z }; } }
 }
 
-/** Askerin bağlı olduğu nokta: sınıfının toplanma bayrağı, yoksa doğduğu / son durduğu yer. */
-const rallyAnchor = (world, e) => (e.owner === world.me && e.rallyClass && world.rally[e.rallyClass]) || e.brain.home;
+/** Askerin bağlı olduğu nokta: senin ordunun toplanma bayrağı, yoksa doğduğu / son durduğu yer. */
+const rallyAnchor = (world, e) => (e.owner === world.me && world.rally) || e.brain.home;
 
 /**
  * Senin askerin: toplanma alanı hem üssü hem hedefidir. Bayrağa yürür ve bayrağın RALLY.engageRadius yarıçapı

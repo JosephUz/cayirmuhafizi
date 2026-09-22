@@ -10,7 +10,7 @@ import { updateZones } from './abilities.js';
 import { attachInput, clearSelection, createInput, lockPointer, unlockPointer, updateCamera, updatePlayerControl, updateTpsCamera } from './input.js';
 import { createMinimap } from './minimap.js';
 import { clampBounds, integrate, resolveEntityCollisions, resolveObstacleCollisions } from './physics.js';
-import { cancelQueued, enqueue, unitClass, updateProduction } from './production.js';
+import { cancelQueued, enqueue, updateProduction } from './production.js';
 import { canPlace, collapseStructure, createStructure, placementError, rallyFlag, removeStructure, updateStructureBars, updateStructures } from './structures.js';
 import { createUI } from './ui.js';
 import { createPlayers, enemyBanners, limitsFor } from './players.js';
@@ -70,13 +70,13 @@ export async function start(root) {
     /** Oyuncular (bkz. players.js): me insan oyuncu, player onun kahramanı; her oyuncunun kendi kasası / sancağı / kahramanı var. */
     players: [], me: null, player: null, limits: limitsFor(2),
     kills: 0, loadout: null, difficulty: 'normal', tmpVec: new T.Vector3(),
-    // Kahraman (moba) / Komutan (aoe) modu; seçim; inşa / toplanma / saldır-yürü modları; serbest kamera hedefi.
+    // Kahraman (moba) / Komutan (aoe) modu; seçim; inşa modu; serbest kamera hedefi.
     // sel.structure: bilgi kartındaki ana yapı; sel.structures: çift tıkla seçilen aynı türdeki tüm yapılar.
-    mode: 'moba', sel: { units: new Set(), structure: null, structures: [] }, placing: null, rallyMode: false, heroMenu: false, camTarget: new T.Vector3(),
+    mode: 'moba', sel: { units: new Set(), structure: null, structures: [] }, placing: null, heroMenu: false, camTarget: new T.Vector3(),
     /** Kamera modu: 'iso' izometrik / 'tps' omuz üstü; look: omuz üstü bakış açıları; tpsLook: kameranın izlediği nokta. */
     cam: 'iso', look: { yaw: 0, pitch: CAMERA.tps.pitch }, tpsLook: new T.Vector3(),
-    /** Sınıf toplanma yerleri: { foot | archer | cavalry | siege: { x, z, g } }. */
-    rally: {},
+    /** Ordunun tek toplanma yeri: { x, z, g } ya da null (orta tıkla dikilir, bkz. setRallyPoint). */
+    rally: null,
     fog: null, camps: [],
   };
   // structures.js'in eski alanı: seçili yapı.
@@ -210,7 +210,7 @@ export async function start(root) {
     cancelQueued: (building, i) => cancelQueued(world, building, i),
     build: (kind, x, z) => buildStructure(world, kind, world.me, x, z),
     demolish: s => demolishStructure(world, s),
-    setRally: (cls, x, z) => setRallyPoint(world, cls, x, z),
+    setRally: (x, z) => setRallyPoint(world, x, z),
     setMode: mode => setMode(world, mode),
     heroConvert: key => heroConvert(world, key),
     toggleFullscreen: () => { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => world.ui.say('Tarayıcı tam ekrana izin vermedi (F11 dene)', 2500)); },
@@ -236,7 +236,7 @@ export async function start(root) {
       world.input.lookDX = world.input.lookDY = 0;
       updateTpsCamera(world, tpsCamera, 0);
       lockPointer(renderer.domElement);
-      world.ui.say('Omuz üstü kamera: fare bakışı döndürür, WASD kameraya göre, sol tık artıya vurur · Orta tuş fareyi serbest bırakır / yeniden kilitler · V izometriğe döner', 4500);
+      world.ui.say('Omuz üstü kamera: fare bakışı döndürür, WASD kameraya göre, sol tık artıya vurur · Orta tık artının yerine toplanma alanı · Tab fareyi serbest bırakır / yeniden kilitler · V izometriğe döner', 4500);
     } else {
       unlockPointer();
       world.ui.say('İzometrik kamera', 1200);
@@ -438,20 +438,16 @@ function updateMarkers(world, selRings, ghost, ghostMat, ghostRing, rangeRing, h
 // Seviye altınla alınmaz: kahraman öldürdüğü düşmanlardan exp kazanıp kendiliğinden atlar (bkz. gainXp).
 
 /**
- * Sınıf toplanma yeri: bayrağı diker, o sınıftaki tüm **kendi** askerlerini oraya yürütür; 'all' tüm sınıfları aynı noktaya alır.
- * Müttefik botun askerleri senin bayrağına gelmez (kendi emrindedir). Kahraman hiçbir zaman toplanma alanına gitmez.
+ * Ordunun toplanma yeri (orta tık): bayrağı diker, bütün **kendi** askerlerini (her sınıf, mancınık dahil) oraya yürütür; yeni çıkanlar
+ * da oraya gider. Müttefik botun askerleri senin bayrağına gelmez (kendi emrindedir). Kahraman hiçbir zaman toplanma alanına gitmez.
  * Yürütülen asker sayısını döner.
  */
-function setRallyPoint(world, cls, x, z) {
-  const classes = cls === 'all' ? RALLY.classes : RALLY.classes.filter(c => c.key === cls);
-  let n = 0;
-  for (const c of classes) {
-    const old = world.rally[c.key]; if (old) world.scene.remove(old.g);
-    world.rally[c.key] = { x, z, g: rallyFlag(world, x, z, cls === 'all' ? RALLY.allColor : c.color) };
-    const units = world.entities.filter(e => e.alive && e.owner === world.me && !e.isWorker && !e.isHero && !e.isPlayer && unitClass(e) === c.key);
-    n += giveOrder(world, units, { kind: 'move', x, z });
-  }
-  ring(world, x, z, '#ffd12e', 3, 0.7);
+function setRallyPoint(world, x, z) {
+  if (world.rally) world.scene.remove(world.rally.g);
+  world.rally = { x, z, g: rallyFlag(world, x, z, RALLY.color) };
+  const units = world.entities.filter(e => e.alive && e.owner === world.me && !e.isWorker && !e.isHero && !e.isPlayer);
+  const n = giveOrder(world, units, { kind: 'move', x, z });
+  ring(world, x, z, RALLY.color, 3, 0.7);
   return n;
 }
 
@@ -643,10 +639,10 @@ function resetWorld(world, loadout, run, difficulty = world.difficulty, teamSize
   Object.assign(world, {
     env, layout, half: layout.half, teamSize, towerSpots: env.towerSpots, nodes: env.nodes, lanePoints: env.lanePoints, obstacles: env.obstacles, animals: env.animals, bases: env.bases,
     players, me: players[0], limits: limitsFor(players.length), camps: [],
-    time: 0, kills: 0, paused: false, ended: false, running: run, loadout, difficulty, placing: null, rallyMode: false, heroMenu: false, mode: 'moba',
+    time: 0, kills: 0, paused: false, ended: false, running: run, loadout, difficulty, placing: null, heroMenu: false, mode: 'moba',
   });
   clearSelection(world);
-  for (const r of Object.values(world.rally)) world.scene.remove(r.g); world.rally = {};
+  if (world.rally) world.scene.remove(world.rally.g); world.rally = null;
   world.input.blockToggle = false; world.input.rightDown = false; world.input.keys.clear();
 
   // Her oyuncuya üs: sancak, başlangıç kuleleri ve bir kışla.
@@ -679,13 +675,13 @@ function resetWorld(world, loadout, run, difficulty = world.difficulty, teamSize
 
   if (run) {
     const team = teamSize > 1 ? ` ${teamSize}v${teamSize}: yanında ${teamSize - 1} müttefik bot, karşında ${teamSize} rakip bot.` : '';
-    world.ui.say(`Kılıçlı kahramanla yola çıktın (${d.label}).${team} Soldan bina dik ve toplanma alanı kur; sancağına tıkla: işçi sıraya al, kahramanı geliştir.`, 5000);
+    world.ui.say(`Kılıçlı kahramanla yola çıktın (${d.label}).${team} Soldan bina dik, orta tıkla ordunun toplanma alanını kur; sancağına tıkla: işçi sıraya al, kahramanı geliştir.`, 5000);
   }
   world.ui.update();
 }
 
 function animateScenery(world, dt) {
-  for (const r of Object.values(world.rally)) r.g.children[1].rotation.y = Math.sin(world.clock * 3) * 0.2;
+  if (world.rally) world.rally.g.children[1].rotation.y = Math.sin(world.clock * 3) * 0.2;
   const t = world.clock;
   for (const a of world.animals) {
     a.g.position.x = a.x + Math.sin(t * 0.12 + a.phase) * 1.5;

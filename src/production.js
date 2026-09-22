@@ -110,8 +110,8 @@ export function updateProduction(world, dt) {
     const e = spawnUnit(world, type.key, s.owner, s);
     if (!e) continue;
     if (!e.isWorker) field.set(s.owner, fieldOf(s.owner) + 1);
-    // Çıkan asker sınıfının toplanma yerine (senin), botta ordu toplanma noktasına yürür.
-    if (!e.isWorker) { const r = s.owner === world.me ? world.rally[classOf(type)] : !s.owner.human ? botRally(world, s.owner) : null; if (r) giveOrder(world, [e], { kind: 'move', x: r.x, z: r.z }); }
+    // Çıkan asker ordunun toplanma yerine (senin), botta ordu toplanma noktasına yürür.
+    if (!e.isWorker) { const r = s.owner === world.me ? world.rally : !s.owner.human ? botRally(world, s.owner) : null; if (r) giveOrder(world, [e], { kind: 'move', x: r.x, z: r.z }); }
     // İşçi sınırı doluysa yerine geçtiği türü de söyle.
     const swap = e.replacedLabel ? ` · işçi sınırı dolu (${world.limits.workers}), 1 ${e.replacedLabel} azaldı` : '';
     if (s.owner === world.me) { world.ui.say(`${type.label} hazır${swap}${s.queue.length ? ` · sırada ${s.queue.length}` : ''}`, swap ? 2200 : 1400); world.ui.ping(type.worker ? 'worker' : 'soldier'); }
