@@ -1,6 +1,6 @@
 import { dampAngle, distXZ, yawFromDir } from './builders.js';
 import { canAttack, heroReach, startAttack, nearestEnemyTower } from './combat.js';
-import { ARMY, BUILD, CAMPS, ECONOMY, ENEMY, ENEMY_AI, ENEMY_HERO, POSITIONS, RALLY, TOWER, VISION, WORKER } from './config.js';
+import { ARMY, BUILD, CAMPS, ECONOMY, ENEMY, ENEMY_AI, ENEMY_HERO, POSITIONS, TOWER, VISION, WORKER } from './config.js';
 import { produceItem, heroGather } from './economy.js';
 import { rrand } from './rng.js';
 import { bannerShielded } from './structures.js';
@@ -12,8 +12,9 @@ import { botSoldier, nearestEnemyBanner, nearestEnemyPlayer } from './players.js
  * düşmanla dövüşür ve emirle hareket eder. Kahraman modunda ise görünen tüm düşmanlara kendiliğinden saldırır.
  * Emirler: move (yürü; yolda düşman görürse durup dövüşür), attackmove (yürü, yolda çıkanla dövüş),
  * attack (hedefi kovala; birim ya da yapı), stop.
- * **Yolda dövüş her iki taraf için de geçerlidir**: bir yere yürüyen asker ARMY.sight yarıçapında düşman görürse
- * durup saldırır, kendisine vuran olursa (uzaktan bile) ona döner; dövüşe başladığı noktadan ARMY.chase kadar
+ * **Senin askerin** emir almaz (updateAggressive): görüşüne (e.vision) giren her düşman birimi, kahramanı, binası ve kulesiyle
+ * savaşır, hiçbir şey görmüyorsa toplanma bayrağına yürür. **Bot askeri** emirle yürür: yolda ARMY.sight yarıçapında düşman
+ * görürse durup saldırır, kendisine vuran olursa (uzaktan bile) ona döner; dövüşe başladığı noktadan ARMY.chase kadar
  * uzaklaşınca hedefi bırakıp yoluna devam eder.
  * **Takım oyunu**: düşmanlık takıma (faction), komuta sahibe (owner) bağlıdır. Senin askerlerin toplanma alanınla yönetilir;
  * **bot** askerleri (iki takımda da) sahiplerinin toplanma noktasında birikir, sahipleri saldırı kararı verince
@@ -75,32 +76,31 @@ export function updateUnit(world, e, dt) {
 const rallyAnchor = (world, e) => (e.owner === world.me && world.rally) || e.brain.home;
 
 /**
- * Senin askerin: toplanma alanı hem üssü hem hedefidir. Bayrağa yürür ve bayrağın RALLY.engageRadius yarıçapı
- * içinde, sisin kalktığı yerdeki hedeflerle dövüşür: önce görünen düşman birimleri, sonra kuleler, sonra binalar,
- * en son (kuleler yıkılınca) sancak. Alanın dışında kendiliğinden hedef aramaz ama **yolda** kendi görüşüne
- * (ARMY.sight) giren düşmanla ve kendisine vuranla dövüşür; dövüşe başladığı noktadan ARMY.chase kadar uzaklaşınca
- * bırakıp bayrağına döner. Haritada başıboş gezmez.
+ * Senin askerin: **görüşü savaşa girme mesafesidir**. Görüşüne (e.vision: asker 10, mancınık 36) giren her düşmanla savaşır:
+ * önce kendisine vuran, sonra en yakın düşman birimi (asker, kahraman, işçi, haydut), birim yoksa görüşündeki rakip yapı
+ * (kule > bina > sancak). Hedefi görüşünün ARMY.holdMult katına kadar kovalar; daha uzağa kaçarsa bırakır. Hiçbir şey
+ * görmüyorsa toplanma bayrağına (yoksa durduğu yere) yürür. Bayrağa gitmek savaşı hiçbir zaman bölmez.
  */
 function updateAggressive(world, e, dt) {
-  const b = e.brain, fog = world.fog;
+  const b = e.brain;
   const anchor = rallyAnchor(world, e) || (b.home = { x: e.pos.x, z: e.pos.z });
-  const R = RALLY.engageRadius;
-  const inZone = t => distXZ(t.pos, anchor) <= R;
+  const V = e.vision || VISION.soldier;
   if (b.retarget <= 0) {
-    b.retarget = 0.3; b.target = null; b.fightAt = null;
-    // Önce kendisine vuran; sonra toplanma alanındaki ya da yürürken kendi görüşüne (ARMY.sight) giren en yakın düşman.
-    let best = retaliator(world, e), bd = Infinity;
+    b.retarget = 0.3;
+    // Eldeki hedef tutma mesafesindeyse (görüşün holdMult katı) bırakılmaz; yoksa görüşteki en yakın düşman birimi seçilir.
+    const cur = b.target && b.target.alive && distXZ(e.pos, b.target.pos) <= V * ARMY.holdMult + b.target.radius ? b.target : null;
+    let best = retaliator(world, e) || cur, bd = Infinity;
     if (!best) for (const t of world.entities) {
-      if (!t.alive || t.faction === e.faction || !fog.isVisible(t.pos.x, t.pos.z)) continue;
+      if (!t.alive || t.faction === e.faction) continue;
       const d = distXZ(e.pos, t.pos);
-      if (!inZone(t) && d > ARMY.sight) continue;
-      if (d < bd) { bd = d; best = t; }
+      if (d > V + t.radius || d >= bd) continue;
+      bd = d; best = t;
     }
-    if (best) { b.target = best; b.fightAt = { x: e.pos.x, z: e.pos.z }; }
-    // Yapı hedefi de aynı aralıkta seçilir (her adımda bütün yapıları taramak yerine).
-    b.structTarget = best ? null : nearestStructure(world, e, anchor, R);
+    b.target = best;
+    // Birim yoksa görüşündeki rakip yapı (kule, bina, sancak); her adımda değil hedef aramayla birlikte seçilir.
+    b.structTarget = best ? null : nearestStructure(world, e, e.pos, V);
   }
-  const target = b.target && b.target.alive && (inZone(b.target) || withinChase(e, b.target)) ? b.target : null;
+  const target = b.target && b.target.alive && distXZ(e.pos, b.target.pos) <= V * ARMY.holdMult + b.target.radius ? b.target : null;
   if (target) { e.aim.copy(target.pos); engage(world, e, target.pos, target.radius, dt); return; }
   const s = b.structTarget && b.structTarget.alive ? b.structTarget : null;
   if (s) { e.aim.copy(s.pos); engage(world, e, s.pos, s.radius, dt); return; }
@@ -237,22 +237,32 @@ export function stopUnits(world, units) {
   return n;
 }
 
-/** Yapı o taraf için bilinir mi? Mavi sisle görür (seen), kırmızı gördüğünü hatırlar (seenByRed). */
-const knownTo = (e, st) => (e.faction === 'blue' ? st.seen : st.seenByRed);
+/**
+ * Yapı o taraf için bilinir mi? Mavi sisle görür (seen), kırmızı gördüğünü hatırlar (seenByRed). Mavi asker kendi
+ * görüşündeki yapıyı hemen bilir (ve haritada açar): sis dokusunun bir sonraki güncellemesini beklemez.
+ */
+const knownTo = (e, st, d = Infinity) => {
+  if (e.faction !== 'blue') return st.seenByRed;
+  if (st.seen) return true;
+  if (d > (e.vision || VISION.soldier) + st.radius) return false;
+  st.seen = true; st.g.visible = true;
+  return true;
+};
 
 /**
  * Hedef yapı önceliği: önce **kuleler**, sonra diğer **binalar**, en son **sancak** (yalnızca o tarafın kulesi
- * kalmayınca, bkz. bannerShielded). anchor verilirse yalnızca o noktanın radius yarıçapındaki yapılar sayılır.
+ * kalmayınca, bkz. bannerShielded). anchor verilirse yalnızca o noktanın radius (+ yapı yarıçapı) içindeki yapılar sayılır.
  * Mancınık her yapıya vurabilir (kuleyi yeğler); bot askeri kuleye hiç gitmez ve rakip kule menzilindeki yapıyı hedeflemez.
  */
 function nearestStructure(world, e, anchor = null, radius = Infinity) {
   let tower = null, td = Infinity, other = null, od = Infinity, banner = null, bnd = Infinity;
   const bot = botSoldier(e) && !e.isSiege;
   for (const st of world.structures) {
-    if (!st.alive || st.faction === e.faction || !knownTo(e, st)) continue;
+    if (!st.alive || st.faction === e.faction) continue;
     if (bot && st.kind === 'tower') continue;
-    if (anchor && distXZ(st.pos, anchor) > radius) continue;
+    if (anchor && distXZ(st.pos, anchor) > radius + st.radius) continue;
     const d = distXZ(e.pos, st.pos);
+    if (!knownTo(e, st, d)) continue;
     // Önce uzaklık: yalnızca kendi türünün en yakını olabilecek aday (pahalı) rakip kule menzili denetiminden geçer.
     if (st.kind === 'tower') { if (d >= td) continue; }
     else if (st.kind === 'banner') { if (d >= bnd) continue; }

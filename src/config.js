@@ -300,13 +300,11 @@ export const RALLY = {
     { key: 'cavalry', label: 'Süvari', icon: '🐎', buildings: ['stable'] },
     { key: 'siege', label: 'Mancınık', icon: '🪨', buildings: ['siege'] },
   ],
-  /** Tek toplanma bayrağı: **orta tık** imlecin (omuz üstünde artının) gösterdiği yere diker; bütün ordu oraya yürür. */
-  label: 'Toplanma alanı', color: '#ffd12e',
   /**
-   * Toplanma alanı aynı zamanda hedef tayinidir: askerler bayrağa yürür ve yalnızca bayrağın bu yarıçapı içinde,
-   * sisin kalktığı yerde dövüşür (düşman birimi, kule, bina). Dışarıda haritada başıboş gezmezler.
+   * Tek toplanma bayrağı: **orta tık** imlecin (omuz üstünde artının) gösterdiği yere diker; bütün ordu oraya yürür.
+   * Bayrak yalnızca boştaki askerin gideceği yerdir: görüşüne düşman giren asker yürüyüşü bırakıp savaşır (ARMY.holdMult).
    */
-  engageRadius: 22,
+  label: 'Toplanma alanı', color: '#ffd12e',
 };
 
 /**
@@ -317,7 +315,8 @@ export const RALLY = {
  *    Sınır dolunca **asker çıkmaz**: emir sıraya bile alınmaz, sırada bekleyen emir de sınır açılana kadar bekletilir
  *    (bkz. production.js updateProduction).
  *  - `workers`: bütün işçi türlerinin (madenci / oduncu / çiftçi) **toplamı** en fazla bu kadar olur; tür başına ayrı
- *    sınır yoktur. İşçiler birleştiği için sayım kademe (tier) toplamıdır: x3 bir madenci 3 işçi sayılır. Sınır dolunca
+ *    sınır yoktur. Takım oyununda oyuncu başı sınır min(workers, workersTotal / oyuncu sayısı): 1v1'de 100, 2v2'de 75,
+ *    3v3'te 50, 4v4'te 38, 5v5'te 30. İşçiler birleştiği için sayım kademe (tier) toplamıdır: x3 bir madenci 3 işçi sayılır. Sınır dolunca
  *    üretim durmaz: yeni çıkan işçi **en kalabalık türden bir kademe eksiltir** ve onun yerine kendi türünde gelir
  *    (toplam sabit kalır, dağılım bastığın türe kayar; bkz. economy.js trimWorkers).
  *  - `towers` / `buildings`: ayakta duran kule sayısı ve kule dışındaki bina (kışla, okçuluk, ahır, kuşatma) sayısı
@@ -326,7 +325,7 @@ export const RALLY = {
  * kapanmaz, yeni işçi en kalabalık türün yerine geçer).
  * Sınıra takılınca yapı seçilip **yıkılabilir** (bilgi ızgarasındaki "Binayı yık" / "Kuleyi yık" düğmesi).
  */
-export const LIMITS = { army: 200, armyTotal: 600, workers: 100, towers: 10, buildings: 10 };
+export const LIMITS = { army: 200, armyTotal: 600, workers: 100, workersTotal: 300, towers: 10, buildings: 10 };
 
 /**
  * Üretim kuyruğu: bina başına en fazla bu kadar emir. Altın sıraya alınırken düşer, iptalde geri gelir.
@@ -342,8 +341,13 @@ export const QUEUE = { max: 30, /** Üretim düğmesine Shift ile basınca 5, Ct
 export const WORKER = { hp: 100, speed: 3.8, fleeRadius: 5, mergeDist: 1.4 };
 
 export const ARMY = {
-  /** Asker ve işçi sayısı sınırsız. */
-  aggro: 16,
+  /**
+   * Bot askerinin bekleme / emir konumunda hedef arama yarıçapı. **Senin askerin** bunu kullanmaz: onun savaşa girme
+   * mesafesi **görüşüdür** (e.vision; asker 10, okçu 10, mancınık silah menzili 36): görüşüne giren her düşman birimi,
+   * kahramanı, binası ve kulesiyle savaşır, bayrağa gitmeyi bırakır (bkz. ai.js updateAggressive). Hedef görüşünün
+   * holdMult katından uzağa kaçarsa bırakılır ve asker bayrağına döner.
+   */
+  aggro: 16, holdMult: 1.5,
   /** Bekleyen / emirli asker durduğu noktadan bu kadar uzaklaşmaz; bu yarıçapa girince varmış sayılır. */
   leash: 14, arrive: 3.0,
   /**
@@ -403,6 +407,7 @@ export const BUILD = { heroRadius: 14, bannerRadius: 30 };
 
 /** Görüş mesafeleri (birim) ve sis ızgarası hücre boyu. */
 export const VISION = { hero: 15, soldier: 10, worker: 8, /** Mancınık uzağı görür ki kule menzili dışından hedef alsın. */ siege: 14, cell: 2 };
+/** Askerin görüşü silah menzilinin altında kalmaz (bkz. economy.js spawnUnit): mancınık 36 birim görür ve vurur; senin askerin görüşüne giren her şeyle savaşır. */
 /** Savaş sisi: keşfedilmiş ama görünmeyen alanın karartması; güncelleme aralığı. */
 export const FOG = { exploredAlpha: 0.55, updateEvery: 0.15 };
 /**
@@ -550,10 +555,10 @@ export const ECONOMY = {
   /** Yiyecek yalnızca envantere girer; kahramanı iyileştirmez (can yalnızca sancak alanında yenilenir). */
   /** Ölen asker çevreye bu kadar yiyecek bırakır; ganimet saçılma yarıçapı. Ganimeti yalnızca kahramanlar toplar. */
   /**
-   * Ganimet ömrü (sn): yok edilen hedeften düşen yiyecek / odun toplanmazsa ttl sonra kaybolur, exp küresi xpTtl sonra;
-   * işçinin çıkardığı ürün (sahipli) ownedTtl sonra (işçi ölürse yerde birikmesin).
+   * Yerdeki eşyanın ömrü (sn): toplanmayan ganimet (yiyecek / odun) ttl, exp küresi xpTtl, işçinin çıkardığı ürün ownedTtl
+   * sonra kaybolur; sahneden kalkar, geometri ve malzemesi serbest bırakılır (bkz. economy.js removeItem).
    */
-  loot: { soldierFood: 2, scatter: 2.2, ttl: 5, xpTtl: 20, ownedTtl: 60 },
+  loot: { soldierFood: 2, scatter: 2.2, ttl: 5, xpTtl: 5, ownedTtl: 5 },
   /** Çalışma süreleri (saniye) ve ürünün fırlatıldığı mesafe. */
   work: { time: 1.0, heroTime: 1.0, throwMin: 1.0, throwMax: 1.6, spotRadius: 0.9, /** Kahramanın aynı düğüme vuruşları arasındaki en az süre. */ hitCooldown: 0.5 },
   /** İşçilerin ve seviye 1 kahramanın ürün alma yarıçapı (birim); kahramanda seviyeyle büyür (bkz. LEVEL.pickPerLevel). */

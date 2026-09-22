@@ -1,6 +1,6 @@
 import * as T from '/vendor/three.module.js';
-import { CulledGroup, ball, box, mesh, removeGroup } from './builders.js';
-import { applyLevelUp, buildView, createEntity } from './characters.js';
+import { CulledGroup, ball, ballGeo, box, boxGeo, mesh, removeGroup } from './builders.js';
+import { applyLevelUp, buildView, createEntity, reachOf } from './characters.js';
 import { burst, ring } from './combat.js';
 import { ANTI, BANDITS, BUILD, BUILDINGS, CAMPS, ECONOMY, ENEMY_AI, ENEMY_HERO, LEVEL, POSITIONS, SIEGE, SOLDIER_BASE, SOLDIER_TYPES, TOWER, VISION, WORKER } from './config.js';
 import { giveOrder, inEnemyTowerRange } from './ai.js';
@@ -58,6 +58,7 @@ export function produceItem(world, spot, claimedBy = null) {
   const glow = mesh(g, new T.RingGeometry(0.4, 0.5, 20), itemColor(spot.kind), 0, 0.03, 0);
   glow.rotation.x = -Math.PI / 2; glow.castShadow = false;
   glow.material = new T.MeshBasicMaterial({ color: glow.material.color.clone(), transparent: true, opacity: 0.35, side: T.DoubleSide });
+  glow.material.userData.own = true;
   // Yerdeki küçük eşya gölge atmaz (5v5'te yüzlercesi birikir; gölge geçişinden düşer).
   g.traverse(o => { o.castShadow = false; });
   const a = rrand(0, Math.PI * 2), d = rrand(ECONOMY.work.throwMin, ECONOMY.work.throwMax);
@@ -93,9 +94,12 @@ export function hitNode(world, node, attacker) {
   return true;
 }
 
+/** Eşyayı sahneden ve listeden kaldırır; paylaşılmayan geometri (odun kesiti, parıltı halkası) ve malzemeleri serbest bırakır. */
 function removeItem(world, item) {
-  item.taken = true;
+  item.taken = true; item.claimedBy = null;
+  item.g.traverse(o => { if (o.geometry && o.geometry !== boxGeo && o.geometry !== ballGeo) o.geometry.dispose(); });
   removeGroup(item.g);
+  item.g = null;
   const i = world.items.indexOf(item); if (i >= 0) world.items.splice(i, 1);
 }
 
@@ -411,6 +415,8 @@ export function spawnUnit(world, typeKey, owner, building) {
     e.mergeTo = world.entities.find(o => o.alive && o.isWorker && o.owner === owner && o.workerKind === e.workerKind && !o.mergeTo) || null;
   } else { e.stats.maxHp = SOLDIER_BASE.hp; e.hp = e.stats.maxHp; e.brain.order = null; e.brain.home = { x: e.pos.x, z: e.pos.z }; }
   if (type.siege) { e.isSiege = true; e.stats.maxHp = SIEGE.hp; e.hp = SIEGE.hp; e.stats.speed = SIEGE.speed; e.radius = SIEGE.radius; e.vision = VISION.siege; }
+  // Görüş silah menzilinin altında kalmaz: asker vurabildiğini görür, gördüğüyle savaşır (mancınık 36).
+  if (!type.worker) e.vision = Math.max(e.vision, reachOf(e).range);
   e.facing = Math.atan2(-building.pos.x, -building.pos.z);
   e.spawnTimer = 0.5;
   buildView(world.scene, e);

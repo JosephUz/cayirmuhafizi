@@ -438,17 +438,18 @@ function updateMarkers(world, selRings, ghost, ghostMat, ghostRing, rangeRing, h
 // Seviye altınla alınmaz: kahraman öldürdüğü düşmanlardan exp kazanıp kendiliğinden atlar (bkz. gainXp).
 
 /**
- * Ordunun toplanma yeri (orta tık): bayrağı diker, bütün **kendi** askerlerini (her sınıf, mancınık dahil) oraya yürütür; yeni çıkanlar
- * da oraya gider. Müttefik botun askerleri senin bayrağına gelmez (kendi emrindedir). Kahraman hiçbir zaman toplanma alanına gitmez.
- * Yürütülen asker sayısını döner.
+ * Ordunun toplanma yeri (orta tık): bayrağı diker; bütün **kendi** askerleri (her sınıf, mancınık dahil) boşta kaldıkça oraya
+ * yürür, yeni çıkanlar da oraya gider. Emir verilmez: asker kendi beyniyle gider ve yolda görüşüne giren her düşmanla savaşır
+ * (bkz. ai.js updateAggressive). Müttefik botun askerleri senin bayrağına gelmez. Kahraman toplanma alanına gitmez.
+ * Etkilenen asker sayısını döner.
  */
 function setRallyPoint(world, x, z) {
   if (world.rally) world.scene.remove(world.rally.g);
   world.rally = { x, z, g: rallyFlag(world, x, z, RALLY.color) };
-  const units = world.entities.filter(e => e.alive && e.owner === world.me && !e.isWorker && !e.isHero && !e.isPlayer);
-  const n = giveOrder(world, units, { kind: 'move', x, z });
+  const units = world.entities.filter(e => e.alive && e.owner === world.me && !e.isWorker && !e.isHero && !e.isPlayer && e.brain);
+  for (const u of units) { u.brain.order = null; u.brain.retarget = 0; }
   ring(world, x, z, RALLY.color, 3, 0.7);
-  return n;
+  return units.length;
 }
 
 /**

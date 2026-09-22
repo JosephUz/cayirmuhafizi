@@ -134,11 +134,14 @@ düğmesi yoktur), birim üretimi bina ızgarasındaki düğmelerle, toplanma al
 Oyuncunun askerleri **kafasına göre hareket etmez**: durduğu yeri tutar, yalnızca yakına gelen düşmanla dövüşür,
 emirle yürür. Rakibin askerleri kendiliğinden hatlardan ilerler.
 
-**Yolda dövüş (iki taraf için de)**: bir yere yürüyen asker — ister toplanma bayrağına, ister emirle — yol boyunca
-**12 birim** çevresinde düşman görürse durup ona saldırır; **kendisine vuran** olursa (22 birime kadar, uzaktan atan
-okçu / mancınık dahil) 5 saniye boyunca ona döner ve karşılık verir. Dövüşe başladığı noktadan **16 birimden** fazla
-uzaklaşırsa hedefi bırakıp yoluna devam eder: kaçan düşmanın peşinde haritada sürüklenmez. Hedef düşünce yürüyüş
-kaldığı yerden sürer.
+**Görüş = savaş (senin askerin)**: askerin savaşa girme mesafesi **görüşüdür** (asker ve okçu 10 birim, mancınık silah
+menzili olan 36; görüş hiçbir zaman silah menzilinin altında kalmaz). Görüşüne giren **her** düşmanla — asker, kahraman, işçi,
+haydut, **bina, kule, sancak** — savaşır ve bu sırada bayrağa gitmeye uğraşmaz. Öncelik: kendisine vuran (22 birime kadar,
+uzaktan atan okçu / mancınık dahil) → en yakın düşman birimi → kule → bina → sancak. Hedefi görüşünün **1.5 katına**
+kadar kovalar; daha uzağa kaçarsa bırakır ve bayrağına döner (`ARMY.holdMult`). Hedef düşünce yeni hedef arar, yoksa bayrağa yürür.
+
+**Bot askeri** emirle yürür: yolda 12 birim çevresinde düşman görürse durup saldırır, kendisine vuran olursa ona döner, dövüşe
+başladığı noktadan 16 birimden fazla uzaklaşırsa hedefi bırakıp yoluna devam eder.
 
 ## Alt bant (Age of tarzı)
 
@@ -157,9 +160,9 @@ kaldığı yerden sürer.
 Birimler anında çıkmaz: binanın sırasına alınır (bina başına en fazla **30 emir**), süre dolunca binanın yanında,
 toplanma alanı varsa oraya yürüyerek çıkar. Kaliteli birim geç çıkar. Maliyet sıraya alınırken düşer.
 
-**Toplanma alanı** tektir ve bütün ordu içindir; aynı zamanda **hedef tayinidir**: haritada bir yere **orta tıkla** (fare tekerleği),
-imlecin yerine sarı bayrak dikilir. **Tüm askerler** (piyade, okçu, süvari, mancınık) oraya yürür, yeni çıkanlar da oraya gider ve
-**yalnızca bayrağın 22 birim çevresinde**, sisin kalktığı yerde dövüşürler: haritada başıboş gezmezler. Bayrağı düşman kulesinin
+**Toplanma alanı** tektir ve bütün ordu içindir: haritada bir yere **orta tıkla** (fare tekerleği), imlecin yerine sarı bayrak
+dikilir. **Boştaki tüm askerler** (piyade, okçu, süvari, mancınık) oraya yürür, yeni çıkanlar da oraya gider; yolda ya da bayrakta
+görüşüne düşman giren asker **savaşı yeğler**, bayrak yalnızca görecek düşmanı kalmayanın gideceği yerdir. Bayrağı düşman kulesinin
 yanına dikersen ordu oraya yürüyüp orayı döver; tekrar orta tık bayrağı taşır. Omuz üstü kamerada orta tık artının gösterdiği yere
 diker. Sınıf sınıf bayrak yoktur: ordu bir bütün olarak yönetilir. **Kahraman toplanma alanına hiç gitmez**: onu sen yürütürsün.
 
@@ -205,7 +208,8 @@ ayrı ayrı sayılır ve HUD'da `🏰 3/10 🏠 1/10` olarak görünür. Sınır
 yapıyı seçip ızgaradaki **🧨 Binayı yık / Kuleyi yık** düğmesine basarsın (yıkılan yapı enkazından odun düşer, sancak yıkılamaz).
 
 **Nüfus sınırı**: bütün asker türlerinin toplamı en fazla **200** (mancınık dahil, kahraman hariç), işçiler ise
-**toplam en fazla 100** (tür başına ayrı sınır yok). İşçiler birleştiği için sayım kademe toplamıdır (x3 madenci = 3
+**toplam en fazla 100** (tür başına ayrı sınır yok). İki sınır da takım oyununda oyuncu sayısına bölünür: asker 1v1 200 /
+2v2 150 / 3v3 100 / 4v4 75 / 5v5 60, işçi 1v1 100 / 2v2 75 / 3v3 50 / 4v4 38 / 5v5 30 (`LIMITS.armyTotal`, `LIMITS.workersTotal`). İşçiler birleştiği için sayım kademe toplamıdır (x3 madenci = 3
 işçi). Sırada bekleyen emirler de sayılır. Asker sınırı dolunca o türün düğmesi kapanır, sıraya alınmaz ve **asker
 çıkışı durur**: sırada bekleyen emir de asker ölüp yer açılana kadar bekler ("Asker sınırı dolu (200): üretim bekliyor"),
 yer açılınca hemen çıkar. **İşçide
@@ -321,7 +325,8 @@ Ordunun sürekli büyüyebilmesi için ekonomi cömerttir: bir altın ürünü *
 - Kahramanın topladığı her şey (altın, odun, yiyecek, exp) **kahramanın üstünde "+N ◉ / 🪵 / 🌾 / exp" yazısı** olarak belirir.
 - Kahraman kaynak düğümlerine vurarak ürün düşürür ve toplar. **Ölen asker yiyecek**, **yıkılan yapı odun** bırakır (kule 2, bina 3, sancak 6);
   bu ganimeti yalnızca kahramanlar (sen ve rakip kahraman) toplar, sancağa taşımak gerekmez. **Toplanmayan ganimet 5 sn sonra
-  kaybolur** (exp küresi 20 sn, işçinin çıkardığı ürün 60 sn; `ECONOMY.loot.ttl / xpTtl / ownedTtl`): yerde yüzlerce eşya birikmez.
+  kaybolur**; exp küreleri ve işçinin çıkardığı ürünler de 5 sn'de (`ECONOMY.loot.ttl / xpTtl / ownedTtl`). Kaybolan eşya
+  sahneden kalkar, geometri ve malzemesi bellekten silinir: yerde yüzlerce eşya birikmez.
   Yiyecek yalnızca envantere girer; kahramanı iyileştirmez.
 - **Haritanın ortasında**, iki ana kule arasında **bitişik üç tarafsız maden** (tek bir kaya kümesi hâlinde, ana yolun hemen yanında).
   İşçiler orada çalışmaz; yalnızca kahramanlar vurup altın çıkarır, seviye yükseldikçe vuruş başına daha çok altın alırlar.

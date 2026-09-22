@@ -70,7 +70,7 @@ export function resourceMult(world, p) { return p.faction === 'red' ? DIFFICULTY
 
 /** Oyuncu başı nüfus sınırları: asker sınırı oyuncu sayısıyla bölünür ki haritadaki toplam armyTotal'ı aşmasın. */
 export function limitsFor(playerCount) {
-  return { army: Math.min(LIMITS.army, Math.round(LIMITS.armyTotal / playerCount)), workers: LIMITS.workers, towers: LIMITS.towers, buildings: LIMITS.buildings };
+  return { army: Math.min(LIMITS.army, Math.round(LIMITS.armyTotal / playerCount)), workers: Math.min(LIMITS.workers, Math.round(LIMITS.workersTotal / playerCount)), towers: LIMITS.towers, buildings: LIMITS.buildings };
 }
 
 /**
