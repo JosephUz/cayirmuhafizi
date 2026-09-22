@@ -181,7 +181,7 @@ fiyat aralığındadır.
 | Sancak | Oduncu · Madenci · Çiftçi | 10 | 0 | 1 sn |
 | Kuşatma (savaş aletleri) | Mancınık | 45 | **30 odun** (yiyecek yok) | 3.2 sn |
 
-**Mancınık**: kule menzilinin (9) **iki katı** uzaktan — 18 menzille — **2.2 saniyede bir** taş atar ve **öbür askerler gibi
+**Mancınık**: kule menzilinin (18) **9 birim dışından** — 27 menzille — **2.2 saniyede bir** taş atar ve **öbür askerler gibi
 her hedefe saldırır** (birim, bina, kule); hedef seçerken kuleyi yeğler, yanındaki düşman birimini de döver.
 Kuleye hasarı **2.5 katına** çıkar (220 × 2.5 = **550**, yani 2000 canlı kule 4 taşta düşer) ve askerlerin 0.4x kule çarpanı
 ona uygulanmaz; canlı hedefte taş dağıldığı için hasarın **0.35 katı** (**77**) iner. 40 canla askerlere karşı çok
@@ -213,7 +213,7 @@ Aynı sınırlar rakip için de geçerlidir (rakip sınır dolunca yeni işçi b
 
 Yapılar yalnızca odun ister: Kışla 60, Okçuluk 80, Ahır 100, Kuşatma 150, Kule **1000** (**2000 can**; askerlerin kuleye hasarı 0.4x, kahraman yapılara vuramaz).
 Kule oku **hedefi takip eder ve mutlaka vurur** (kaçış, zıplama, vurulmazlık savuşturamaz); **askeri, işçiyi ve kahramanı tek atışta
-öldürür**. Menzilde asker varsa **önce askere**, kahramana en son atar. Kuleleri mancınık, ordu (0.4x) ya da kahraman yıkar; kahraman kule menziline (9) girmemeli. Başlangıçta her tarafta
+öldürür**. Menzilde asker varsa **önce askere**, kahramana en son atar. Kuleleri mancınık, ordu (0.4x) ya da kahraman yıkar; kahraman kule menziline (**18**) girmemeli. Başlangıçta her tarafta
 sancak, kışla ve üç hat kulesi vardır; diğerleri sancak menüsünden seçilip yeşil / kırmızı hayaletle kahramanın 14 birim çevresine dikilir.
 
 **Sancak ve kuleler**: sancakların canı **10000**'dir. Bir tarafın en az bir kulesi ayaktayken (inşası sürse bile) sancağının

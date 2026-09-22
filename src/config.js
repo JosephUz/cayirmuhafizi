@@ -172,7 +172,8 @@ export const WEAPONS = {
    * hasar geçer (220 x 2.5 = 550); canlı hedefte taş dağıldığı için yalnızca unitMult katı (220 x 0.35 = 77) iner.
    * Atış arası kısadır (2.2 sn).
    */
-  catapult: { label: 'Mancınık', range: 18, arc: 0, damage: 220, cooldown: 2.2, windup: 0.45, duration: 0.9, knockback: 0, ranged: true, arrowSpeed: 16, siege: true, unitMult: 0.35 },
+  // Menzili kule menzilinden (TOWER.range 18) 9 birim uzundur: kuşatma kulenin atış alanı dışından dövmeye dayanır.
+  catapult: { label: 'Mancınık', range: 27, arc: 0, damage: 220, cooldown: 2.2, windup: 0.45, duration: 0.9, knockback: 0, ranged: true, arrowSpeed: 16, siege: true, unitMult: 0.35 },
 };
 
 /** Mancınık gövdesi: askerlere karşı çok dayanıksız, yavaş, geniş. */
@@ -334,12 +335,15 @@ export const ARMY = {
  * soldierDamageMult: askerlerin (kahraman dışı birimlerin) kuleye verdiği hasarın çarpanı.
  */
 export const TOWER = {
-  range: 9, damage: 14, cooldown: 1.3, arrowSpeed: 20, lethalVsSoldiers: 1.5,
+  range: 18, damage: 14, cooldown: 1.3, arrowSpeed: 20, lethalVsSoldiers: 1.5,
   /** Kule oku kahramanı da tek atışta öldürür (zıplayana değil). */
   lethalVsHeroes: true, soldierDamageMult: 0.4,
   /** Mancınık taşı kuleye bu katla vurur: kule kırmanın yolu kuşatmadır (220 x 2.5 = 550). */
   siegeDamageMult: 2.5,
-  /** Yerleştirme: yola bu kadar yakın olmalı; iki kule arası en az minGap (kendi menzili 9 + rakibin menzili 9). */
+  /**
+   * Yerleştirme: yola bu kadar yakın olmalı; iki kule arası en az minGap. Menzil (18) minGap'ten büyük olduğu için
+   * kuleler artık birbirinin menzilinde durabilir: yan yana dikilen kuleler aynı noktayı birlikte döver.
+   */
   laneDist: 4.5, minGap: 18,
 };
 
