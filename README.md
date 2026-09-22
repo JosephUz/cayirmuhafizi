@@ -215,8 +215,8 @@ Aynı sınırlar rakip için de geçerlidir (rakip sınır dolunca yeni işçi b
 
 Yapılar yalnızca odun ister: Kışla 60, Okçuluk 80, Ahır 100, Kuşatma 150, Kule **1000** (**2000 can**; askerlerin kuleye hasarı 0.4x, kahraman yapılara vuramaz).
 Kule oku **hedefi takip eder ve mutlaka vurur** (kaçış, zıplama, vurulmazlık savuşturamaz); **askeri, işçiyi ve kahramanı tek atışta
-öldürür**. Menzilde asker varsa **önce askere**, kahramana en son atar. Kuleleri mancınık, ordu (0.4x) ya da kahraman yıkar; kahraman kule menziline (**27**) girmemeli. Başlangıçta her tarafta
-sancak, kışla ve üç hat kulesi vardır; diğerleri sancak menüsünden seçilip yeşil / kırmızı hayaletle kahramanın 14 birim çevresine dikilir.
+öldürür**. Menzilde asker varsa **önce askere**, kahramana en son atar. Kuleleri mancınık, ordu (0.4x) ya da kahraman yıkar; kahraman kule menziline (**27**) girmemeli. Başlangıçta her oyuncuda
+sancak, kışla ve sancağın 14 birim önünde **tek kule** vardır (çemberin içinde, merkeze giden yolun üstünde); diğerleri sancak menüsünden seçilip yeşil / kırmızı hayaletle kahramanın 14 birim çevresine dikilir.
 
 **Menzil tavanı**: mancınık dışında hiçbir birim **kule menzilinin üçte birinden** (27 / 3 = **9**) uzağa vuramaz —
 kılıç 2.2, mızrak 3.1, **yay 9** ve kahramanın seviyeyle büyüyen menzili de bu tavanda durur (mızraklı kahramanın
@@ -353,8 +353,8 @@ ordusu, sınırları ve kahramanı vardır.
 - **Sınırlar oyuncu başınadır**: asker sınırı min(200, 600 / oyuncu sayısı) — 1v1'de 200, 2v2'de 150, 3v3'te 100,
   5v5'te 60; işçi 100, kule 10, bina 10 her oyuncuda ayrı.
 - **Arena büyür**: yarı boy 120 + 25 × (n - 1) (1v1 240×240, 5v5 440×440). Üsler takımın köşesinde, hatta dik bir
-  çizgi üzerinde 46 birim arayla dizilir; çapadaki üs (senin ve rakip takımın 0. yuvası) üç hattın başıdır ve **3
-  kuleyle** başlar, öbür üslerden haritanın ortasına birer yol çıkar ve o yolda **1 kuleyle** başlarlar; takımın üslerini
+  çizgi üzerinde 46 birim arayla dizilir; çapadaki üs (senin ve rakip takımın 0. yuvası) üç hattın başıdır, öbür üslerden
+  haritanın ortasına birer yol çıkar; her üs sancağının 14 birim önünde **tek kuleyle** başlar; takımın üslerini
   bir **takım yolu** bağlar. Ağaç, çalı ve haydut sayısı alanla ölçeklenir; kamplar yine iki boş köşede.
 - **Zafer** rakip takımın **bütün** sancakları yıkılınca (aradaki her sancak bir ilerleme mesajıdır); **yenilgi senin**
   sancağın düşünce (müttefikler ayakta olsa da). Sancağı düşen botun kahramanı bir daha doğmaz, ordusu yenilenmez.
@@ -388,7 +388,7 @@ takım oyununda "Rakip Aslan …" / "Müttefik Kurt …" diye başlar; sık mesa
   kampını yıkmaya** gider. Bir av 30 saniye (kampta 60 sn) sürer, arada 35 saniye işine döner; canı %35'in altına
   inince avı bırakır. Kamp 900 canlı olduğu için genelde birkaç sefer sürer.
 - Rakip de sisle oynar: yalnızca **gördüğü** yapılara saldırır. Rakip kahraman 20. saniyeden sonra her 40 saniyede keşfe çıkar
-  (kule yerleri, üssün binaları, sancak), gördüğünü orduya bildirir; ordu bilinen hedef yoksa hat kulesi yerlerine yürüyerek keşfeder.
+  (kule yerleri, üssün binaları, sancak), gördüğünü orduya bildirir; ordu bilinen hedef yoksa rakip kule yerlerine yürüyerek keşfeder.
 - Rakip ordusu **en ileri kulesinin dibinde birikir** (sana en yakın kırmızı kule) ve saldırıya oradan çıkar; kule zinciri
   ilerledikçe toplanma noktası da öne kayar. Nokta senin kule menziline düşerse kulenin arkasına çekilir. sayısı senin orduna denk olmadan
   saldırmaz, denk olunca (en az 4) topluca saldırır (HUD'da ⚡). Saldırıdayken ordusu seninkinin altına düşünce, kalkışın

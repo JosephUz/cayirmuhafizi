@@ -557,8 +557,11 @@ export const POSITIONS = {
     /** Başlangıç kışlası ve rakibin sonradan kuracağı binaların yerleri. */
     barracks: { back: 0, side: 13 }, archery: { back: 0, side: -13 }, stable: { back: 17, side: 11 }, siege: { back: 21, side: 0 },
   },
-  /** Kuleler: ana hatta %35, kanat hatlarında köşeye doğru %60. */
-  towers: { mainT: 0.35, flankT: 0.6 },
+  /**
+   * Başlangıç kulesi: her oyuncuda **tek** kule, sancağın `dist` birim önünde, haritanın ortasına giden yolun üstünde
+   * (sancak çemberinin içinde; 27 menzilli kule sancağı ve üssün önünü örter). Yıkılınca sancak kalkansız kalır.
+   */
+  towers: { dist: 14 },
   /**
    * Haritanın ortasındaki tarafsız madenler: bitişik bir küme. Küme merkezi, ana yolun dışında kalsın diye
    * harita merkezinden yola dik yönde offset kadar kaydırılır; üç maden spread yarıçaplı üçgende yan yana durur.

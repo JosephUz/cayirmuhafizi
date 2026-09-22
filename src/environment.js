@@ -88,16 +88,12 @@ export function buildEnvironment(scene, layout) {
   }
   const nearLane = (x, z, r) => lanePoints.some(p => Math.abs(p.x - x) < r && Math.abs(p.z - z) < r && Math.hypot(p.x - x, p.z - z) < r);
 
-  // Kule yerleri: çapa üssünde ana hatta üsse yakın ve kanat hatlarında köşeye doğru; öbür üslerde merkeze giden yolda.
-  const lerp = (p, q, t) => ({ x: p.x + (q.x - p.x) * t, z: p.z + (q.z - p.z) * t });
-  const tT = POSITIONS.towers;
+  // Kule yerleri: her üste **tek** başlangıç kulesi, sancağın POSITIONS.towers.dist birim önünde, merkeze giden yolun üstünde
+  // (çapa üssünde ana hat, öbürlerinde kendi yolu merkeze doğru başlar; kule sancak çemberinin içinde kalır).
   const towerSpots = [];
   for (const b of allBases) {
-    const team = b.faction, slot = b.slot;
-    if (slot === 0) {
-      const own = team === 'blue' ? A : B, foe = team === 'blue' ? B : A;
-      towerSpots.push({ faction: team, slot, ...lerp(own, foe, tT.mainT) }, { faction: team, slot, ...lerp(own, C1, tT.flankT) }, { faction: team, slot, ...lerp(own, C2, tT.flankT) });
-    } else towerSpots.push({ faction: team, slot, ...lerp(b, center, tT.mainT) });
+    const l = Math.hypot(b.x, b.z) || 1, d = POSITIONS.towers.dist;
+    towerSpots.push({ faction: b.faction, slot: b.slot, x: b.x - (b.x / l) * d, z: b.z - (b.z / l) * d });
   }
 
   const trees = [];
