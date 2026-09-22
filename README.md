@@ -3,7 +3,7 @@
 Three.js ile yerel tarayıcıda çalışan, **Age of Empires 2 + DOTA** esintili, tam ekran izometrik kır savaşı.
 `demo`daki dövüş hissi (iki hızlı fizik, koni içi vuruş, prosedürel animasyon) bu sahnenin üstüne
 taşındı; üstüne Age of tarzı alt bant, üretim kuyruğu, savaş sisi,
-2B minimap, yapı inşası, ordu emirleri, birim üstünlükleri ve rakip kahraman eklendi.
+2B minimap, yapı inşası, ordu emirleri, birim üstünlükleri, rakip kahraman ve **takım oyunu** (1v1 … 5v5, botlarla) eklendi.
 
 ## Başlatma
 
@@ -259,8 +259,9 @@ Askerler 100 can (at ve kalkan can bonusu yalnızca kahramanda: +50 / +30). Kalk
 
 Sol tarafta **senin** bilgilerin: can, seviye, altın, odun / yiyecek, **işçilerin** (👷 toplam **0/100** · ardından
 tür tür sayılar: ⛏ madenci · 🪓 oduncu · 🌾 çiftçi, kademeleri toplanarak) ve **ordun sınıf sınıf** (⚔ toplam **0/200** · 🛡 piyade · 🏹 okçu · 🐎 süvari · 🪨 mancınık),
-ayakta kule / bina sayın ve sancağının canı. Sağ tarafta rakipten yalnızca **kule sayısı** ve **sancak canı** görünür
-(saldırıya kalkışınca sancağının yanında ⚡ çıkar).
+ayakta kule / bina sayın ve sancağının canı; takım oyununda 🤝 müttefik sayısı ve toplam askerleri. Sağ tarafta
+rakipten yalnızca **kule sayısı** ve **sancak canı** (takım oyununda ayakta / toplam sancak) görünür
+(bir rakip saldırıya kalkışınca sancağının yanında ⚡ çıkar).
 
 ## Yapı seçimi ve toplu üretim
 
@@ -328,11 +329,41 @@ Ordunun sürekli büyüyebilmesi için ekonomi cömerttir: bir altın ürünü *
 
 ## Savaş sisi ve görüş
 
-Harita başta karanlıktır. Kahraman (15), asker (10), işçi (8), sancak (18), kule (14) ve binalar (11) çevresini görür;
+Harita başta karanlıktır. Takımının her birimi ve yapısı görüş açar: kahraman (15), asker (10), işçi (8), sancak (18), kule (14) ve binalar (11);
 görülen alan kalıcı olarak keşfedilmiş sayılır (loş). Sisin içindeki düşman birimleri görünmez ve emir verilemez;
 düşman yapıları bir kez görülünce haritada kalır. Minimap da aynı sisi gösterir.
 
+## Takım oyunu (1v1 … 5v5)
+
+Başlangıç ekranında **Takımlar** seçilir: 1v1 (eski oyun) ya da 2v2 … 5v5. Sen her zaman **mavi** takımdasın; kalan
+yuvalar iki takımda da **botlarla** dolar (yanında n-1 müttefik, karşında n rakip bot). Düşmanlık **takıma** göredir,
+komuta ve kasa **sahibe**: her oyuncunun (sen ve her bot) kendi sancağı, üssü (tarla / maden / odunluk), kasası,
+ordusu, sınırları ve kahramanı vardır.
+
+- **Askerler sahibine aittir.** Toplanma bayrakların yalnızca **kendi** askerlerini yürütür; müttefik bot kendi
+  askerine kendi emrini verir, kendi kasasıyla basar, kendi kahramanıyla haydut avlar ve kendi kulesini savunur
+  (bkz. aşağıda "Rakip ve zorluk": aynı bot döngüsü iki takımda da çalışır, senin takımındaki botlar rakip takımı
+  taklit eder). Sen yalnızca kendi yapını seçebilir ve yıkabilirsin.
+- **Sahip rengi.** Gövde takım rengindedir (mavi / kırmızı); birimin ayağındaki halka ve yapının direğindeki bant
+  **sahibinin** rengidir: sen altın, botlar kendi renginde (minimapte sancak çerçevesi ve kahraman noktası da öyle).
+  HUD'da 🤝 müttefik sayısı ve askerleri; rakip tarafta kule toplamı ve ayakta sancak sayısı (⚑ 3/3).
+- **Görüş takımın ortak malıdır**: müttefik birimin gördüğü yeri sen de görürsün. Rakip takım da yapılarını takımca hatırlar.
+- **Kaynak sahibe özeldir**: işçi yalnızca sahibinin ürününü alır, kahraman kendi ürünü + ganimeti. Zorluk çarpanı
+  yalnızca **rakip** takımın botlarına işler; müttefikler senin gibi 1x toplar.
+- **Sınırlar oyuncu başınadır**: asker sınırı min(200, 600 / oyuncu sayısı) — 1v1'de 200, 2v2'de 150, 3v3'te 100,
+  5v5'te 60; işçi 100, kule 10, bina 10 her oyuncuda ayrı.
+- **Arena büyür**: yarı boy 120 + 25 × (n - 1) (1v1 240×240, 5v5 440×440). Üsler takımın köşesinde, hatta dik bir
+  çizgi üzerinde 46 birim arayla dizilir; çapadaki üs (senin ve rakip takımın 0. yuvası) üç hattın başıdır ve **3
+  kuleyle** başlar, öbür üslerden haritanın ortasına birer yol çıkar ve o yolda **1 kuleyle** başlarlar; takımın üslerini
+  bir **takım yolu** bağlar. Ağaç, çalı ve haydut sayısı alanla ölçeklenir; kamplar yine iki boş köşede.
+- **Zafer** rakip takımın **bütün** sancakları yıkılınca (aradaki her sancak bir ilerleme mesajıdır); **yenilgi senin**
+  sancağın düşünce (müttefikler ayakta olsa da). Sancağı düşen botun kahramanı bir daha doğmaz, ordusu yenilenmez.
+
 ## Rakip ve zorluk
+
+Aşağıdaki her şey **her bot** için (rakip ya da müttefik) kendi sancağı, kasası ve ordusuyla ayrı ayrı işler; taklit
+edilen "sen", takım oyununda **rakip takımın toplamının takımdaki oyuncu sayısına bölümüdür**. Mesajlar 1v1'de "Rakip …",
+takım oyununda "Rakip Aslan …" / "Müttefik Kurt …" diye başlar; sık mesajlar (asker basıyor) yalnızca 1v1'de gösterilir.
 
 - Kırmızı sancakta bir **rakip kahraman** (mızrak kalkan atlısı, sarı kafa): kaynak toplar, ganimet alır, keşfe çıkar, bina yerine
   gider ve **görüşüne giren düşman askerine saldırır** (alan vuruşu, asker hasarı); canı %35'in altına inince kaçar, ölürse 8 sn sonra doğar.
@@ -364,7 +395,7 @@ düşman yapıları bir kez görülünce haritada kalır. Minimap da aynı sisi 
   %35'ine eriyince ya da karşısında kalabalık görünce (ordu merkezinin 18 birim çevresinde mavi savaşçılar kendi sayısının
   1.2 katını aşınca) kulelerine çekilir ve yeniden birikir.
 - Zorluk (Kolay / Normal / Zor): rakibin altın çarpanı 0.5x / 1x / 2x (taklit payı `ENEMY_AI.extra` ile ayarlanabilir, varsayılan 0).
-- Kırmızı sancak yıkılınca zafer; kendi sancağın düşerse kaybedersin (kuleler ayaktayken sancakların canı azalmaz).
+- Rakip takımın bütün sancakları yıkılınca zafer; kendi sancağın düşerse kaybedersin (sahibinin kuleleri ayaktayken sancağın canı azalmaz).
 
 ## Dosyalar
 
@@ -374,7 +405,8 @@ düşman yapıları bir kez görülünce haritada kalır. Minimap da aynı sisi 
 | `game.js` | Giriş; `src/main.js`'i yükler |
 | `src/config.js` | Tüm ayar sayıları (birimler, yapılar, maliyetler, üstünlük matrisi, görüş, sis, kamera) |
 | `src/main.js` | Sahne, izometrik + omuz üstü kamera (V), sabit adımlı döngü, sis / görünürlük, kuleler, ganimet, yaşam döngüsü |
-| `src/environment.js` | Çayır, hatlar, üsler, kaynak düğümleri, evler; ağaçlar InstancedMesh |
+| `src/environment.js` | Arena yerleşimi (takım büyüklüğüne göre üsler, hatlar, kule yerleri), kaynak düğümleri, evler; ağaçlar InstancedMesh; her oyunda yeniden kurulur |
+| `src/players.js` | Oyuncular (sen + botlar): takım, sahip, kasa, bot durumu, sınırlar, en yakın rakip sancak / oyuncu |
 | `src/structures.js` | Yapılar: görünüm, kurma, yerleştirme denetimi, inşa, yıkım, sınıf toplanma bayrağı |
 | `src/production.js` | Üretim kuyruğu: sıraya alma, iptal, ilerleme, çıkış |
 | `src/fog.js` | Savaş sisi ızgarası ve karartma düzlemi |
@@ -382,8 +414,8 @@ düşman yapıları bir kez görülünce haritada kalır. Minimap da aynı sisi 
 | `src/characters.js` | Donanıma göre stat ve kutu rig, prosedürel animasyon, seçim halkası |
 | `src/physics.js` | `vel` + `push` entegrasyonu, çarpışmalar (havada yok), engeller, sınır |
 | `src/combat.js` | Saldırı zamanlaması, koni vuruşu, üstünlük çarpanı, kalkan, takipli oklar, kaynak düğümü vuruşu |
-| `src/ai.js` | Asker beyni (emirli / bekleyen / rakip otonom), toplayıcı beyni |
-| `src/economy.js` | Çalışma yerleri, ürünler, envanter, ganimet, bina kurma, rakip ekonomisi |
+| `src/ai.js` | Asker beyni (emirli / bekleyen / bot otonom), toplayıcı beyni (bot kahramanları ve işçiler) |
+| `src/economy.js` | Çalışma yerleri, ürünler, kasalar, ganimet, bina kurma, bot ekonomisi / saldırı / savunma (her bot için) |
 | `src/input.js` | Klavye / fare: hareket, nişan, seçim, fare kilidi ve omuz üstü kamera (updateTpsCamera) |
 | `src/ui.js` | HUD, alt bant (komut ızgarası, bilgi kartı), seçim ekranı, mesajlar, ses |
 | `server.mjs` | Yalnızca yerel bilgisayara hizmet veren statik sunucu |

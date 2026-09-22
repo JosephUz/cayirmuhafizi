@@ -101,11 +101,11 @@ export function applyLevelUp(e) {
   rebuildSwing(e);
 }
 
-/** Yeni bir savaşçı varlığı (oyuncu, asker ya da düşman). Görünüm ayrı eklenir. */
-export function createEntity({ faction, loadout, isPlayer = false, x = 0, z = 0 }) {
+/** Yeni bir savaşçı varlığı (oyuncu, asker ya da düşman). faction takım, owner sahibi (players.js; haydutlarda null). Görünüm ayrı eklenir. */
+export function createEntity({ faction, owner = null, loadout, isPlayer = false, x = 0, z = 0 }) {
   const stats = makeStats(loadout, isPlayer);
   return {
-    id: nextId++, faction, isPlayer, loadout, stats,
+    id: nextId++, faction, owner, isPlayer, loadout, stats,
     pos: new T.Vector3(x, 0, z), vel: new T.Vector3(), push: new T.Vector3(),
     radius: stats.radius, invMass: stats.invMass,
     hp: stats.maxHp, alive: true, facing: 0,
@@ -228,8 +228,11 @@ export function buildView(scene, e) {
     }
   }
 
-  if (e.isPlayer) {
-    const marker = mesh(g, new T.RingGeometry(0.65, 0.78, 40), '#fae4a3', 0, 0.045, 0);
+  // Sahip halkası: birimin ayağında sahibinin rengi (sen altın, botlar kendi rengi); takım rengi gövdede kalır.
+  // Böylece takım oyununda kendi askerin müttefikinkinden ayrılır. Haydutlarda halka yok.
+  if (e.owner) {
+    const r0 = hero ? 0.65 : e.radius + 0.06, r1 = hero ? 0.78 : e.radius + 0.14;
+    const marker = mesh(g, new T.RingGeometry(r0, r1, hero ? 40 : 24), e.owner.color, 0, 0.045, 0);
     marker.rotation.x = -Math.PI / 2; marker.castShadow = false;
   }
   // Seçim halkası (komutan modu): varsayılan gizli.

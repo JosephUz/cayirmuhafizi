@@ -1,19 +1,20 @@
 import * as T from '/vendor/three.module.js';
 import { ball, box, makeHpBar, mesh, removeGroup, setHpBar } from './builders.js';
 import { burst, ring } from './combat.js';
-import { BUILD, BUILDINGS, CAMPS, COLORS, HALF, TOWER } from './config.js';
+import { BUILD, BUILDINGS, CAMPS, COLORS, TOWER } from './config.js';
 
 /**
  * Yapılar: sancak, kışla, okçuluk, ahır, kule. Hepsi aynı kayıt biçimini kullanır:
- * { kind, faction, pos, radius, hp, maxHp, alive, g, flag, ring?, hitFlash, buildTimer, ready, obstacle, shooter? }.
- * Sancaklar world.structures[0] (mavi) ve [1] (kırmızı) olarak hep başta durur.
+ * { kind, faction, owner, pos, radius, hp, maxHp, alive, g, flag, ring?, hitFlash, buildTimer, ready, obstacle, shooter? }.
+ * faction takımdır ('blue' / 'red' / tarafsız 'beast'), owner sahibi olan oyuncu (players.js; kamplarda null).
+ * Her oyuncunun sancağı player.banner'dır; renkler takıma, direkteki bant sahibe göredir.
  */
 let nextId = 1;
 
-export const bannerOf = (world, faction) => world.structures[faction === 'blue' ? 0 : 1];
+export const bannerOf = (world, owner) => (owner ? owner.banner : null);
 
-/** Yapı görünümü: grup, bayrak ve (kulede) menzil halkası. */
-export function structureMesh(kind, faction) {
+/** Yapı görünümü: grup, bayrak (takım rengi), sahip bandı (owner rengi) ve (kulede) menzil halkası. */
+export function structureMesh(kind, faction, owner = null) {
   const color = faction === 'blue' ? COLORS.blueBanner : COLORS.redBanner;
   const g = new T.Group();
   let flag = null, rng = null;
@@ -110,6 +111,8 @@ export function structureMesh(kind, faction) {
     box(g, '#5a4632', 0, 3.8, 0, 0.1, 1.4, 0.1);
     flag = box(g, color, 0.4, 4.2, 0, 0.8, 0.5, 0.05);
   }
+  // Sahip bandı: direkte bayrağın hemen altında sahibinin renginde bir kutu (sen altın, botlar kendi rengi).
+  if (owner && flag) box(g, owner.color, 0, flag.position.y - flag.scale.y / 2 - 0.22, 0, 0.4, 0.32, 0.4);
   return { g, flag, ring: rng };
 }
 
@@ -122,14 +125,14 @@ function groundRing(g, color, r0, r1, opacity) {
 }
 
 /** Yapı kurar; instant değilse inşa süresi boyunca yerden büyür ve üretim yapamaz. */
-export function createStructure(world, kind, faction, x, z, { instant = false } = {}) {
+export function createStructure(world, kind, faction, x, z, { instant = false, owner = null } = {}) {
   const spec = BUILDINGS[kind];
-  const { g, flag, ring: rng, camp, ruin } = structureMesh(kind, faction);
+  const { g, flag, ring: rng, camp, ruin } = structureMesh(kind, faction, owner);
   g.position.set(x, 0, z); world.scene.add(g);
   const pos = new T.Vector3(x, 0, z);
   const obstacle = { pos, vel: new T.Vector3(), push: new T.Vector3(), radius: spec.radius, invMass: 0 };
   const s = {
-    id: nextId++, kind, faction, pos, radius: spec.radius, hp: spec.hp, maxHp: spec.hp, alive: true, g, flag, ring: rng, hitFlash: 0, cooldown: 1,
+    id: nextId++, kind, faction, owner, pos, radius: spec.radius, hp: spec.hp, maxHp: spec.hp, alive: true, g, flag, ring: rng, hitFlash: 0, cooldown: 1,
     spawnTimer: 0, buildTime: spec.buildTime || 0, buildTimer: instant ? 0 : (spec.buildTime || 0), ready: instant || !spec.buildTime, obstacle, deadTimer: 0,
     // Üretim kuyruğu ve (kırmızı için) sisten bir kez görülmüşlük.
     queue: [], progress: 0, seen: faction === 'blue', respawnTimer: 0, raidSide: null,
@@ -140,7 +143,7 @@ export function createStructure(world, kind, faction, x, z, { instant = false } 
   s.barY = kind === 'banner' ? 5.8 : kind === 'tower' ? 6.6 : 4.2;
   if (faction === 'red') g.visible = false;
   if (kind === 'tower') {
-    s.shooter = { pos, aim: new T.Vector3(), faction, isPlayer: false, isHero: false, isTower: true, level: 1, buff: 0, jumpY: 3.2, view: null, facing: 0, stats: { weapon: { range: TOWER.range, damage: TOWER.damage, knockback: 0, arrowSpeed: TOWER.arrowSpeed, ranged: true } } };
+    s.shooter = { pos, aim: new T.Vector3(), faction, owner, isPlayer: false, isHero: false, isTower: true, level: 1, buff: 0, jumpY: 3.2, view: null, facing: 0, stats: { weapon: { range: TOWER.range, damage: TOWER.damage, knockback: 0, arrowSpeed: TOWER.arrowSpeed, ranged: true } } };
   }
   if (!s.ready) { g.scale.set(1, 0.08, 1); if (rng) rng.visible = false; }
   world.obstacles.push(obstacle);
@@ -149,22 +152,23 @@ export function createStructure(world, kind, faction, x, z, { instant = false } 
 }
 
 /** Sancak, aynı tarafın en az bir kulesi ayaktayken (inşası sürse de) vurulamaz. */
-/** O tarafın ayakta duran kule sayısı (kind='tower') ya da kule dışındaki bina sayısı (sancak hariç). */
-export function structureCount(world, faction, towers) {
+/** O oyuncunun ayakta duran kule sayısı (kind='tower') ya da kule dışındaki bina sayısı (sancak hariç). */
+export function structureCount(world, owner, towers) {
   let n = 0;
   for (const s of world.structures) {
-    if (!s.alive || s.faction !== faction || s.kind === 'banner') continue;
+    if (!s.alive || s.owner !== owner || s.kind === 'banner') continue;
     if (towers ? s.kind === 'tower' : s.kind !== 'tower') n++;
   }
   return n;
 }
 
 /**
- * Kalkanlı sancak: o tarafın ayakta (inşası sürse bile) en az bir kulesi varken sancak **can kaybetmez**.
- * Vuruş yine sancağa iner ve kalkana çarpar; bu vuruş o tarafın bütün kulelerini haritada ele verir (bkz. damageStructure).
+ * Kalkanlı sancak: **sahibinin** ayakta (inşası sürse bile) en az bir kulesi varken sancak **can kaybetmez**.
+ * Vuruş yine sancağa iner ve kalkana çarpar; bu vuruş sahibinin bütün kulelerini haritada ele verir (bkz. damageStructure).
+ * Takım arkadaşının kuleleri kalkan sayılmaz: her üs kendi kuleleriyle korunur.
  */
 export function bannerShielded(world, s) {
-  return s.kind === 'banner' && world.structures.some(t => t.alive && t.kind === 'tower' && t.faction === s.faction);
+  return s.kind === 'banner' && world.structures.some(t => t.alive && t.kind === 'tower' && t.owner === s.owner);
 }
 
 /**
@@ -172,21 +176,23 @@ export function bannerShielded(world, s) {
  * en az TOWER.minGap uzağa (kendi ve rakip kuleleri dahil) ve **rakibin sancak çemberinin dışına** dikilir.
  * Uygunsa null, değilse sebep döner.
  */
-export function placementError(world, kind, x, z, faction) {
+export function placementError(world, kind, x, z, owner) {
   if (kind === 'tower') {
     const onLane = (world.lanePoints || []).some(p => Math.hypot(p.x - x, p.z - z) <= TOWER.laneDist)
       || (world.towerSpots || []).some(t => Math.hypot(t.x - x, t.z - z) <= 3);
     if (!onLane) return 'Kuleler yalnızca yollara dikilir';
-    // Rakibin sancak çemberi kuleye kapalıdır: üssünün dibine kule dikilemez.
-    const foe = bannerOf(world, faction === 'blue' ? 'red' : 'blue');
-    if (foe && foe.alive && Math.hypot(foe.pos.x - x, foe.pos.z - z) <= BUILD.bannerRadius) return 'Rakibin sancak çemberine kule dikilemez';
+    // Rakip takımın sancak çemberleri kuleye kapalıdır: üslerinin dibine kule dikilemez.
+    for (const foe of world.structures) {
+      if (foe.kind !== 'banner' || !foe.alive || foe.faction === owner.faction) continue;
+      if (Math.hypot(foe.pos.x - x, foe.pos.z - z) <= BUILD.bannerRadius) return 'Rakibin sancak çemberine kule dikilemez';
+    }
     for (const s of world.structures) {
       if (!s.alive || s.kind !== 'tower') continue;
       if (Math.hypot(s.pos.x - x, s.pos.z - z) < TOWER.minGap) return `Kuleler arası en az ${TOWER.minGap} birim olmalı`;
     }
     return null;
   }
-  const b = bannerOf(world, faction);
+  const b = owner.banner;
   if (!b || !b.alive) return 'Sancak yıkıldı, inşa edilemez';
   if (Math.hypot(b.pos.x - x, b.pos.z - z) > BUILD.bannerRadius) return 'Sancak çemberinin dışına bina dikilemez';
   return null;
@@ -194,11 +200,11 @@ export function placementError(world, kind, x, z, faction) {
 
 /**
  * Yapı kurulabilir mi: harita sınırı, engeller, başka yapı, çalışma yeri ve **düşman** birimleri.
- * `faction` verilirse o tarafın kendi birimleri engel sayılmaz (kendi askerinin üstüne bina dikilebilir).
+ * `faction` verilirse o takımın birimleri engel sayılmaz (kendi ya da müttefik askerinin üstüne bina dikilebilir).
  * Uygunsa null, değilse sebep döner.
  */
 export function canPlace(world, x, z, radius, faction = null) {
-  if (Math.abs(x) > HALF - radius - 1 || Math.abs(z) > HALF - radius - 1) return 'Harita dışı';
+  if (Math.abs(x) > world.half - radius - 1 || Math.abs(z) > world.half - radius - 1) return 'Harita dışı';
   for (const o of world.obstacles) if (Math.hypot(o.pos.x - x, o.pos.z - z) < o.radius + radius + 0.5) return 'Burası dolu';
   for (const s of world.structures) if (s.alive && Math.hypot(s.pos.x - x, s.pos.z - z) < s.radius + radius + 1) return 'Başka bir yapıya çok yakın';
   for (const sp of world.spots) if (Math.hypot(sp.x - x, sp.z - z) < radius + 1.2) return 'Çalışma yerinin üstüne kurulamaz';
@@ -274,7 +280,7 @@ export function updateStructures(world, dt) {
         s.ready = true; s.g.scale.set(1, 1, 1); if (s.ring) s.ring.visible = true; s.spawnTimer = 0.5;
         const color = s.faction === 'blue' ? '#9fd6ff' : '#ffb59f';
         burst(world, s.pos.x, 2.5, s.pos.z, color, 16, 0.13); ring(world, s.pos.x, s.pos.z, color, s.radius + 4, 0.7);
-        if (s.faction === 'blue') { world.ui.say(`${BUILDINGS[s.kind].label} hazır`, 1800); world.ui.ping('tower'); }
+        if (s.owner === world.me) { world.ui.say(`${BUILDINGS[s.kind].label} hazır`, 1800); world.ui.ping('tower'); }
       }
     }
   }
@@ -290,22 +296,22 @@ export function rallyFlag(world, x, z, color) {
   return g;
 }
 
-/** O tarafın ilk hazır (ayakta) yapısı; `near` verilirse en yakını. */
-export function findBuilding(world, faction, kind, near = null) {
+/** O oyuncunun ilk hazır (ayakta) yapısı; `near` verilirse en yakını. */
+export function findBuilding(world, owner, kind, near = null) {
   let best = null, bd = Infinity;
   for (const s of world.structures) {
-    if (!s.alive || !s.ready || s.faction !== faction || s.kind !== kind) continue;
+    if (!s.alive || !s.ready || s.owner !== owner || s.kind !== kind) continue;
     const d = near ? Math.hypot(s.pos.x - near.x, s.pos.z - near.z) : 0;
     if (d < bd) { bd = d; best = s; }
   }
   return best;
 }
 
-/** Oyuncunun sol tıkla seçebileceği kendi yapısı: imlece en yakın olan. */
-export function pickOwnStructure(world, x, z, faction = 'blue') {
+/** Oyuncunun sol tıkla seçebileceği kendi yapısı: imlece en yakın olan (müttefikin yapısı seçilmez). */
+export function pickOwnStructure(world, x, z, owner = world.me) {
   let best = null, bd = Infinity;
   for (const s of world.structures) {
-    if (!s.alive || s.faction !== faction) continue;
+    if (!s.alive || s.owner !== owner) continue;
     const d = Math.hypot(s.pos.x - x, s.pos.z - z) - s.radius;
     if (d < 1.4 && d < bd) { bd = d; best = s; }
   }

@@ -3,7 +3,8 @@ import { canAttack, heroReach, startAttack, nearestEnemyTower } from './combat.j
 import { ARMY, BUILD, CAMPS, ECONOMY, ENEMY, ENEMY_AI, ENEMY_HERO, POSITIONS, RALLY, TOWER, VISION, WORKER } from './config.js';
 import { produceItem, heroGather } from './economy.js';
 import { rrand } from './rng.js';
-import { bannerOf, bannerShielded } from './structures.js';
+import { bannerShielded } from './structures.js';
+import { botSoldier, nearestEnemyBanner, nearestEnemyPlayer } from './players.js';
 
 /**
  * Asker beyni.
@@ -14,10 +15,12 @@ import { bannerOf, bannerShielded } from './structures.js';
  * **Yolda dövüş her iki taraf için de geçerlidir**: bir yere yürüyen asker ARMY.sight yarıçapında düşman görürse
  * durup saldırır, kendisine vuran olursa (uzaktan bile) ona döner; dövüşe başladığı noktadan ARMY.chase kadar
  * uzaklaşınca hedefi bırakıp yoluna devam eder.
- * Kırmızı askerler toplanma noktasında birikir; rakip saldırı kararı verince kendiliğinden ilerler (kule -> sancak).
- * Kırmızı kule / sancak vurulunca savunma emri saldırıyı bile keser (bkz. economy.js updateEnemyDefense).
+ * **Takım oyunu**: düşmanlık takıma (faction), komuta sahibe (owner) bağlıdır. Senin askerlerin toplanma alanınla yönetilir;
+ * **bot** askerleri (iki takımda da) sahiplerinin toplanma noktasında birikir, sahipleri saldırı kararı verince
+ * kendiliğinden ilerler (kule -> sancak) ve rakip kule menziline girmez.
+ * Botun kulesi / sancağı vurulunca savunma emri saldırıyı bile keser (bkz. economy.js updateBots).
  * Komutan modunda kahraman da bir asker gibi yönetilir.
- * Rakip kahraman ve işçiler toplayıcı beynini kullanır: savunma > inşa > **haydut avı** > keşif > toplama sırasıyla.
+ * Bot kahramanları ve işçiler toplayıcı beynini kullanır: savunma > inşa > **haydut avı** > keşif > toplama sırasıyla.
  */
 export function updateUnit(world, e, dt) {
   const b = e.brain;
@@ -27,15 +30,15 @@ export function updateUnit(world, e, dt) {
   if (e.isBeast) { updateBeast(world, e, dt); return; }
   if (e.isWorker && e.mergeTo) { updateMerging(world, e, dt); return; }
   if (e.isHero || e.isWorker) { updateGatherer(world, e, dt); return; }
-  // Kırmızı ordu yalnızca saldırı kararı verilince ilerler; aksi hâlde toplanma noktasında birikir (aşağıdaki bekleme mantığı).
-  // Savunma emri saldırı düzenini keser: kulesi vurulan botun askeri geri döner (bkz. economy.js updateEnemyDefense).
-  if (e.faction === 'red' && world.enemyEco.attacking && !(b.order && b.order.defend)) { updateAutonomous(world, e, dt); return; }
+  // Bot ordusu yalnızca sahibi saldırı kararı verince ilerler; aksi hâlde toplanma noktasında birikir (aşağıdaki bekleme mantığı).
+  // Savunma emri saldırı düzenini keser: kulesi vurulan botun askeri geri döner (bkz. economy.js updateBots).
+  if (botSoldier(e) && e.owner.ai.attacking && !(b.order && b.order.defend)) { updateAutonomous(world, e, dt); return; }
 
   b.timer -= dt; b.retarget -= dt;
   const home = b.home || (b.home = { x: e.pos.x, z: e.pos.z });
   const o = b.order;
-  // Mavi ordu iki modda da kendiliğinden dövüşür; tek tek yönetilmez, yalnızca toplanma alanıyla yönlendirilir.
-  if (e.faction === 'blue' && !o && !e.isPlayer) { updateAggressive(world, e, dt); return; }
+  // Senin ordun iki modda da kendiliğinden dövüşür; tek tek yönetilmez, yalnızca toplanma alanıyla yönlendirilir.
+  if (e.owner && e.owner.human && !o && !e.isPlayer) { updateAggressive(world, e, dt); return; }
 
   if (o && o.kind === 'attack') {
     const t = o.target;
@@ -69,10 +72,10 @@ export function updateUnit(world, e, dt) {
 }
 
 /** Askerin bağlı olduğu nokta: sınıfının toplanma bayrağı, yoksa doğduğu / son durduğu yer. */
-const rallyAnchor = (world, e) => (e.faction === 'blue' && e.rallyClass && world.rally[e.rallyClass]) || e.brain.home;
+const rallyAnchor = (world, e) => (e.owner === world.me && e.rallyClass && world.rally[e.rallyClass]) || e.brain.home;
 
 /**
- * Mavi asker: toplanma alanı hem üssü hem hedefidir. Bayrağa yürür ve bayrağın RALLY.engageRadius yarıçapı
+ * Senin askerin: toplanma alanı hem üssü hem hedefidir. Bayrağa yürür ve bayrağın RALLY.engageRadius yarıçapı
  * içinde, sisin kalktığı yerdeki hedeflerle dövüşür: önce görünen düşman birimleri, sonra kuleler, sonra binalar,
  * en son (kuleler yıkılınca) sancak. Alanın dışında kendiliğinden hedef aramaz ama **yolda** kendi görüşüne
  * (ARMY.sight) giren düşmanla ve kendisine vuranla dövüşür; dövüşe başladığı noktadan ARMY.chase kadar uzaklaşınca
@@ -102,17 +105,17 @@ function updateAggressive(world, e, dt) {
   if (distXZ(e.pos, anchor) > ARMY.arrive) { steerTo(e, anchor.x, anchor.z, dt, 1); avoidStuck(e, dt); } else e.moveDir.set(0, 0, 0);
 }
 
-/** Bu nokta ayakta bir mavi kulenin menzilinde (pay dahil) mi? Kırmızı askerler oraya girmez. */
-export function inBlueTowerRange(world, pos, margin = ENEMY_AI.towerMargin) {
+/** Bu nokta ayakta bir **rakip** kulenin menzilinde (pay dahil) mi? Bot askerleri oraya girmez. */
+export function inEnemyTowerRange(world, faction, pos, margin = ENEMY_AI.towerMargin) {
   for (const s of world.structures) {
-    if (!s.alive || s.faction !== 'blue' || s.kind !== 'tower') continue;
+    if (!s.alive || s.kind !== 'tower' || s.faction === faction) continue;
     if (distXZ(pos, s.pos) <= TOWER.range + margin) return true;
   }
   return false;
 }
 
 /**
- * Kırmızı asker (saldırıda): yakındaki düşmanı kovala (kule menziline girmeden) -> mancınık varsa onun yanında ilerle ve
+ * Bot askeri (saldırıda): yakındaki düşmanı kovala (kule menziline girmeden) -> mancınık varsa onun yanında ilerle ve
  * koru -> bilinen kule dışı yapıya yürü -> hiçbiri yoksa keşfet. Kulelere asla vurmaz; kuleleri mancınık döver.
  */
 function updateAutonomous(world, e, dt) {
@@ -124,43 +127,46 @@ function updateAutonomous(world, e, dt) {
   if (!e.isSiege) {
     // Mancınığa eşlik: ordunun en yakın mancınığının yanında dur.
     let cat = null, cd = Infinity;
-    for (const o of world.entities) { if (!o.alive || o.faction !== 'red' || !o.isSiege) continue; const d = distXZ(e.pos, o.pos); if (d < cd) { cd = d; cat = o; } }
+    for (const o of world.entities) { if (!o.alive || o.faction !== e.faction || !o.isSiege) continue; const d = distXZ(e.pos, o.pos); if (d < cd) { cd = d; cat = o; } }
     if (cat) {
       if (cd > ENEMY_AI.escortDist) { steerTo(e, cat.pos.x, cat.pos.z, dt, 1); avoidStuck(e, dt); } else e.moveDir.set(0, 0, 0);
       return;
     }
   }
-  // Yalnızca görülmüş (bilinen) mavi yapılara saldırır; asker kuleye vurmaz ve kule menziline girmez.
+  // Yalnızca görülmüş (bilinen) rakip yapılara saldırır; asker kuleye vurmaz ve kule menziline girmez.
   const s = nearestStructure(world, e);
   if (s) { e.aim.copy(s.pos); engage(world, e, s.pos, s.radius, dt); return; }
-  // Bilinen hedef yok: hat kulesi yerlerine, sonra mavi sancağa doğru yürüyerek keşfet (kule menzilinin dışında kalır).
+  // Bilinen hedef yok: rakip kule yerlerine, sonra en yakın rakip sancağa doğru yürüyerek keşfet (kule menzilinin dışında kalır).
   const p = nextMarchPoint(world, e);
-  if (!p || (!e.isSiege && inBlueTowerRange(world, e.pos, ENEMY_AI.towerMargin - 1))) { e.moveDir.set(0, 0, 0); return; }
+  if (!p || (!e.isSiege && inEnemyTowerRange(world, e.faction, e.pos, ENEMY_AI.towerMargin - 1))) { e.moveDir.set(0, 0, 0); return; }
   steerTo(e, p.x, p.z, dt, 1); avoidStuck(e, dt);
 }
 
-/** Kırmızı ordunun keşif rotası: henüz 6 birimden yakın olunmayan en yakın mavi kule yeri, hepsi gezildiyse mavi sancak. */
+/** Bot ordusunun keşif rotası: henüz yakınına varılmayan en yakın rakip kule yeri, hepsi gezildiyse en yakın rakip sancak. */
 function nextMarchPoint(world, e) {
   let best = null, bd = Infinity;
   // Mancınık kule yerine menzilinin %90'ına kadar yaklaşır; asker kule menzilinin dışında (pay) durur.
   const stop = e.isSiege ? e.stats.weapon.range * 0.9 : TOWER.range + ENEMY_AI.towerMargin;
   for (const t of world.towerSpots) {
-    if (t.faction !== 'blue') continue;
+    if (t.faction === e.faction) continue;
     const d = distXZ(e.pos, t);
     if (d < stop) continue;
     if (d < bd) { bd = d; best = t; }
   }
-  const banner = bannerOf(world, 'blue');
-  if (!best || (banner.alive && distXZ(e.pos, banner.pos) < bd * 0.7)) return banner.alive && distXZ(e.pos, banner.pos) > 6 ? banner.pos : best;
+  const banner = nearestEnemyBanner(world, e.faction, e.pos);
+  if (!best || (banner && distXZ(e.pos, banner.pos) < bd * 0.7)) return banner && distXZ(e.pos, banner.pos) > 6 ? banner.pos : best;
   return best;
 }
 
-/** Rakip kahramanın keşif noktaları: mavi kule yerleri, mavi üs binaları ve sancak. */
-function scoutPoints(world) {
-  const base = world.bases.blue;
-  const pts = world.towerSpots.filter(t => t.faction === 'blue').map(t => ({ x: t.x, z: t.z }));
-  for (const k of ['barracks', 'archery', 'stable', 'farm', 'mine']) pts.push(base.at(POSITIONS.base[k]));
-  pts.push({ x: base.pos.x, z: base.pos.z });
+/** Bot kahramanının keşif noktaları: rakip takımın kule yerleri, en yakın rakip oyuncunun üs binaları ve sancağı. */
+function scoutPoints(world, e) {
+  const foe = nearestEnemyPlayer(world, e.faction, e.pos);
+  const pts = world.towerSpots.filter(t => t.faction !== e.faction).map(t => ({ x: t.x, z: t.z }));
+  if (foe) {
+    const base = foe.base;
+    for (const k of ['barracks', 'archery', 'stable', 'farm', 'mine']) pts.push(base.at(POSITIONS.base[k]));
+    pts.push({ x: base.pos.x, z: base.pos.z });
+  }
   return pts;
 }
 
@@ -210,14 +216,14 @@ const knownTo = (e, st) => (e.faction === 'blue' ? st.seen : st.seenByRed);
 /**
  * Hedef yapı önceliği: önce **kuleler**, sonra diğer **binalar**, en son **sancak** (yalnızca o tarafın kulesi
  * kalmayınca, bkz. bannerShielded). anchor verilirse yalnızca o noktanın radius yarıçapındaki yapılar sayılır.
- * Mancınık her yapıya vurabilir (kuleyi yeğler); kırmızı asker kuleye hiç gitmez ve kule menzilindeki yapıyı hedeflemez.
+ * Mancınık her yapıya vurabilir (kuleyi yeğler); bot askeri kuleye hiç gitmez ve rakip kule menzilindeki yapıyı hedeflemez.
  */
 function nearestStructure(world, e, anchor = null, radius = Infinity) {
   let tower = null, td = Infinity, other = null, od = Infinity, banner = null, bnd = Infinity;
   for (const st of world.structures) {
     if (!st.alive || st.faction === e.faction || !knownTo(e, st)) continue;
     if (anchor && distXZ(st.pos, anchor) > radius) continue;
-    if (e.faction === 'red' && !e.isSiege && (st.kind === 'tower' || inBlueTowerRange(world, st.pos))) continue;
+    if (botSoldier(e) && !e.isSiege && (st.kind === 'tower' || inEnemyTowerRange(world, e.faction, st.pos))) continue;
     const d = distXZ(e.pos, st.pos);
     if (st.kind === 'tower') { if (d < td) { td = d; tower = st; } }
     else if (st.kind === 'banner') { if (d < bnd) { bnd = d; banner = st; } }
@@ -231,14 +237,14 @@ function nearestStructure(world, e, anchor = null, radius = Infinity) {
 
 /**
  * Kendisine son vuran düşman: ARMY.retaliate saniye hatırlanır, ARMY.retaliateRange içindeyse hedef olur.
- * Uzaktan vuran okçu / mancınık da böylece karşılık görür. Kırmızı asker kule menzilindekinin peşine düşmez.
+ * Uzaktan vuran okçu / mancınık da böylece karşılık görür. Bot askeri rakip kule menzilindekinin peşine düşmez.
  */
 function retaliator(world, e) {
   const t = e.lastHitBy;
   if (!t || !t.alive || t.faction === e.faction) return null;
   if (world.time - (e.lastHitAt || -99) > ARMY.retaliate) return null;
   if (distXZ(e.pos, t.pos) > ARMY.retaliateRange) return null;
-  if (e.faction === 'red' && !e.isHero && inBlueTowerRange(world, t.pos)) return null;
+  if (botSoldier(e) && inEnemyTowerRange(world, e.faction, t.pos)) return null;
   return t;
 }
 
@@ -262,7 +268,7 @@ function enrouteTarget(world, e) {
     if (!best) for (const t of world.entities) {
       if (!t.alive || t.faction === e.faction || t.isWorker) continue;
       if (e.faction === 'blue' && !world.fog.isVisible(t.pos.x, t.pos.z)) continue;
-      if (e.faction === 'red' && !e.isHero && inBlueTowerRange(world, t.pos)) continue;
+      if (botSoldier(e) && inEnemyTowerRange(world, e.faction, t.pos)) continue;
       const d = distXZ(e.pos, t.pos);
       if (d < bd) { bd = d; best = t; }
     }
@@ -272,13 +278,13 @@ function enrouteTarget(world, e) {
 }
 
 function findTarget(world, e, anchor) {
-  const aggro = e.faction === 'blue' ? ARMY.aggro : ENEMY.aggro;
-  const own = bannerOf(world, e.faction);
+  const aggro = e.owner && e.owner.human ? ARMY.aggro : ENEMY.aggro;
+  const own = e.owner ? e.owner.banner : null;
   let best = null, bestScore = Infinity;
   for (const t of world.entities) {
     if (!t.alive || t.faction === e.faction || (e.isPlayer && t.isWorker)) continue;
-    // Kırmızı asker kule menzilindeki düşmanı kovalamaz.
-    if (e.faction === 'red' && !e.isHero && inBlueTowerRange(world, t.pos)) continue;
+    // Bot askeri rakip kule menzilindeki düşmanı kovalamaz.
+    if (botSoldier(e) && inEnemyTowerRange(world, e.faction, t.pos)) continue;
     const d = distXZ(e.pos, t.pos);
     if (anchor) {
       // Bekleyen / emirli asker: yalnızca kendi menzilindeki ve durduğu noktaya yakın düşmanlar.
@@ -437,16 +443,16 @@ function updateMerging(world, e, dt) {
 }
 
 /**
- * Toplayıcı (rakip kahraman ve işçiler): hiç saldırmaz. Kendi üssünde boş bir çalışma
+ * Toplayıcı (bot kahramanları ve işçiler): hiç saldırmaz. Kendi üssünde boş bir çalışma
  * yerine gider, orada çalışır; fırlayan ürünü alır ve hemen yeniden çalışır (taşıma yok).
  * Düşman yaklaşınca işi bırakıp uzaklaşır.
  */
 function updateGatherer(world, e, dt) {
-  const own = bannerOf(world, e.faction);
+  const own = e.owner.banner;
   const w = e.work || (e.work = { spot: null, item: null });
   const release = () => { w.spot = null; e.working = false; e.workTimer = 0; };
 
-  // Rakip kahraman savaşır: görüşündeki en yakın düşman askerine saldırır (alan vuruşu, asker hasarı);
+  // Bot kahramanı savaşır: görüşündeki en yakın düşman askerine saldırır (alan vuruşu, asker hasarı);
   // canı azalınca aşağıdaki kaçış mantığına döner.
   if (e.isHero && e.hp > e.stats.maxHp * ENEMY_HERO.fightHpRatio) {
     let foe = null, fd = e.vision || VISION.hero;
@@ -483,7 +489,7 @@ function updateGatherer(world, e, dt) {
 
   // Kule savunması: bot kahramanı vurulan kulesine / sancağına koşar ve orada bekler; yakındaki düşmanla
   // dövüşmeyi yukarıdaki dövüş mantığı üstlenir. Savunma hatırası bitince (ENEMY_AI.defend.memory) işine döner.
-  const def = e.isHero && !e.isPlayer && e.faction === 'red' ? world.enemyEco.defend : null;
+  const def = e.isHero && !e.isPlayer && e.owner.ai ? e.owner.ai.defend : null;
   if (def && e.hp > e.stats.maxHp * ENEMY_HERO.fightHpRatio) {
     release(); e.working = false;
     if (e.scout) e.scout.target = null;
@@ -493,7 +499,7 @@ function updateGatherer(world, e, dt) {
     return;
   }
 
-  // İnşa görevi: bina yalnızca kahramanın yakınına dikilir; rakip kahraman yerine gider ve inşa kararını bekler.
+  // İnşa görevi: bina yalnızca kahramanın yakınına dikilir; bot kahramanı yerine gider ve inşa kararını bekler.
   if (e.isHero && e.errand) {
     const er = e.errand; er.ttl -= dt;
     if (er.ttl <= 0) e.errand = null;
@@ -506,7 +512,7 @@ function updateGatherer(world, e, dt) {
   }
 
   // Haydut avı: bot kahramanı çevrede dolaşıp haydutları avlar; yakında haydut kalmayınca kampı yıkmaya gider.
-  if (e.isHero && !e.isPlayer && e.faction === 'red' && e.hp > e.stats.maxHp * ENEMY_HERO.fightHpRatio) {
+  if (e.isHero && !e.isPlayer && e.hp > e.stats.maxHp * ENEMY_HERO.fightHpRatio) {
     const H = ENEMY_AI.hunt, h = e.hunt || (e.hunt = { timer: H.first, target: null, ttl: 0 });
     if (h.target && !h.target.alive) { h.target = null; h.timer = H.every; }
     if (!h.target) {
@@ -526,13 +532,13 @@ function updateGatherer(world, e, dt) {
     }
   }
 
-  // Rakip kahraman aralıklarla keşfe çıkar: mavi kule yerleri ve üs binalarını gezip gördüğünü rakibe bildirir.
+  // Bot kahramanı aralıklarla keşfe çıkar: rakip kule yerleri ve üs binalarını gezip gördüğünü takımına bildirir.
   if (e.isHero) {
     const sc = e.scout || (e.scout = { timer: ENEMY_AI.scoutFirst, target: null, ttl: 0, visited: new Set() });
     if (!sc.target) {
       sc.timer -= dt;
       if (sc.timer <= 0) {
-        const pts = scoutPoints(world);
+        const pts = scoutPoints(world, e);
         if (sc.visited.size >= pts.length) sc.visited.clear();
         let best = null, bd = Infinity;
         pts.forEach((p, i) => { if (sc.visited.has(i)) return; const d = distXZ(e.pos, p); if (d < bd) { bd = d; best = i; } });
@@ -577,13 +583,13 @@ function updateGatherer(world, e, dt) {
   }
 }
 
-/** Çalışma yeri: kilit yok, sınır yok. Kalabalık yerler uzak sayılır ki işçiler dağılsın; rakip kahraman altını tercih eder. */
+/** Çalışma yeri (yalnızca sahibinin üssünde): kilit yok, sınır yok. Kalabalık yerler uzak sayılır ki işçiler dağılsın; bot kahramanı altını tercih eder. */
 function pickSpot(world, e) {
   const load = new Map();
   for (const o of world.entities) if (o !== e && o.alive && o.work && o.work.spot) load.set(o.work.spot, (load.get(o.work.spot) || 0) + 1);
   let best = null, bd = Infinity;
   for (const s of world.spots) {
-    if (s.base !== e.faction) continue;
+    if (s.owner !== e.owner) continue;
     if (e.workerKind ? s.kind !== e.workerKind : false) continue;
     const d = distXZ(e.pos, s.pos) + (load.get(s) || 0) * 4 + (!e.workerKind && s.kind !== 'gold' ? 6 : 0);
     if (d < bd) { bd = d; best = s; }
@@ -595,8 +601,8 @@ function pickItem(world, e) {
   let best = null, bd = 8;
   for (const it of world.items) {
     if (it.taken) continue;
-    // İşçi kendi üssünün ürününü alır; kahraman ganimeti (base=null) de toplar.
-    if (!(it.base === e.faction || (e.isHero && it.base === null))) continue;
+    // İşçi sahibinin ürününü alır; kahraman ganimeti (owner=null) de toplar.
+    if (!(it.owner === e.owner || (e.isHero && it.owner === null))) continue;
     if (e.workerKind && it.kind !== e.workerKind) continue;
     if (it.claimedBy && it.claimedBy !== e && it.claimedBy.alive) continue;
     const d = distXZ(e.pos, it.pos);

@@ -1,4 +1,4 @@
-import { BLOCK, CHARGE, GRAVITY, HALF, PHYSICS, SPRINT_MULT } from './config.js';
+import { BLOCK, CHARGE, GRAVITY, PHYSICS, SPRINT_MULT } from './config.js';
 
 /**
  * Her gövdenin iki hızı var: kendi yürüyüş hızı (vel) ve darbe / çarpışma kaynaklı
@@ -82,30 +82,49 @@ export function resolveEntityCollisions(list) {
   }
 }
 
-/** Sabit engeller (ağaç, ev, yapılar): gövdeyi dışarı it, içe doğru hızı öldür. Havadayken geçilir. */
+/**
+ * Sabit engeller (ağaç, ev, yapılar): gövdeyi dışarı it, içe doğru hızı öldür. Havadayken geçilir.
+ * Engeller her adımda CELL boyutlu hücre ızgarasına dizilir ve her gövde yalnızca 3x3 komşu hücreye bakar: büyük
+ * arenada (5v5'te binlerce ağaç) maliyet gövde sayısıyla, engel sayısıyla değil büyür. En büyük engel yarıçapı
+ * (kamp 2.2) + en büyük gövde (0.9) hücre boyunun altında kaldığı için komşuluk yeter.
+ */
+const CELL = 8;
+const cellKey = (i, j) => i * 100003 + j;
 export function resolveObstacleCollisions(list, obstacles) {
+  const grid = new Map();
+  for (const o of obstacles) {
+    const k = cellKey(Math.floor(o.pos.x / CELL), Math.floor(o.pos.z / CELL));
+    let cell = grid.get(k);
+    if (!cell) { cell = []; grid.set(k, cell); }
+    cell.push(o);
+  }
   for (const e of list) {
     if (airborne(e)) continue;
-    for (const o of obstacles) {
-      const dx = e.pos.x - o.pos.x, dz = e.pos.z - o.pos.z;
-      const minDist = e.radius + o.radius;
-      const distSq = dx * dx + dz * dz;
-      if (distSq >= minDist * minDist) continue;
-      let dist = Math.sqrt(distSq), nx, nz;
-      if (dist < 1e-5) { nx = 1; nz = 0; } else { nx = dx / dist; nz = dz / dist; }
-      e.pos.x = o.pos.x + nx * minDist; e.pos.z = o.pos.z + nz * minDist;
-      const vn = e.vel.x * nx + e.vel.z * nz;
-      if (vn < 0) { e.vel.x -= nx * vn; e.vel.z -= nz * vn; }
-      const pn = e.push.x * nx + e.push.z * nz;
-      if (pn < 0) { e.push.x -= nx * pn * (1 + PHYSICS.restitution); e.push.z -= nz * pn * (1 + PHYSICS.restitution); }
+    const ci = Math.floor(e.pos.x / CELL), cj = Math.floor(e.pos.z / CELL);
+    for (let i = ci - 1; i <= ci + 1; i++) for (let j = cj - 1; j <= cj + 1; j++) {
+      const cell = grid.get(cellKey(i, j));
+      if (!cell) continue;
+      for (const o of cell) {
+        const dx = e.pos.x - o.pos.x, dz = e.pos.z - o.pos.z;
+        const minDist = e.radius + o.radius;
+        const distSq = dx * dx + dz * dz;
+        if (distSq >= minDist * minDist) continue;
+        let dist = Math.sqrt(distSq), nx, nz;
+        if (dist < 1e-5) { nx = 1; nz = 0; } else { nx = dx / dist; nz = dz / dist; }
+        e.pos.x = o.pos.x + nx * minDist; e.pos.z = o.pos.z + nz * minDist;
+        const vn = e.vel.x * nx + e.vel.z * nz;
+        if (vn < 0) { e.vel.x -= nx * vn; e.vel.z -= nz * vn; }
+        const pn = e.push.x * nx + e.push.z * nz;
+        if (pn < 0) { e.push.x -= nx * pn * (1 + PHYSICS.restitution); e.push.z -= nz * pn * (1 + PHYSICS.restitution); }
+      }
     }
   }
 }
 
-/** Harita sınırı: konumu kıs, hızı yansıt. */
-export function clampBounds(list) {
+/** Harita sınırı (arena yarı boyu `half`): konumu kıs, hızı yansıt. */
+export function clampBounds(list, half) {
   for (const b of list) {
-    const limit = HALF - b.radius;
+    const limit = half - b.radius;
     if (b.pos.x > limit) { b.pos.x = limit; if (b.push.x > 0) b.push.x *= -PHYSICS.restitution; if (b.vel.x > 0) b.vel.x = 0; }
     else if (b.pos.x < -limit) { b.pos.x = -limit; if (b.push.x < 0) b.push.x *= -PHYSICS.restitution; if (b.vel.x < 0) b.vel.x = 0; }
     if (b.pos.z > limit) { b.pos.z = limit; if (b.push.z > 0) b.push.z *= -PHYSICS.restitution; if (b.vel.z > 0) b.vel.z = 0; }

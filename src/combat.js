@@ -241,18 +241,18 @@ export function damageStructure(world, s, amount, source) {
   if (!s.alive) return;
   // Kahraman yapılara türünün asker hasarıyla vurur; seviye başına artar.
   if (isHeroUnit(source)) amount *= 1 + LEVEL.structureDamagePerLevel * ((source.level || 1) - 1);
-  // Kim vurdu: rakip kulesi / sancağı vurulunca ordusunu ve kahramanını savunmaya çağırır (bkz. updateEnemyDefense).
+  // Kim vurdu: botun kulesi / sancağı vurulunca ordusunu ve kahramanını savunmaya çağırır (bkz. economy.js updateBots).
   if (source && source.faction !== s.faction) { s.lastHitBy = source; s.lastHitAt = world.time; }
   // Kendi sancağın / kulen vuruldu: ekran kenarı kızarır, haritada kırmızı halka çıkar.
-  if (s.faction === 'blue' && (s.kind === 'banner' || s.kind === 'tower') && world.onOwnStructureHit) world.onOwnStructureHit(s, source);
+  if (s.owner === world.me && (s.kind === 'banner' || s.kind === 'tower') && world.onOwnStructureHit) world.onOwnStructureHit(s, source);
   // Kuleler ayaktayken sancağın canı azalmaz: vuruş iner, kalkana çarpar ve hasar vermez.
   if (bannerShielded(world, s)) {
     s.hitFlash = 0.18;
     burst(world, s.pos.x + (Math.random() - 0.5), 1.8, s.pos.z + (Math.random() - 0.5), '#9fd6ff', 3, 0.14);
     if (source && source.faction === 'blue' && world.time - (world.shieldMsgAt ?? -9) > 2.5) {
       world.shieldMsgAt = world.time;
-      // Sancağa vurmak kalkanı besleyen kuleleri ele verir: hepsi haritada açılır ve yerleri işaretlenir.
-      const towers = world.structures.filter(t => t.alive && t.kind === 'tower' && t.faction === s.faction);
+      // Sancağa vurmak kalkanı besleyen kuleleri (sahibinin kuleleri) ele verir: hepsi haritada açılır ve yerleri işaretlenir.
+      const towers = world.structures.filter(t => t.alive && t.kind === 'tower' && t.owner === s.owner);
       for (const t of towers) {
         t.seen = true; t.g.visible = true;
         ring(world, t.pos.x, t.pos.z, '#ff8a6a', 3.2, 2.5);

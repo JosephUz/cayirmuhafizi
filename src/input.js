@@ -3,7 +3,7 @@ import { dampAngle, yawFromDir } from './builders.js';
 import { startAttack } from './combat.js';
 import { heroCharged, heroDash } from './abilities.js';
 import { dashDistance } from './characters.js';
-import { CAMERA, CHARGE, HALF, JUMP_SPEED, PHYSICS } from './config.js';
+import { CAMERA, CHARGE, JUMP_SPEED, PHYSICS } from './config.js';
 import { applyImpulse } from './physics.js';
 import { pickOwnStructure } from './structures.js';
 
@@ -42,7 +42,7 @@ export function setSelection(world, units, structure, additive = false) {
 export function selectStructureGroup(world, s) {
   const sel = world.sel;
   sel.units.clear(); sel.structure = s;
-  sel.structures = world.structures.filter(o => o.alive && o.faction === s.faction && o.kind === s.kind);
+  sel.structures = world.structures.filter(o => o.alive && o.owner === s.owner && o.kind === s.kind);
   return sel.structures.length;
 }
 export function clearSelection(world) { world.sel.units.clear(); world.sel.structure = null; world.sel.structures = []; }
@@ -216,7 +216,8 @@ export function updateCamera(world, dt) {
   if (!sx && !sy) return;
   const s = CAMERA.panSpeed * dt / Math.SQRT2;
   t.x += (sx + sy) * s; t.z += (-sx + sy) * s;
-  t.x = Math.max(-HALF, Math.min(HALF, t.x)); t.z = Math.max(-HALF, Math.min(HALF, t.z));
+  const H = world.half;
+  t.x = Math.max(-H, Math.min(H, t.x)); t.z = Math.max(-H, Math.min(H, t.z));
 }
 
 /** Kahraman modunda girdiyi oyuncuya uygular; komutan modunda yalnızca otomatik vuruş çalışır (hareket beyinden). */

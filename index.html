@@ -18,16 +18,17 @@
           <span id="mg-level" title="Kahraman seviyesi (her 3 öldürmede artar)">★ 1</span>
           <span id="mg-gold" title="Altın: asker ve işçi basar">◉ 30</span>
           <span id="mg-wood" title="Envanter: odun (bina kurar) ve yiyecek (askerle birlikte altın + yiyecek)">🪵 40 🌾 20</span>
-          <span id="mg-workers" title="İşçilerin: toplam (en fazla 100) · madenci · oduncu · çiftçi (kademeleriyle)">👷 0/100 · ⛏ 0 🪓 0 🌾 0</span>
-          <span id="mg-army" title="Askerin: piyade · okçu · süvari · mancınık (toplam en fazla 200; sınır dolunca üretim durur)">⚔ 0/200 · 🛡 0 🏹 0 🐎 0 🪨 0</span>
+          <span id="mg-workers" title="İşçilerin: toplam / sınır · madenci · oduncu · çiftçi (kademeleriyle)">👷 0/100 · ⛏ 0 🪓 0 🌾 0</span>
+          <span id="mg-army" title="Askerin: toplam / sınır · piyade · okçu · süvari · mancınık (sınır oyuncu sayısına göre; dolunca üretim durur)">⚔ 0/200 · 🛡 0 🏹 0 🐎 0 🪨 0</span>
           <span id="mg-towers" title="Ayakta kulelerin (en fazla 10) ve binaların (en fazla 10)">🏰 3/10 🏠 1/10</span>
           <span id="mg-banner-own" title="Sancağının canı">⚑ 10000</span>
+          <span id="mg-allies" title="Müttefik botlar ve askerleri" hidden>🤝 0</span>
         </div>
       </div>
       <div class="side theirs">
         <div class="stats">
-          <span id="mg-enemy-towers" title="Rakibin ayakta kule sayısı: kuleler durdukça sancağı can kaybetmez">🏰 3/10</span>
-          <span id="mg-banner-enemy" title="Düşman sancağının canı">⚑ 10000</span>
+          <span id="mg-enemy-towers" title="Rakip takımın ayakta kule sayısı: kuleler durdukça sancakları can kaybetmez">🏰 3/10</span>
+          <span id="mg-banner-enemy" title="Düşman sancakları">⚑ 10000</span>
         </div>
         <div class="title"><strong>RAKİP</strong></div>
       </div>
@@ -44,12 +45,20 @@
     <div id="mg-select" class="overlay" hidden>
       <div class="card">
         <h2>Savaşa hazırlan</h2>
-        <p class="muted">Kılıçlı bir kahramanla başlarsın. Oyun içinde sancağını seçip <b>J</b> ile kahraman menüsünü aç: altınla seviye atla ya da istediğin asker türüne dönüş (tür değişince seviye 1'e döner).</p>
+        <p class="muted">Kılıçlı bir kahramanla başlarsın. Sancağını seçip <b>Geliştir</b> ile istediğin asker türüne dönüş (seviye korunur). Takım seçersen yanına ve karşına botlar gelir: her botun kendi üssü, kasası, ordusu ve kahramanı vardır; sen yalnızca kendi askerini yönetirsin, düşmanlık takıma göredir.</p>
         <fieldset class="difficulty">
           <legend>Zorluk</legend>
           <label><input type="radio" name="difficulty" value="easy"> Kolay <small>rakip 0.5x altın, seni birebir taklit eder</small></label>
           <label><input type="radio" name="difficulty" value="normal" checked> Normal <small>rakip 1x altın, senden biraz fazlasını hedefler</small></label>
           <label><input type="radio" name="difficulty" value="hard"> Zor <small>rakip 2x altın, senden çok fazlasını hedefler</small></label>
+        </fieldset>
+        <fieldset class="difficulty teams">
+          <legend>Takımlar</legend>
+          <label><input type="radio" name="teams" value="1" checked> 1v1 <small>sen ve rakip bot · 240×240 arena</small></label>
+          <label><input type="radio" name="teams" value="2"> 2v2 <small>yanında 1, karşında 2 bot</small></label>
+          <label><input type="radio" name="teams" value="3"> 3v3 <small>yanında 2, karşında 3 bot</small></label>
+          <label><input type="radio" name="teams" value="4"> 4v4 <small>yanında 3, karşında 4 bot</small></label>
+          <label><input type="radio" name="teams" value="5"> 5v5 <small>yanında 4, karşında 5 bot · en büyük arena</small></label>
         </fieldset>
         <div class="row">
           <button type="button" id="sel-start" class="primary">Savaşı başlat</button>

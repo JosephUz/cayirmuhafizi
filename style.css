@@ -42,9 +42,9 @@ html,body{margin:0;height:100%;background:#19231d;overflow:hidden}
 @keyframes mgFloat{0%{opacity:0;transform:translate(-50%,-20%) scale(.8)}18%{opacity:1;transform:translate(-50%,-55%) scale(1.1)}100%{opacity:0;transform:translate(-50%,-190%) scale(1)}}
 #meadow-game #mg-dragbox{position:absolute;z-index:4;border:1px solid #c8ff8a;background:#c8ff8a22;pointer-events:none}
 #meadow-game #mg-dragbox[hidden]{display:none}
-/* Anti satırı (bilgi kartı): tek attığı türler yeşil, tek atıldığı türler kırmızı. */
+/* Anti satırı (bilgi kartı): tek attığı ve tek atıldığı türler. Renk yok: kartın koyu yazı rengini miras alır, ayrımı kalın yazı yapar. */
 #meadow-game .anti{margin-top:4px;font-size:12px;display:flex;flex-wrap:wrap;gap:4px 12px}
-#meadow-game .anti .good{color:#bfe59a}#meadow-game .anti .bad{color:#ff9f8c}
+#meadow-game .anti .good,#meadow-game .anti .bad{color:inherit}
 /* Yeniden doğuş geri sayımı: kahraman yerdeyken ekranın ortasında, her saniye büyüyüp küçülen büyük sayı. */
 #meadow-game #mg-respawn{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;z-index:4;color:#f6efd9;text-shadow:0 2px 0 #000c,0 0 24px #000a}
 #meadow-game #mg-respawn[hidden]{display:none}
@@ -90,6 +90,9 @@ html,body{margin:0;height:100%;background:#19231d;overflow:hidden}
 #meadow-game .info .bar i{display:block;height:100%;background:linear-gradient(#8fe08f,#3f9a3f);transition:width .15s}
 #meadow-game .info .line{display:flex;gap:14px;font-size:12px;font-variant-numeric:tabular-nums;flex-wrap:wrap}
 #meadow-game .info .hint{font-size:11.5px;line-height:1.35;color:#4a3a22;max-width:560px}
+/* Kahraman kartındaki tuş listesi: sol sütun tuş adı, sağ sütun ne yaptığı. Paragraf yerine satır satır okunur. */
+#meadow-game .info .kitkeys{display:grid;grid-template-columns:auto 1fr;gap:1px 10px;font-size:11.5px;line-height:1.35;color:#4a3a22;max-width:600px}
+#meadow-game .info .kitkeys b{white-space:nowrap;color:#2b2214}
 #meadow-game .info .groups{display:flex;gap:8px;flex-wrap:wrap;font-size:14px}
 #meadow-game .info .groups span{background:#c4ae7e;border:1px solid #8d6a45;border-radius:4px;padding:2px 6px}
 #meadow-game .info .groups b{margin-left:4px}

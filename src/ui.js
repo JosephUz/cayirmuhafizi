@@ -1,12 +1,11 @@
 import { makeStats } from './characters.js';
-import { ANTI, BUILDINGS, DASH, DIFFICULTY, HERO_UPGRADE, KIT, LEVEL, LIMITS, QUEUE, RALLY, SOLDIER_TYPES, SPIN, TORNADO, TOWER, antiInfo, heroConvertCost, loadoutKey, respawnDelay } from './config.js';
+import { ANTI, BUILDINGS, DIFFICULTY, HERO_UPGRADE, KIT, LEVEL, QUEUE, RALLY, SOLDIER_TYPES, SPIN, TORNADO, TOWER, antiInfo, heroConvertCost, loadoutKey, respawnDelay } from './config.js';
 import { kitKey } from './characters.js';
 import { clearSelection, selectStructureGroup, setSelection, unlockPointer } from './input.js';
 import { bannerShielded, structureCount } from './structures.js';
 import { armyCount, bestProducer, unitClass, workerTotal } from './production.js';
 import { damageMult, heroArrows } from './combat.js';
 import { dashDistance, dashMult, reachOf, xpNeeded } from './characters.js';
-import { heroGather, pickRadiusOf } from './economy.js';
 
 /**
  * Age of tarzı alt bant: solda komut ızgarası (seçili yapının üretimi / inşa, seçili birimlerin komutları),
@@ -17,7 +16,7 @@ export function createUI(root, world, actions) {
   const $ = sel => root.querySelector(sel);
   const els = {
     health: $('#mg-health'), level: $('#mg-level'), gold: $('#mg-gold'), wood: $('#mg-wood'), workers: $('#mg-workers'), army: $('#mg-army'),
-    towers: $('#mg-towers'), enemyTowers: $('#mg-enemy-towers'), bannerOwn: $('#mg-banner-own'), bannerEnemy: $('#mg-banner-enemy'),
+    towers: $('#mg-towers'), enemyTowers: $('#mg-enemy-towers'), bannerOwn: $('#mg-banner-own'), bannerEnemy: $('#mg-banner-enemy'), allies: $('#mg-allies'),
     message: $('#mg-message'), select: $('#mg-select'), end: $('#mg-end'), cmd: $('#mg-cmd'), info: $('#mg-info'), floats: $('#mg-floats'), alert: $('#mg-alert'),
     pause: $('#mg-pause'), newGame: $('#mg-new'), full: $('#mg-full'), cam: $('#mg-cam'),
     selStart: $('#sel-start'), selCancel: $('#sel-cancel'),
@@ -74,22 +73,24 @@ export function createUI(root, world, actions) {
   for (const b of [els.pause, els.newGame, els.full]) if (b) b.addEventListener('click', () => b.blur());
   els.cmd.addEventListener('click', e => { const b = e.target.closest('button'); if (b) b.blur(); });
 
-  // ---- Başlangıç: yalnızca zorluk seçilir; kahraman sabit başlar, oyun içinde geliştirilir.
+  // ---- Başlangıç: zorluk ve takım büyüklüğü (1v1 … 5v5) seçilir; kahraman sabit başlar, oyun içinde geliştirilir.
   const readDifficulty = () => root.querySelector('input[name=difficulty]:checked').value;
-  els.selStart.onclick = () => { els.select.hidden = true; els.end.hidden = true; pausedBySelect = false; actions.newGame({ ...HERO_UPGRADE.startLoadout }, readDifficulty()); };
+  const readTeams = () => { const el = root.querySelector('input[name=teams]:checked'); return el ? Number(el.value) : 1; };
+  els.selStart.onclick = () => { els.select.hidden = true; els.end.hidden = true; pausedBySelect = false; actions.newGame({ ...HERO_UPGRADE.startLoadout }, readDifficulty(), readTeams()); };
   els.selCancel.onclick = () => { els.select.hidden = true; if (pausedBySelect) { world.paused = false; pausedBySelect = false; } ui.update(); };
   els.endNew.onclick = () => ui.showSelect(false);
 
   // ---- Sayımlar
   /**
-   * HUD sayımı. Kendi tarafında askerler sınıfına (piyade / okçu / süvari / mancınık), işçiler türüne
-   * (madenci / oduncu / çiftçi, kademeleri toplanarak) ayrılır; rakipte yalnızca toplam asker sayılır.
+   * HUD sayımı. Kendi askerlerin sınıfına (piyade / okçu / süvari / mancınık), işçilerin türüne
+   * (madenci / oduncu / çiftçi, kademeleri toplanarak) ayrılır; müttefik botların askeri sahibine göre, rakipte yalnızca toplam sayılır.
    */
   const countUnits = () => {
-    const c = { army: 0, enemies: 0, workers: 0, enemyWorkers: 0, foot: 0, archer: 0, cavalry: 0, siege: 0, gold: 0, wood: 0, food: 0 };
+    const c = { army: 0, enemies: 0, workers: 0, enemyWorkers: 0, allies: 0, allyArmy: {}, foot: 0, archer: 0, cavalry: 0, siege: 0, gold: 0, wood: 0, food: 0 };
     for (const e of world.entities) {
       if (!e.alive || e.isPlayer || e.isHero) continue;
-      if (e.faction !== 'blue') { if (e.isWorker) c.enemyWorkers += e.tier || 1; else c.enemies++; continue; }
+      if (e.faction !== 'blue') { if (e.isWorker) c.enemyWorkers += e.tier || 1; else if (!e.isBeast) c.enemies++; continue; }
+      if (e.owner !== world.me) { if (!e.isWorker) { c.allies++; c.allyArmy[e.owner.id] = (c.allyArmy[e.owner.id] || 0) + 1; } continue; }
       if (e.isWorker) { c.workers += e.tier || 1; c[e.workerKind] += e.tier || 1; continue; }
       c.army++;
       const cls = unitClass(e);
@@ -99,7 +100,7 @@ export function createUI(root, world, actions) {
   };
 
   // ---- Kahraman geliştirme yardımcıları
-  const heroNearBanner = () => { const p = world.player, b = world.structures[0]; return p.alive && Math.hypot(p.pos.x - b.pos.x, p.pos.z - b.pos.z) <= HERO_UPGRADE.range; };
+  const heroNearBanner = () => { const p = world.player, b = world.me.banner; return p.alive && Math.hypot(p.pos.x - b.pos.x, p.pos.z - b.pos.z) <= HERO_UPGRADE.range; };
   const heroTypeLabel = p => { const t = SOLDIER_TYPES.find(x => !x.worker && x.weapon === p.loadout.weapon && x.shield === p.loadout.shield && x.horse === p.loadout.horse); return t ? t.label : 'Kılıçlı'; };
 
   // ---- Komut ızgarası
@@ -140,7 +141,7 @@ export function createUI(root, world, actions) {
       out.push({ icon: '⚑', label: RALLY.allLabel, data: { rally: 'all' }, active: world.rallyMode === 'all', title: 'Tüm sınıfların toplanma alanını aynı noktaya al: bütün ordu oraya yürür ve orada dövüşür (kahraman gitmez)' });
     }
     // Seçili kendi yapın (sancak hariç): yıkma düğmesi. Yer açmanın ve yanlış yere dikileni kaldırmanın yolu.
-    if (s.structure && s.structure.faction === 'blue' && s.structure.kind !== 'banner') {
+    if (s.structure && s.structure.owner === world.me && s.structure.kind !== 'banner') {
       const tower = s.structure.kind === 'tower';
       out.push({ icon: '🧨', label: tower ? 'Kuleyi yık' : 'Binayı yık', data: { demolish: 1 }, title: tower ? 'Seçili kuleyi yık: kule sınırından düşer, enkazından odun çıkar' : 'Seçili binayı yık: bina sınırından düşer, enkazından odun çıkar' });
     }
@@ -160,18 +161,18 @@ export function createUI(root, world, actions) {
       for (let i = slots.length; i < 15; i++) html += '<span class="slot empty"></span>';
       els.cmd.innerHTML = html;
     }
-    const eco = world.eco, b = busy();
+    const eco = world.me.eco, b = busy();
     // Nüfus sınırı dolan tür basılamaz: düğme kapanır.
     for (const el of els.cmd.querySelectorAll('button[data-soldier]')) {
       const t = typeOf(el.dataset.soldier);
       // İşçide sınır düğmeyi kapatmaz: sınır doluyken yeni işçi en kalabalık türün yerine geçer.
-      const capped = !t.worker && armyCount(world, 'blue') >= LIMITS.army;
+      const capped = !t.worker && armyCount(world, world.me) >= world.limits.army;
       el.disabled = b || capped || eco.gold < t.cost || eco.food < t.food;
     }
     // Kule / bina sınırı dolunca inşa düğmesi de kapanır.
     for (const el of els.cmd.querySelectorAll('button[data-build]')) {
       const kind = el.dataset.build, spec = BUILDINGS[kind], tower = kind === 'tower';
-      const capped = structureCount(world, 'blue', tower) >= (tower ? LIMITS.towers : LIMITS.buildings);
+      const capped = structureCount(world, world.me, tower) >= (tower ? world.limits.towers : world.limits.buildings);
       el.disabled = b || capped || eco.gold < spec.cost || eco.wood < spec.wood;
     }
     const hn = heroNearBanner();
@@ -192,7 +193,7 @@ export function createUI(root, world, actions) {
       const many = grp.length > 1 ? grp : null;
       const totalQ = many ? many.reduce((a, o) => a + o.queue.length, 0) : st.queue.length;
       key = `S${st.id}|${st.ready}|${st.queue.join(',')}|${many ? many.length + ':' + totalQ : ''}`;
-      html = `<div class="card"><div class="ico">${spec.icon}</div><div class="body"><h3>${many ? `${many.length} × ${spec.label}` : spec.label}</h3>${bar(st.hp, st.maxHp)}<div class="line"><span data-hp>♥ ${Math.ceil(st.hp)}/${st.maxHp}</span>${st.ready ? '' : `<span data-build>İnşa %${Math.round((1 - st.buildTimer / st.buildTime) * 100)}</span>`}${st.kind === 'tower' ? `<span>Menzil 9 · Askeri tek okta öldürür</span>` : ''}${st.kind === 'banner' ? (bannerShielded(world, st) ? '<span>🛡 Kuleler ayakta: vuruş iner ama can azalmaz</span>' : '<span>⚠ Kule yok: sancak can kaybeder!</span>') : ''}</div>`;
+      html = `<div class="card"><div class="ico">${spec.icon}</div><div class="body"><h3>${many ? `${many.length} × ${spec.label}` : spec.label}</h3>${bar(st.hp, st.maxHp)}<div class="line"><span data-hp>♥ ${Math.ceil(st.hp)}/${st.maxHp}</span>${st.ready ? '' : `<span data-build>İnşa %${Math.round((1 - st.buildTimer / st.buildTime) * 100)}</span>`}${st.kind === 'tower' ? `<span>Menzil ${TOWER.range} · Askeri tek okta öldürür</span>` : ''}${st.kind === 'banner' ? (bannerShielded(world, st) ? '<span>🛡 Kuleler ayakta: vuruş iner ama can azalmaz</span>' : '<span>⚠ Kule yok: sancak can kaybeder!</span>') : ''}</div>`;
       if (st.ready && spec.produces.length) {
         html += `<div class="queue">${st.queue.map((k, i) => `<button type="button" class="q" data-q="${i}" title="${typeOf(k).label} · iptal için tıkla"><span>${typeOf(k).icon}</span>${i === 0 ? '<i class="prog" data-prog></i>' : ''}</button>`).join('')}<span class="qn" data-qn>${st.queue.length}/${QUEUE.max}</span></div>`;
         html += `<div class="hint">${many ? `${many.length} bina seçili · toplam sırada ${totalQ} emir · basılan birim en boş binaya gider. ` : ''}${st.queue.length ? `Sıradaki: ${typeOf(st.queue[0]).label} <span data-left></span>` : 'Sıra boş: soldan birim seç, 30 emre kadar birikir'}</div>`;
@@ -212,11 +213,11 @@ export function createUI(root, world, actions) {
       }
     } else if (!aoe) {
       // Hiçbir şey seçili değilken: kahramanın durumu (seviye, can, exp, vuruş) **ve** sancağının durumu bir arada.
-      const own = world.structures[0], shielded = bannerShielded(world, own);
-      const towers = world.structures.filter(t => t.alive && t.kind === 'tower' && t.faction === 'blue').length;
+      const own = world.me.banner, shielded = bannerShielded(world, own);
+      const towers = world.structures.filter(t => t.alive && t.kind === 'tower' && t.owner === world.me).length;
       key = `H|${p.level}|${p.stats.maxHp}|${heroTypeLabel(p)}|${Math.ceil(own.hp)}|${towers}`;
       const name = heroTypeLabel(p);
-      html = `<div class="card"><div class="ico">★</div><div class="body"><h3>Kahraman · ${name} · Sv ${p.level}</h3>${bar(p.hp, p.stats.maxHp)}<div class="line"><span data-hp>♥ ${Math.ceil(p.hp)}/${p.stats.maxHp}</span><span>${unitStats(p)}</span></div><div class="line"><span data-banner>⚑ Sancak ${Math.ceil(own.hp)}/${own.maxHp}</span><span>${shielded ? `🛡 ${towers} kule koruyor: can azalmaz` : '⚠ Kule yok: sancak can kaybeder!'}</span><span>★ Sv ${p.level} · ${Math.floor(p.xp || 0)}/${xpNeeded(p.level)} exp</span></div><div class="bar banner"><i data-bbar style="width:${Math.max(0, Math.min(100, own.hp / own.maxHp * 100))}%"></i></div><div class="hint">${(() => { const k = KIT[kitKey(p.loadout)] || KIT.sword; return `Set: <b>${k.label}</b>. Sol tık: <b>${k.primary}</b> — ${k.primaryDesc}.${k.charge ? ` <b>Basılı tut</b> (0.6 sn dolar, bırak): <b>${k.charge}</b> — ${k.chargeDesc}.` : ''} Sağ tık: <b>ileri atılma</b> (${dashDistance(p).toFixed(1)} birim, seviye başına +${DASH.perLevel}) + <b>${k.secondary}</b> — ${k.secondaryDesc}.${p.loadout.shield ? ' Kalkan: atılmada vurulmazlık daha uzun.' : ''}`; })()} Soldaki düğmelerle bina dik. Seviye <b>öldürerek</b> gelir: ${Math.floor(p.xp || 0)}/${xpNeeded(p.level)} exp. Can yalnızca <b>sancak alanında</b> yenilenir (${HERO_UPGRADE.regenPerSecond} can/sn, tepende can baloncukları çıkar). Sancak > <b>Geliştir</b>: türe dönüş. Ordu tek tek yönetilmez: soldaki ⚑ düğmeleriyle toplanma alanı kur. Maden, ağaç, tarlaya vur (vuruş başına ${heroGather(p)} kaynak) ya da ganimetin üstünden geç: kaynak ${pickRadiusOf(p).toFixed(1)} birimden envantere girer.</div></div></div>`;
+      html = `<div class="card"><div class="ico">★</div><div class="body"><h3>Kahraman · ${name} · Sv ${p.level}</h3>${bar(p.hp, p.stats.maxHp)}<div class="line"><span data-hp>♥ ${Math.ceil(p.hp)}/${p.stats.maxHp}</span><span>${unitStats(p)}</span></div><div class="line"><span data-banner>⚑ Sancak ${Math.ceil(own.hp)}/${own.maxHp}</span><span>${shielded ? `🛡 ${towers} kule koruyor: can azalmaz` : '⚠ Kule yok: sancak can kaybeder!'}</span><span>★ Sv ${p.level} · ${Math.floor(p.xp || 0)}/${xpNeeded(p.level)} exp</span></div><div class="bar banner"><i data-bbar style="width:${Math.max(0, Math.min(100, own.hp / own.maxHp * 100))}%"></i></div><div class="kitkeys">${(() => { const k = KIT[kitKey(p.loadout)] || KIT.sword; return `<b>Sol tık</b><span>${k.primary} — ${k.primaryDesc}</span>${k.charge ? `<b>Basılı tut</b><span>0.6 sn şarj → ${k.charge} — ${k.chargeDesc}</span>` : ''}<b>Sağ tık</b><span>${dashDistance(p).toFixed(1)} birim atılma + ${k.secondary} — ${k.secondaryDesc}${p.loadout.shield ? '; kalkanla atılmada vurulmazlık uzar' : ''}</span>`; })()}</div></div></div>`;
     } else {
       key = 'A';
       html = `<div class="card"><div class="ico">🏳</div><div class="body"><h3>Komutan modu</h3><div class="hint">Ordu tek tek yönetilmez: soldaki ⚑ düğmeleriyle sınıfların <b>toplanma alanını</b> kur; askerler oraya gidip yalnızca orada dövüşür. Sol tık: kendi yapını seç · Soldan bina dik · WASD / ok tuşları / minimap: kamera · Sancak > <b>Kahraman</b>: kahraman moduna dön</div></div></div>`;
@@ -240,7 +241,7 @@ export function createUI(root, world, actions) {
         const b = els.info.querySelector('[data-bar]'); if (b) b.style.width = `${Math.max(0, e.hp / e.stats.maxHp * 100)}%`;
       }
       // Kahraman kartındaki sancak satırı.
-      const own = world.structures[0];
+      const own = world.me.banner;
       const bh = els.info.querySelector('[data-banner]'); if (bh && own) bh.textContent = `⚑ Sancak ${Math.ceil(own.hp)}/${own.maxHp}`;
       const bb = els.info.querySelector('[data-bbar]'); if (bb && own) bb.style.width = `${Math.max(0, own.hp / own.maxHp * 100)}%`;
     }
@@ -299,7 +300,7 @@ export function createUI(root, world, actions) {
      */
     updateRespawn() {
       const el = root.querySelector('#mg-respawn'); if (!el) return;
-      const p = world.player, banner = world.structures[0];
+      const p = world.player, banner = world.me && world.me.banner;
       if (!p || p.alive || world.ended || !banner || !banner.alive) { el.hidden = true; el.dataset.n = ''; return; }
       const left = Math.max(0, respawnDelay(p.deaths) - p.deathTimer), n = Math.ceil(left);
       el.hidden = false;
@@ -337,7 +338,7 @@ export function createUI(root, world, actions) {
         const t = camp.alive ? camp.waveTimer : camp.respawnTimer;
         const time = `${Math.floor(Math.max(0, t) / 60)}:${String(Math.floor(Math.max(0, t) % 60)).padStart(2, '0')}`;
         el.textContent = camp.alive
-          ? `⛺ akın ${time} ${camp.raidSide === 'blue' ? '→ sana' : '→ rakibe'}`
+          ? `⛺ akın ${time} ${camp.raidSide === 'blue' ? (world.players.length > 2 ? '→ takımına' : '→ sana') : '→ rakibe'}`
           : `🔥 yeniden kuruluyor ${time}`;
         el.className = `camp-label${camp.alive ? (camp.raidSide === 'blue' ? ' danger' : '') : ' ruin'}`;
         el.style.display = 'block';
@@ -375,7 +376,7 @@ export function createUI(root, world, actions) {
     },
     /** Yapı seçimi. group=true (çift tık): aynı türdeki bütün binalar seçilir, üretim aralarında paylaştırılır. */
     select(s, group = false) {
-      if (s && s.faction !== 'blue') return;
+      if (s && s.owner !== world.me) return;
       if (deadMsg()) return;
       if (group && s) { const n = selectStructureGroup(world, s); if (n > 1) ui.say(`${n} ${BUILDINGS[s.kind].label} seçildi: üretim hepsine dağıtılır`, 1800); }
       else setSelection(world, [], s);
@@ -383,7 +384,7 @@ export function createUI(root, world, actions) {
     },
     toggleHeroMenu() {
       if (deadMsg()) return;
-      if (!sel().structure || sel().structure.kind !== 'banner') { ui.select(world.structures[0]); }
+      if (!sel().structure || sel().structure.kind !== 'banner') { ui.select(world.me.banner); }
       world.heroMenu = !world.heroMenu; world.placing = null; world.rallyMode = false;
       if (world.heroMenu && !heroNearBanner()) ui.say('Kahraman sancağa yaklaşmalı (12 birim)', 1600);
       ping('select'); ui.update();
@@ -399,7 +400,7 @@ export function createUI(root, world, actions) {
     startPlacing(kind) {
       if (deadMsg() || busy()) return;
       const spec = BUILDINGS[kind]; if (!spec || kind === 'banner') return;
-      if (world.eco.gold < spec.cost || world.eco.wood < spec.wood) { ui.say(`Yetersiz odun: ${spec.label} ${spec.wood} odun`, 1500); ping('error'); return; }
+      if (world.me.eco.gold < spec.cost || world.me.eco.wood < spec.wood) { ui.say(`Yetersiz odun: ${spec.label} ${spec.wood} odun`, 1500); ping('error'); return; }
       world.placing = kind; world.rallyMode = false;
       ui.say(`${spec.label} (${spec.wood} 🪵): kahramanın çevresindeki halka içine sol tıkla · sağ tık / Esc / Vazgeç düğmesi`, 0); ui.update();
     },
@@ -445,7 +446,7 @@ export function createUI(root, world, actions) {
       const group = (sel().structures || []).filter(s => s.alive && s.ready && s.kind === t.building);
       const pick = () => (group.length
         ? group.reduce((a, b) => (b.queue.length < a.queue.length ? b : a))
-        : bestProducer(world, 'blue', t.building));
+        : bestProducer(world, world.me, t.building));
       let n = 0, err = null, building = pick();
       const used = new Set();
       for (let i = 0; i < count; i++) {
@@ -463,29 +464,43 @@ export function createUI(root, world, actions) {
     },
 
     update() {
-      const p = world.player, eco = world.eco;
-      if (!p) return;
+      const p = world.player, eco = world.me && world.me.eco;
+      if (!p || !eco) return;
       for (const u of [...world.sel.units]) if (!u.alive) world.sel.units.delete(u);
       if (world.sel.structure && !world.sel.structure.alive) world.sel.structure = null;
       const c = countUnits();
-      const own = world.structures[0], foe = world.structures[1];
+      const own = world.me.banner;
+      const foes = world.players.filter(q => q.faction === 'red'), allies = world.players.filter(q => q.faction === 'blue' && q !== world.me);
       els.health.textContent = `♥ ${Math.ceil(p.hp)}/${p.stats.maxHp}`;
       els.level.textContent = `★ ${p.level} · ${Math.floor(p.xp || 0)}/${xpNeeded(p.level)} exp`;
       els.level.title = `Seviye ${p.level} · ${Math.floor(p.xp || 0)}/${xpNeeded(p.level)} exp (asker ${LEVEL.xp.soldier}, işçi ${LEVEL.xp.worker}, mancınık ${LEVEL.xp.siege}, kahraman ${LEVEL.xp.hero}) · ${p.heroKills} öldürme · can ${p.stats.maxHp} · ${DIFFICULTY[world.difficulty].label}`;
       els.gold.textContent = `◉ ${eco.gold}`;
       els.wood.textContent = `🪵 ${eco.wood} 🌾 ${eco.food}`;
       // Kendi tarafın: işçiler ve askerler tür tür; rakip tarafta yalnızca kule sayısı ve sancak canı.
-      els.workers.textContent = `👷 ${workerTotal(world, 'blue')}/${LIMITS.workers} · ⛏ ${c.gold} 🪓 ${c.wood} 🌾 ${c.food}`;
-      els.workers.title = `İşçilerin (kademeleriyle): ${c.gold} madenci · ${c.wood} oduncu · ${c.food} çiftçi · toplam en fazla ${LIMITS.workers}; sınır dolunca yeni işçi en kalabalık türden bir kademe eksiltip onun yerine geçer`;
-      els.army.textContent = `⚔ ${c.army}/${LIMITS.army} · 🛡 ${c.foot} 🏹 ${c.archer} 🐎 ${c.cavalry} 🪨 ${c.siege}`;
-      els.army.title = `Ordun: ${c.foot} piyade · ${c.archer} okçu · ${c.cavalry} süvari · ${c.siege} mancınık · toplam ${c.army} (sınır ${LIMITS.army}; dolunca üretim durur)`;
+      els.workers.textContent = `👷 ${workerTotal(world, world.me)}/${world.limits.workers} · ⛏ ${c.gold} 🪓 ${c.wood} 🌾 ${c.food}`;
+      els.workers.title = `İşçilerin (kademeleriyle): ${c.gold} madenci · ${c.wood} oduncu · ${c.food} çiftçi · toplam en fazla ${world.limits.workers}; sınır dolunca yeni işçi en kalabalık türden bir kademe eksiltip onun yerine geçer`;
+      els.army.textContent = `⚔ ${c.army}/${world.limits.army} · 🛡 ${c.foot} 🏹 ${c.archer} 🐎 ${c.cavalry} 🪨 ${c.siege}`;
+      els.army.title = `Ordun: ${c.foot} piyade · ${c.archer} okçu · ${c.cavalry} süvari · ${c.siege} mancınık · toplam ${c.army} (sınır ${world.limits.army}; dolunca üretim durur)`;
       const cnt = (f, k) => structureCount(world, f, k);
-      els.towers.textContent = `🏰 ${cnt('blue', 1)}/${LIMITS.towers} 🏠 ${cnt('blue', 0)}/${LIMITS.buildings}`;
-      els.towers.title = `Ayakta kulelerin (en fazla ${LIMITS.towers}) ve binaların (en fazla ${LIMITS.buildings}); sınır dolunca birini yıkabilirsin`;
-      els.enemyTowers.textContent = `🏰 ${cnt('red', 1)}/${LIMITS.towers}`;
+      els.towers.textContent = `🏰 ${cnt(world.me, 1)}/${world.limits.towers} 🏠 ${cnt(world.me, 0)}/${world.limits.buildings}`;
+      els.towers.title = `Ayakta kulelerin (en fazla ${world.limits.towers}) ve binaların (en fazla ${world.limits.buildings}); sınır dolunca birini yıkabilirsin`;
+      // Rakip tarafı: takım oyununda kule toplamı ve ayakta sancak sayısı; 1v1'de eskisi gibi kule ve sancak canı.
+      const foeTowers = foes.reduce((a, q) => a + cnt(q, 1), 0), attacking = foes.some(q => q.ai && q.ai.attacking);
+      const aliveFoes = foes.filter(q => q.banner && q.banner.alive);
+      els.enemyTowers.textContent = foes.length > 1 ? `🏰 ${foeTowers}` : `🏰 ${foeTowers}/${world.limits.towers}`;
+      els.enemyTowers.title = foes.length > 1 ? `Rakip takımın ayakta kule toplamı: ${foes.map(q => `${q.name} ${cnt(q, 1)}`).join(' · ')}` : 'Rakibin ayakta kule sayısı: kuleler durdukça sancağı can kaybetmez';
       els.bannerOwn.textContent = `⚑ ${Math.ceil(own.hp)}`;
-      els.bannerEnemy.textContent = `⚑ ${Math.ceil(foe.hp)}${world.enemyEco.attacking ? ' ⚡' : ''}`;
-      els.bannerEnemy.title = world.enemyEco.attacking ? 'Rakip ordusu saldırıda!' : 'Düşman sancağının canı';
+      els.bannerEnemy.textContent = foes.length > 1 ? `⚑ ${aliveFoes.length}/${foes.length}${attacking ? ' ⚡' : ''}` : `⚑ ${Math.ceil(foes[0].banner.hp)}${attacking ? ' ⚡' : ''}`;
+      els.bannerEnemy.title = foes.length > 1
+        ? `Rakip sancakları (ayakta / toplam) · ${foes.map(q => `${q.name}: ${q.banner.alive ? `sancak ${Math.ceil(q.banner.hp)}` : 'sancağı yıkık'}${q.ai && q.ai.attacking ? ' · saldırıda' : ''}`).join(' · ')}`
+        : attacking ? 'Rakip ordusu saldırıda!' : 'Düşman sancağının canı';
+      if (els.allies) {
+        els.allies.hidden = !allies.length;
+        if (allies.length) {
+          els.allies.textContent = `🤝 ${allies.length} · ⚔ ${c.allies}`;
+          els.allies.title = `Müttefik botlar ve askerleri: ${allies.map(q => `${q.name} ⚔ ${c.allyArmy[q.id] || 0}${q.banner.alive ? '' : ' (sancağı yıkık)'}${q.ai && q.ai.attacking ? ' · saldırıda' : ''}`).join(' · ')}`;
+        }
+      }
       els.pause.textContent = world.paused ? 'Devam' : 'Duraklat';
       renderCmd(); renderInfo(c);
       root.classList.toggle('placing', Boolean(world.placing));

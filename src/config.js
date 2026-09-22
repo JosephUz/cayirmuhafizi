@@ -1,7 +1,26 @@
 // Tüm ayar sayıları tek yerde. Hız birimi: birim/sn, süreler saniye.
 
-/** Yürünebilir alanın yarı boyutu (kare: -HALF..+HALF). Zemin 240x240. */
-export const HALF = 120;
+/**
+ * Takım oyunu: 1v1 … 5v5. İnsan oyuncu her zaman **mavi** takımda 0. yuvadadır; kalan yuvalar (iki takımda da) botlarla
+ * dolar. Her oyuncunun (insan ya da bot) kendi sancağı, üssü, kasası, ordusu ve kahramanı vardır; düşmanlık takıma
+ * göredir (faction = takım: 'blue' senin takımın, 'red' rakip takım). Arena takım büyüklüğüyle genişler (half(n) yarı
+ * boy); üsler takım çapasından (1v1'deki sancak yerleri) hatta dik doğrultuda baseGap aralıkla dizilir, her üsten
+ * haritanın ortasına bir yol ve o yolda bir başlangıç kulesi vardır. Çapadaki üs (0. yuva) üç hattın da başıdır.
+ */
+export const TEAMS = {
+  sizes: [1, 2, 3, 4, 5], default: 1,
+  half: n => 120 + 25 * (n - 1),
+  baseGap: 46,
+  /** Bot adları ve sahip renkleri (birimin ayağındaki halka, yapının direğindeki bant); insan hep humanColor (altın). */
+  names: ['Aslan', 'Kartal', 'Kurt', 'Şahin', 'Boğa', 'Pars', 'Doğan', 'Çakır', 'Tuğrul', 'Alp'],
+  colors: ['#8fe08f', '#ff9a3c', '#c48bff', '#5fe0d8', '#ff6fa8', '#f0f0f0', '#a0c4ff', '#d7b26d', '#b6ff5c', '#ffb3b3'],
+  humanColor: '#ffd12e',
+};
+/**
+ * Yürünebilir alanın **en büyük** yarı boyu (5v5 arenası); oyun içi gerçek sınır world.half'tır (bkz. TEAMS.half:
+ * 1v1'de 120, zemin 240x240). Sis ızgarası ve gölge kamerası en büyük arenaya göre boyutlanır.
+ */
+export const HALF = TEAMS.half(TEAMS.sizes[TEAMS.sizes.length - 1]);
 
 export const PHYSICS = {
   /** Birimler arası kişisel alan: çarpışma yarıçapları bu katsayıyla büyütülür (sıkı paket olmasınlar). */
@@ -95,9 +114,9 @@ export const KIT = {
    */
   sword: { label: 'Kılıçlı', primary: 'Çevre kesik', secondary: 'Kılıç fırtınası', charge: 'Şok dalgası',
     fieldRadius: TORNADO.radius, fieldLife: TORNADO.duration, fieldTick: TORNADO.tick, fieldDamage: TORNADO.damageMult, fieldKnock: TORNADO.knockback, blades: 10,
-    primaryDesc: 'kılıç çevrende 360° döner: menzilindeki her düşman vurulur (menzil seviyeyle büyür)',
-    chargeDesc: 'peş peşe 3 kez 360° şok dalgası (menzilin 1x, 1.2x, 1.4x katı), her biri normal vuruş gücünde, üç kat iter',
-    secondaryDesc: `durduğun yerde ${TORNADO.duration} sn boyunca savrulan kılıçlar (${TORNADO.radius} birim yarıçap, ${TORNADO.tick} sn'de bir vuruşun ${TORNADO.damageMult} katı)` },
+    primaryDesc: '360° döner, menzildeki herkesi vurur (menzil seviyeyle büyür)',
+    chargeDesc: '3 dalga, menzilin 1x/1.2x/1.4x katı, üç kat iter',
+    secondaryDesc: `durduğun yerde ${TORNADO.duration} sn savrulan kılıçlar (${TORNADO.radius} birim, ${TORNADO.tick} sn'de bir vuruşun ${TORNADO.damageMult} katı)` },
   /**
    * Koridor: mızrak vuruşu yay değil, bakış yönünde corridorLen x menzil uzunluğunda, corridorWidth genişliğinde bir
    * koridordur; içindeki herkes vurulur (delip geçer). Kazık alanı: hortum gibi **durduğun yerde** açılır; yerden yükselen
@@ -106,42 +125,42 @@ export const KIT = {
   spear: { label: 'Mızraklı', primary: 'Koridor', secondary: 'Kazık alanı', charge: 'Şok dalgası',
     corridorLen: 2, corridorWidth: 1.8,
     fieldRadius: 3.2, fieldLife: 2, fieldTick: 0.25, fieldDamage: 0.6, fieldKnock: 3, stakes: 16,
-    primaryDesc: 'mızrak önüne menzilin 2 katı uzunlukta, 1.8 birim genişlikte bir koridor açar: içindeki herkes vurulur',
-    chargeDesc: 'peş peşe 3 koridor dalgası (koridorun 1x, 1.4x, 1.8x katı), her biri normal vuruş gücünde, en yakınını sana çeker',
-    secondaryDesc: 'durduğun yerde 2 sn boyunca yerden kazıklar çıkar (3.2 birim yarıçap, 0.25 sn\'de bir vuruşun 0.6 katı, dışa iter)' },
+    primaryDesc: 'önünde 2 kat menzil boyu, 1.8 birim eni koridor; içindeki herkesi deler',
+    chargeDesc: '3 koridor dalgası, 1x/1.4x/1.8x boy, en yakınını sana çeker',
+    secondaryDesc: 'durduğun yerde 2 sn yerden kazık (3.2 birim, 0.25 sn\'de bir vuruşun 0.6 katı, dışa iter)' },
   /**
    * Yelpaze: seviye kadar ok fanMax dereceye kadar dağılır, her ok kendi yönündeki (homingDeg) düşmana kilitlenir.
    * Ok yağmuru: hortum gibi **durduğun yerde** açılır; fieldLife sn boyunca fieldTick sn'de bir yarıçaptaki herkese
    * vuruşun fieldDamage katı ok düşer (görselde her tick gökten oklar iner). Yarıçap dashMult ile büyür.
    */
   bow: { label: 'Okçu', primary: 'Yelpaze', secondary: 'Ok yağmuru', charge: 'Hızlı yaylım',
-    chargeDesc: 'peş peşe 5 yaylım (her biri normal sol tık atışı), 0.12 sn arayla; nişan imleci izler',
+    chargeDesc: '5 yaylım, 0.12 sn arayla; nişan imleci izler',
     fanStep: 8, fanMax: 70, homingDeg: 10, arrowMult: 1,
     fieldRadius: 3.2, fieldLife: 2, fieldTick: 0.25, fieldDamage: 0.6, fieldKnock: 1,
-    primaryDesc: 'seviyen kadar ok 70°\'ye kadar yelpaze açar, her ok kendi yönündeki düşmana kilitlenir',
-    secondaryDesc: 'durduğun yerde 2 sn boyunca ok yağmuru (3.2 birim yarıçap, 0.25 sn\'de bir vuruşun 0.6 katı)' },
+    primaryDesc: 'seviyen kadar ok 70° yelpazede, her biri kendi yönündeki düşmana kilitlenir',
+    secondaryDesc: 'durduğun yerde 2 sn ok yağmuru (3.2 birim, 0.25 sn\'de bir vuruşun 0.6 katı)' },
   /**
    * Atlı setler: sağ tık alan etkisi yayanınkiyle aynıdır (KIT[silah] alan sayıları) ve üstüne **vakum** gelir: tık anında
    * alanın merkezinden vacuum.radius (alan yarıçapının katı) içindeki düşmanlar vacuum.life sn boyunca merkeze çekilir
    * (vacuum.pull: çekme itmesi, kütleden bağımsız), böylece alanın içine toplanıp vuruşları yerler.
    */
   horsesword: { label: 'Kılıçlı Atlı', primary: 'Geniş kesik', secondary: 'Kılıç fırtınası + vakum', field: 'blades',
-    charge: 'Şok dalgası', chargeDesc: 'peş peşe 3 kez 360° şok dalgası (gitgide genişler), her biri normal vuruş gücünde',
+    charge: 'Şok dalgası', chargeDesc: '3 dalga, gitgide genişler',
     arcMult: 1.6, knockMult: 2, vacuum: { radius: 2.4, life: 0.6, pull: 42 },
-    primaryDesc: 'vuruş yayı 180°, itme iki kat: önündeki kalabalığı biçer ve savurur',
-    secondaryDesc: 'durduğun yerde 2 sn savrulan kılıçlar; tık anında çevredeki düşmanlar alanın merkezine çekilir' },
+    primaryDesc: 'vuruş yayı 180°, itme iki kat; önündeki kalabalığı savurur',
+    secondaryDesc: 'durduğun yerde 2 sn savrulan kılıç; tıkta çevredekiler merkeze çekilir' },
   /** Hücum: vururken yavaşlamaz, hasar hıza göre artar (tam koşuda 1+chargeBonus). Mızrak hücumu: atılma bitince öne koni vuruşu. */
   horsespear: { label: 'Mızraklı Atlı', primary: 'Hücum', secondary: 'Kazık alanı + vakum', field: 'spikes',
-    charge: 'Şok dalgası', chargeDesc: 'peş peşe 3 koridor dalgası (gitgide uzar), her biri normal vuruş gücünde, en yakınını sana çeker',
+    charge: 'Şok dalgası', chargeDesc: '3 koridor dalgası, gitgide uzar, en yakınını sana çeker',
     chargeBonus: 1, attackControl: 1, vacuum: { radius: 2.4, life: 0.6, pull: 42 },
     primaryDesc: 'vururken yavaşlamazsın, hasar hızınla artar (tam koşuda 2x)',
-    secondaryDesc: 'durduğun yerde 2 sn yerden çıkan kazıklar; tık anında çevredeki düşmanlar alanın merkezine çekilir' },
+    secondaryDesc: 'durduğun yerde 2 sn yerden kazık; tıkta çevredekiler merkeze çekilir' },
   /** Koşarken atış: yavaşlamaz, ok sayısı arrowMult katı, dar yelpaze. Geriye yaylım: atılırken arkaya takipli oklar. */
   horsebow: { label: 'Atlı Okçu', primary: 'Koşarken atış', secondary: 'Ok yağmuru + vakum', field: 'rain',
-    charge: 'Hızlı yaylım', chargeDesc: 'peş peşe 5 yaylım (her biri normal sol tık atışı, seviyenin iki katı ok), 0.12 sn arayla',
+    charge: 'Hızlı yaylım', chargeDesc: '5 yaylım, 0.12 sn arayla, seviyenin iki katı ok',
     attackControl: 1, arrowMult: 2, fanStep: 3, fanMax: 20, homingDeg: 8, vacuum: { radius: 2.4, life: 0.6, pull: 42 },
-    primaryDesc: 'atarken yavaşlamazsın ve seviyenin iki katı ok dar yelpazede gider',
-    secondaryDesc: 'durduğun yerde 2 sn ok yağmuru; tık anında çevredeki düşmanlar alanın merkezine çekilir' },
+    primaryDesc: 'atarken yavaşlamazsın, seviyenin iki katı ok dar yelpazede',
+    secondaryDesc: 'durduğun yerde 2 sn ok yağmuru; tıkta çevredekiler merkeze çekilir' },
 };
 
 /** Vuruşların hedefi itme çarpanı (asker ve kule vuruşları). 0 = itmez. */
@@ -288,8 +307,10 @@ export const RALLY = {
 };
 
 /**
- * Nüfus sınırı (her iki taraf için ayrı ayrı işler):
+ * Nüfus sınırı (her **oyuncu** için ayrı ayrı işler; bkz. players.js limitsFor):
  *  - `army`: sahadaki bütün asker türlerinin **toplamı** (mancınık dahil, kahraman hariç) en fazla bu kadar olur.
+ *    Takım oyununda oyuncu başı sınır min(army, armyTotal / oyuncu sayısı): 1v1'de 200, 3v3'te 100, 5v5'te 60; böylece
+ *    haritadaki toplam asker armyTotal'ı aşmaz.
  *    Sınır dolunca **asker çıkmaz**: emir sıraya bile alınmaz, sırada bekleyen emir de sınır açılana kadar bekletilir
  *    (bkz. production.js updateProduction).
  *  - `workers`: bütün işçi türlerinin (madenci / oduncu / çiftçi) **toplamı** en fazla bu kadar olur; tür başına ayrı
@@ -302,7 +323,7 @@ export const RALLY = {
  * kapanmaz, yeni işçi en kalabalık türün yerine geçer).
  * Sınıra takılınca yapı seçilip **yıkılabilir** (bilgi ızgarasındaki "Binayı yık" / "Kuleyi yık" düğmesi).
  */
-export const LIMITS = { army: 200, workers: 100, towers: 10, buildings: 10 };
+export const LIMITS = { army: 200, armyTotal: 600, workers: 100, towers: 10, buildings: 10 };
 
 /**
  * Üretim kuyruğu: bina başına en fazla bu kadar emir. Altın sıraya alınırken düşer, iptalde geri gelir.
