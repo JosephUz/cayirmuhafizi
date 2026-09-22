@@ -220,6 +220,8 @@ export function damageEntity(world, target, amount, nx, nz, knockback, source) {
   if (target.blocking && target.loadout.shield && frontal) { mult = BLOCK.damageMult; knockback *= BLOCK.knockMult; blocked = true; }
   else if (!target.isPlayer && target.loadout.shield && frontal) mult = SHIELD.passiveFrontMult;
 
+  // Kim vurdu: yürüyüşteki asker karşılık vermek için bunu okur (bkz. ai.js retaliator).
+  if (source && source !== target && source.faction !== target.faction) { target.lastHitBy = source; target.lastHitAt = world.time; }
   target.hp -= amount * mult;
   target.hitFlash = blocked ? COMBAT.hitFlash * 0.4 : COMBAT.hitFlash;
   if (COMBAT.stunOnHit > 0) target.stun = Math.max(target.stun, blocked ? COMBAT.stunOnHit * 0.3 : COMBAT.stunOnHit);
@@ -239,6 +241,8 @@ export function damageStructure(world, s, amount, source) {
   if (!s.alive) return;
   // Kahraman yapılara türünün asker hasarıyla vurur; seviye başına artar.
   if (isHeroUnit(source)) amount *= 1 + LEVEL.structureDamagePerLevel * ((source.level || 1) - 1);
+  // Kim vurdu: rakip kulesi / sancağı vurulunca ordusunu ve kahramanını savunmaya çağırır (bkz. updateEnemyDefense).
+  if (source && source.faction !== s.faction) { s.lastHitBy = source; s.lastHitAt = world.time; }
   // Kendi sancağın / kulen vuruldu: ekran kenarı kızarır, haritada kırmızı halka çıkar.
   if (s.faction === 'blue' && (s.kind === 'banner' || s.kind === 'tower') && world.onOwnStructureHit) world.onOwnStructureHit(s, source);
   // Kuleler ayaktayken sancağın canı azalmaz: vuruş iner, kalkana çarpar ve hasar vermez.

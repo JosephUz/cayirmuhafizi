@@ -3,7 +3,7 @@ import { giveOrder, updateUnit } from './ai.js';
 import { animateView, applyLevelUp, buildView, createEntity, makeStats, rebuildSwing, removeView, xpNeeded, kitKey } from './characters.js';
 import { burst, damageMult, fireArrow, healBubble, heroArrows, reachMult, ring, towerTarget, updateArrows, updateCombat, updateEffects, updateSpins, updateTornadoes } from './combat.js';
 import { ALERT, BUILD, BUILDINGS, CAMERA, CAMPS, COMBAT, DIFFICULTY, KIT, ECONOMY, ENEMY, ENEMY_HERO, HALF, HERO_UPGRADE, LEVEL, PHYSICS, POSITIONS, RESPAWN, SOLDIER_TYPES, TOWER, VISION, RALLY, heroConvertCost, respawnDelay } from './config.js';
-import { buildStructure, clearResources, createEconomy, createEnemyEconomy, dropLoot, dropXp, heroGather, hitNode, initBandits, initCamps, initResources, pickRadiusOf, updateCamps, updateEconomy, updateEnemyEconomy } from './economy.js';
+import { buildStructure, clearResources, createEconomy, createEnemyEconomy, dropLoot, dropXp, heroGather, hitNode, initBandits, initCamps, initResources, pickRadiusOf, updateCamps, updateEconomy, updateEnemyDefense, updateEnemyEconomy } from './economy.js';
 import { buildEnvironment } from './environment.js';
 import { createFog } from './fog.js';
 import { updateZones } from './abilities.js';
@@ -337,6 +337,7 @@ function step(world, dt) {
   updateCamps(world, dt);
   updateHeroRegen(world, dt);
   updateEconomy(world, dt);
+  updateEnemyDefense(world, dt);
   updateEnemyEconomy(world, dt);
   world.ui.update();
 }

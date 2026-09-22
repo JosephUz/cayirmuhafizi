@@ -134,6 +134,12 @@ soldaki düğmelerle (sancak menüsünde bina düğmesi yoktur), birim üretimi 
 Oyuncunun askerleri **kafasına göre hareket etmez**: durduğu yeri tutar, yalnızca yakına gelen düşmanla dövüşür,
 emirle yürür. Rakibin askerleri kendiliğinden hatlardan ilerler.
 
+**Yolda dövüş (iki taraf için de)**: bir yere yürüyen asker — ister toplanma bayrağına, ister emirle — yol boyunca
+**12 birim** çevresinde düşman görürse durup ona saldırır; **kendisine vuran** olursa (22 birime kadar, uzaktan atan
+okçu / mancınık dahil) 5 saniye boyunca ona döner ve karşılık verir. Dövüşe başladığı noktadan **16 birimden** fazla
+uzaklaşırsa hedefi bırakıp yoluna devam eder: kaçan düşmanın peşinde haritada sürüklenmez. Hedef düşünce yürüyüş
+kaldığı yerden sürer.
+
 ## Alt bant (Age of tarzı)
 
 - **Sol**: komut ızgarası; seçili yapının menüsünde **✖ Kapat** düğmesi seçimi ve menüyü kapatır (Esc ile aynı).
@@ -336,6 +342,14 @@ düşman yapıları bir kez görülünce haritada kalır. Minimap da aynı sisi 
 - Rakip **kule zinciriyle sana doğru ilerler**: taklit hedefleri tamamsa en ileri kulesinden sancağına doğru 16 birim adımla
   yeni kule diker (kahramanı yerine gider), sancağına 14 birim kalınca durur; senin kulelerinin menziline kule dikmez.
   Bunun için oduncu hedefine +3 ekler. Zincirdeki kuleleri kırmak için ordunu (kuleye 0.4x) yollamak gerekir.
+- **Kule savunması**: rakibin bir **kulesi ya da sancağı** vurulunca, o yapının **70 birim** çevresindeki askerleri
+  **ve kahramanı** savunmaya koşar; bu çağrı **saldırı düzenini bile keser** (yürüyen ordu geri döner). Savunma, son
+  vuruştan **10 saniye** sonra biter: asker oradaki nöbetine, kahraman işine döner. Akın eden haydutlar da bu savunmayı
+  tetikler.
+- **Haydut avı**: rakip kahraman boşta kaldıkça (savunma ve inşa görevi önce gelir) çevrede dolaşıp **60 birim**
+  içindeki en yakın **haydudu / kamp muhafızını** avlar; yakında haydut kalmayınca **120 birim** içindeki **haydut
+  kampını yıkmaya** gider. Bir av 30 saniye (kampta 60 sn) sürer, arada 35 saniye işine döner; canı %35'in altına
+  inince avı bırakır. Kamp 900 canlı olduğu için genelde birkaç sefer sürer.
 - Rakip de sisle oynar: yalnızca **gördüğü** yapılara saldırır. Rakip kahraman 20. saniyeden sonra her 40 saniyede keşfe çıkar
   (kule yerleri, üssün binaları, sancak), gördüğünü orduya bildirir; ordu bilinen hedef yoksa hat kulesi yerlerine yürüyerek keşfeder.
 - Rakip ordusu **en ileri kulesinin dibinde birikir** (sana en yakın kırmızı kule) ve saldırıya oradan çıkar; kule zinciri

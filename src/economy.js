@@ -22,7 +22,7 @@ export function createEconomy() {
   return eco;
 }
 export function createEnemyEconomy() {
-  return { ...ECONOMY.start, soldiersSpawned: 0, spawnTimer: 2, typeIndex: 0, attacking: false, launchSize: 0 };
+  return { ...ECONOMY.start, soldiersSpawned: 0, spawnTimer: 2, typeIndex: 0, attacking: false, launchSize: 0, defend: null, defendTimer: 0 };
 }
 const bagOf = (world, faction) => (faction === 'blue' ? world.eco : world.enemyEco);
 export function enemyMult(world) { return DIFFICULTY[world.difficulty].resourceMult; }
@@ -569,6 +569,34 @@ function updateEnemyStance(world, me, you) {
   if (me.army < you.army) { retreat('Rakip ordusu sayıca geride kaldı, kulelerine çekiliyor'); return; }
   const c = crowdAround(world, reds);
   if (c.blue > c.red * ENEMY_AI.crowdRatio) retreat(`Rakip ordusu kalabalık gördü (${c.blue} savaşçı), kulelerine çekiliyor`);
+}
+
+/**
+ * Bot savunması: kırmızı **kule** ya da **sancak** vurulunca en son vurulan yapı savunma noktası olur ve vuruş
+ * ENEMY_AI.defend.memory saniye hatırlanır. O noktanın recall yarıçapındaki askerler oraya `defend` işaretli move
+ * emriyle koşar — bu emir saldırı düzenini de keser (bkz. ai.js updateUnit) — ve **bot kahramanı** da oraya gider
+ * (bkz. ai.js updateGatherer). Yolda düşman görürlerse zaten durup dövüşürler.
+ */
+export function updateEnemyDefense(world, dt) {
+  const en = world.enemyEco, D = ENEMY_AI.defend;
+  if (en.defend && world.time - en.defend.at > D.memory) en.defend = null;
+  en.defendTimer = (en.defendTimer || 0) - dt;
+  if (en.defendTimer > 0) return;
+  en.defendTimer = D.check;
+  let hit = null;
+  for (const s of world.structures) {
+    if (!s.alive || s.faction !== 'red' || (s.kind !== 'tower' && s.kind !== 'banner')) continue;
+    if (world.time - (s.lastHitAt ?? -99) > D.memory) continue;
+    if (!hit || s.lastHitAt > hit.lastHitAt) hit = s;
+  }
+  if (!hit) return;
+  const fresh = !en.defend || en.defend.s !== hit;
+  en.defend = { s: hit, x: hit.pos.x, z: hit.pos.z, at: hit.lastHitAt };
+  const near = e => Math.hypot(e.pos.x - hit.pos.x, e.pos.z - hit.pos.z);
+  const away = world.entities.filter(e => e.alive && e.faction === 'red' && !e.isHero && !e.isWorker && e.brain
+    && !(e.brain.order && e.brain.order.defend) && near(e) < D.recall && near(e) > D.hold);
+  if (away.length) giveOrder(world, away, { kind: 'move', x: hit.pos.x, z: hit.pos.z, defend: true });
+  if (fresh) world.ui.say(`Rakip ${hit.kind === 'tower' ? 'kulesi' : 'sancağı'} saldırı altında: ordusu ve kahramanı savunmaya koşuyor`, 2400);
 }
 
 /**

@@ -319,6 +319,13 @@ export const ARMY = {
   aggro: 16,
   /** Bekleyen / emirli asker durduğu noktadan bu kadar uzaklaşmaz; bu yarıçapa girince varmış sayılır. */
   leash: 14, arrive: 3.0,
+  /**
+   * **Yolda dövüş**: bir yere yürüyen asker (emirle ya da toplanma noktasına) `sight` yarıçapında düşman görürse
+   * durup saldırır; kendisine vuran olursa `retaliate` saniye boyunca, `retaliateRange` uzaklığa kadar ona karşılık
+   * verir (uzaktan vuran okçu / mancınık da sayılır). Dövüşe başladığı noktadan `chase` birimden fazla uzaklaşırsa
+   * hedefi bırakıp işine döner: kaçan düşmanın peşinde haritada sürüklenmez.
+   */
+  sight: 12, retaliate: 5, retaliateRange: 22, chase: 16,
 };
 
 /**
@@ -455,6 +462,20 @@ export const ENEMY_AI = {
   rallyDist: 12, towerOffset: 3,
   /** Saldırıda olmayan asker toplanma noktasından bu kadar uzaksa geri çağrılır (kule zinciri ilerleyince öne toplanırlar). */
   regroupDist: 8,
+  /**
+   * **Kule savunması**: rakibin kulesi ya da sancağı vurulunca (vuruş `memory` saniye hatırlanır) o yapının
+   * `recall` yarıçapındaki askerleri **ve rakip kahraman** oraya koşar. Savunma emri saldırı düzenini de keser:
+   * yürüyen ordu geri döner. `hold`: yapıya bu kadar yaklaşan asker yerinde savunmaya geçer (kahraman için
+   * `heroHold`); `check`: savunma kararı bu sıklıkta (sn) yenilenir.
+   */
+  defend: { memory: 10, recall: 70, hold: 6, heroHold: 7, check: 1 },
+  /**
+   * **Haydut avı**: rakip kahraman boşta kaldıkça `radius` yarıçapındaki en yakın haydudu / kamp muhafızını avlar;
+   * yakında haydut kalmayınca `campRadius` içindeki haydut kampını yıkmaya gider. `first`: ilk avın zamanı,
+   * `every`: avlar arası bekleme, `ttl`: bir avın en uzun süresi (sn; kampı yıkmak uzun sürdüğü için kampta
+   * `campTtl`). Canı ENEMY_HERO.fightHpRatio'nun altına inince av biter, kahraman üssüne döner.
+   */
+  hunt: { radius: 60, campRadius: 120, first: 30, every: 35, ttl: 30, campTtl: 60 },
   /** Rakip kahramanın keşfi: ilk keşif, keşifler arası süre, bir keşfin en uzun süresi (sn). Rakip yalnızca gördüğü yapılara saldırır. */
   scoutFirst: 20, scoutEvery: 40, scoutTime: 30,
   /** Ek bina yerleri (sırayla, boş olan ilki). Ek kuleler yol üstüne kurulur (bkz. creep), sabit yer listesi yok. */
