@@ -2,7 +2,7 @@ import * as T from '/vendor/three.module.js';
 import { giveOrder, updateUnit } from './ai.js';
 import { animateView, applyLevelUp, buildView, createEntity, makeStats, rebuildSwing, removeView, xpNeeded, kitKey } from './characters.js';
 import { burst, damageMult, fireArrow, healBubble, heroArrows, reachMult, ring, towerTarget, updateArrows, updateCombat, updateEffects, updateSpins, updateTornadoes } from './combat.js';
-import { ALERT, BUILD, BUILDINGS, CAMERA, CAMPS, COMBAT, DIFFICULTY, KIT, ECONOMY, ENEMY, ENEMY_HERO, HERO_UPGRADE, LEVEL, PHYSICS, POSITIONS, RESPAWN, SOLDIER_TYPES, TEAMS, TOWER, VISION, RALLY, heroConvertCost, respawnDelay } from './config.js';
+import { ALERT, BUILD, BUILDINGS, CAMERA, CAMPS, COMBAT, DIFFICULTY, KIT, ECONOMY, ENEMY, ENEMY_HERO, HERO_UPGRADE, LEVEL, PERF, PHYSICS, POSITIONS, RESPAWN, SOLDIER_TYPES, TEAMS, TOWER, VISION, RALLY, heroConvertCost, respawnDelay } from './config.js';
 import { buildStructure, clearResources, dropLoot, dropXp, heroGather, hitNode, initBandits, initCamps, initResources, pickRadiusOf, updateBots, updateCamps, updateEconomy } from './economy.js';
 import { buildEnvironment, computeLayout } from './environment.js';
 import { createFog } from './fog.js';
@@ -26,21 +26,39 @@ export async function start(root) {
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
   renderer.outputColorSpace = T.SRGBColorSpace;
   view.insertBefore(renderer.domElement, view.firstChild);
-  renderer.domElement.setAttribute('aria-label', 'Ağaçlar, tarlalar ve hayvanlarla çevrili izometrik savaş alanı');
+  renderer.domElement.setAttribute('aria-label', 'Ağaçlar ve tarlalarla çevrili izometrik savaş alanı');
   // İki kamera: izometrik (ortografik) ve omuz üstü (perspektif), V ile geçilir; world.camera etkin olandır.
   const isoCamera = new T.OrthographicCamera(-20, 20, 15, -15, 0.1, 160);
   const tpsCamera = new T.PerspectiveCamera(CAMERA.tps.fov, 1, 0.1, 420);
   let camera = isoCamera;
 
   scene.add(new T.HemisphereLight('#fff3cf', '#65704a', 2.2));
+  const SUN = new T.Vector3(-72, 140, 48);
   const sun = new T.DirectionalLight('#ffe6b0', 2.6);
-  sun.position.set(-72, 140, 48); sun.castShadow = true;
-  sun.shadow.mapSize.set(4096, 4096);
-  sun.shadow.normalBias = 0.06; scene.add(sun);
-  /** Gölge kamerası arenayı tam kaplar: küçük arenada gölgeler daha keskin olur. */
-  const fitShadow = half => {
-    Object.assign(sun.shadow.camera, { left: -half - 8, right: half + 8, top: half + 8, bottom: -half - 8, near: 1, far: 480 });
+  sun.position.copy(SUN); sun.castShadow = true;
+  sun.shadow.mapSize.set(PERF.shadowMapSize, PERF.shadowMapSize);
+  sun.shadow.normalBias = 0.06; scene.add(sun); scene.add(sun.target);
+  /**
+   * Gölge kamerası arenayı değil **kameranın baktığı yerin çevresini** kaplar (PERF.shadowBox): birim başına daha çok
+   * gölge pikseli düşer ve ekran dışındaki yüzlerce birim gölge geçişinde hiç çizilmez. Kutu her karede bakılan noktayı
+   * izler (bkz. followShadow); kamera modu değişince boyutu değişir.
+   */
+  let shadowBox = PERF.shadowBox.iso;
+  const fitShadow = () => {
+    shadowBox = PERF.shadowBox[world.cam] || PERF.shadowBox.iso;
+    Object.assign(sun.shadow.camera, { left: -shadowBox, right: shadowBox, top: shadowBox, bottom: -shadowBox, near: 1, far: 480 });
     sun.shadow.camera.updateProjectionMatrix();
+  };
+  // Işık uzayı eksenleri: kutu hep tam gölge pikseli adımlarıyla kayar, yoksa kamera kayarken gölge kenarları titrer.
+  const lightZ = SUN.clone().normalize(), lightX = new T.Vector3(0, 1, 0).cross(lightZ).normalize(), lightY = lightZ.clone().cross(lightX);
+  const shadowCenter = new T.Vector3();
+  const followShadow = (x, z) => {
+    const texel = (2 * shadowBox) / PERF.shadowMapSize;
+    shadowCenter.set(x, 0, z);
+    const u = shadowCenter.dot(lightX), v = shadowCenter.dot(lightY);
+    shadowCenter.addScaledVector(lightX, Math.round(u / texel) * texel - u).addScaledVector(lightY, Math.round(v / texel) * texel - v);
+    sun.target.position.copy(shadowCenter);
+    sun.position.copy(shadowCenter).add(SUN);
   };
 
   const world = {
@@ -63,6 +81,10 @@ export async function start(root) {
   };
   // structures.js'in eski alanı: seçili yapı.
   Object.defineProperty(world, 'selected', { get: () => world.sel.structure, set: v => { world.sel.structure = v; } });
+  /** (x, z) ekranda (pay dahil) mı? Efektler ve eşyalar ekran dışında yaratılmaz / çizilmez; her karede yenilenir (bkz. updateViewBounds). */
+  world.inView = () => true;
+  /** Engel listesinin sürümü: fizik ızgarası yalnızca yapı kurulup yıkılınca yeniden kurulur (bkz. structures.js). */
+  world.obstacleVersion = 0;
   world.fog = createFog(world);
 
   // Seçim halkası (yapı), inşa hayaleti, emir işareti.
@@ -205,6 +227,7 @@ export async function start(root) {
     camera = tps ? tpsCamera : isoCamera; world.camera = camera;
     root.classList.toggle('tps', tps);
     world.fog.setPerspective(tps);
+    fitShadow();
     // Perspektifte ufuk pusa gömülür: uzaktaki ağaçlar ve sis düzleminin kenarı arka plan rengine karışır.
     scene.fog.near = tps ? CAMERA.tps.fogNear : 70; scene.fog.far = tps ? CAMERA.tps.viewDist : 125;
     if (tps) {
@@ -227,8 +250,8 @@ export async function start(root) {
     onLeft: (x, z) => { if (world.mode === 'aoe') world.camTarget.set(x, 0, z); else world.ui.say('Kamera kahramanı izler', 1200); },
     onRight: () => {},
   });
-  /** Arena kurulunca: minimap zemini ve gölge kamerası yeni boyuta oturur. */
-  world.onArena = () => { minimap.rebuild(); fitShadow(world.half); };
+  /** Arena kurulunca: minimap zemini yeni boyuta oturur, gölge kutusu kamera moduna göre kurulur. */
+  world.onArena = () => { minimap.rebuild(); fitShadow(); };
 
   function resize() {
     const w = view.clientWidth, h = view.clientHeight;
@@ -260,12 +283,17 @@ export async function start(root) {
     const sees = world.cam === 'tps'
       ? (x, z) => (x - hero.pos.x) ** 2 + (z - hero.pos.z) ** 2 <= vd2
       : (x, z) => fog.isVisible(x, z);
+    // Ekran dışı eleme: ekranın zemin izdüşümünün (+ pay) dışındaki birim ve eşya çizilmez, canlandırılmaz, matrisi
+    // güncellenmez (CulledGroup). 5v5'te yüzlerce birimin çoğu ekran dışındadır.
+    const inView = updateViewBounds(world, hero);
     for (const e of world.entities) {
-      animateView(e, animDt, camera.quaternion);
       const v = e.view; if (!v) continue;
+      const shown = inView(e.pos.x, e.pos.z, 0) && (e.faction === 'blue' || sees(e.pos.x, e.pos.z));
+      if (!shown) { v.g.visible = false; v.hpBar.visible = false; continue; }
+      animateView(e, animDt, camera.quaternion);
       v.sel.visible = world.sel.units.has(e);
-      if (e.faction !== 'blue' && !sees(e.pos.x, e.pos.z)) { v.g.visible = false; if (v.hpBar) v.hpBar.visible = false; }
     }
+    for (const it of world.items) it.g.visible = inView(it.pos.x, it.pos.z, 0);
     for (const s of world.structures) if (s.faction !== 'blue' && !s.seen && sees(s.pos.x, s.pos.z)) { s.seen = true; s.g.visible = true; }
     updateStructureBars(world, camera.quaternion);
     world.ui.updateCampLabels();
@@ -284,6 +312,7 @@ export async function start(root) {
       camera.position.set(look.x + 24, 29, look.z + 24);
       camera.lookAt(look.x, 0, look.z);
     }
+    followShadow(look.x, look.z);
     renderer.render(scene, camera);
     if ((mapTick++ & 1) === 0) minimap.draw();
   });
@@ -333,7 +362,7 @@ function step(world, dt) {
     aliveList.length = 0;
     for (const e of world.entities) if (e.alive) aliveList.push(e);
     resolveEntityCollisions(aliveList);
-    resolveObstacleCollisions(aliveList, world.obstacles);
+    resolveObstacleCollisions(aliveList, world.obstacles, world.obstacleVersion);
     clampBounds(world.entities, world.half);
     updateCombat(world, h);
     updateTowers(world, h);
@@ -352,7 +381,29 @@ function step(world, dt) {
   updateHeroRegen(world, dt);
   updateEconomy(world, dt);
   updateBots(world, dt);
-  world.ui.update();
+  // HUD ve komut ızgarası her karede değil PERF.uiEvery sn'de bir yenilenir (DOM yazımı ve sayımlar); tıklamalar ui.update()'i doğrudan çağırır.
+  world.uiTimer = (world.uiTimer || 0) - dt;
+  if (world.uiTimer <= 0) { world.uiTimer = PERF.uiEvery; world.ui.update(); }
+}
+
+/**
+ * Görüş sınırı: izometrikte ekran köşelerinin zemin izdüşümünün çevreleyen kutusu (+ PERF.cullMargin), omuz üstünde
+ * kahraman çevresinde görüş mesafesi. Döndürdüğü (ve world.inView'a yazdığı) süzgeç (x, z, pad) sorar.
+ */
+const viewBox = { minX: -Infinity, maxX: Infinity, minZ: -Infinity, maxZ: Infinity };
+const boxView = (x, z, pad = 0) => x >= viewBox.minX - pad && x <= viewBox.maxX + pad && z >= viewBox.minZ - pad && z <= viewBox.maxZ + pad;
+const tpsC = { x: 0, z: 0, r: 0 };
+const tpsView = (x, z, pad = 0) => (x - tpsC.x) ** 2 + (z - tpsC.z) ** 2 <= (tpsC.r + pad) ** 2;
+const always = () => true;
+function updateViewBounds(world, hero) {
+  const M = PERF.cullMargin;
+  if (world.cam === 'tps') { tpsC.x = hero.pos.x; tpsC.z = hero.pos.z; tpsC.r = CAMERA.tps.viewDist + M; return (world.inView = tpsView); }
+  const c = world.viewCorners && world.viewCorners();
+  if (!c) return (world.inView = always);
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  for (const p of c) { if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x; if (p.z < minZ) minZ = p.z; if (p.z > maxZ) maxZ = p.z; }
+  viewBox.minX = minX - M; viewBox.maxX = maxX + M; viewBox.minZ = minZ - M; viewBox.maxZ = maxZ + M;
+  return (world.inView = boxView);
 }
 
 /** Seçim halkası seçili yapıda; inşa hayaleti imleçte, yer uygunsa yeşil, değilse kırmızı. */

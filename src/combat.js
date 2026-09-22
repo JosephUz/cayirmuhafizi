@@ -1,6 +1,6 @@
 import * as T from '/vendor/three.module.js';
 import { ballGeo, box, mat, mesh } from './builders.js';
-import { ANTI, BLOCK, COMBAT, HERO_KNOCKBACK, HOMING_TURN, KNOCKBACK_SCALE, LEVEL, SHIELD, SPIN, TORNADO, TOWER, loadoutKey } from './config.js';
+import { ANTI, BLOCK, COMBAT, HERO_KNOCKBACK, HOMING_TURN, KNOCKBACK_SCALE, LEVEL, PERF, SHIELD, SPIN, TORNADO, TOWER, loadoutKey } from './config.js';
 import { heroVolley } from './abilities.js';
 import { dashMult, isEvading, levelReachMult, reachOf, chargeMult } from './characters.js';
 import { applyImpulse } from './physics.js';
@@ -381,7 +381,8 @@ export function updateArrows(world, dt) {
       const p = a.g.position;
       for (const t of world.entities) {
         if (!t.alive || t.faction === a.faction || t.dodgeTimer > 0 || t.invuln > 0) continue;
-        if (Math.hypot(p.x - t.pos.x, p.z - t.pos.z) > t.radius + 0.25) continue;
+        const dx = p.x - t.pos.x, dz = p.z - t.pos.z, rr = t.radius + 0.25;
+        if (dx * dx + dz * dz > rr * rr) continue;
         // Yerdeyken ok göğüs hizasında; zıplayan karakter oku altında bırakır.
         if (t.jumpY > COMBAT.jumpDodgeHeight) continue;
         const len = Math.hypot(a.vel.x, a.vel.z);
@@ -408,6 +409,11 @@ export function updateArrows(world, dt) {
 // ---------- Parçacık efektleri ----------
 
 export function burst(world, x, y, z, color, count = 6, size = 0.1) {
+  // Ekran dışındaki parçacık hiç yaratılmaz (kimse görmez); yoğun savaşta toplam parçacık PERF.effectsMax'ı aşmaz.
+  if (world.inView && !world.inView(x, z, 2)) return;
+  const room = PERF.effectsMax - world.effects.length;
+  if (room <= 0) return;
+  if (count > room) count = room;
   for (let i = 0; i < count; i++) {
     const m = new T.Mesh(ballGeo, mat(color));
     m.position.set(x, y, z); m.scale.setScalar(size); m.castShadow = false;
@@ -596,9 +602,11 @@ export function healBubble(world, x, y, z) {
   world.effects.push({ m: g, life: 0.95, maxLife: 0.95, rise: rrand(1.3, 2.1), mats: [bodyMat, crossMat] });
 }
 
-/** Yere paralel genişleyen halka (yetenek efektleri). */
+/** Yere paralel genişleyen halka (yetenek efektleri). Geometri paylaşılır (her halkada yeniden kurulup GPU'ya yüklenmez); ekran dışında yaratılmaz. */
+const ringGeo = new T.RingGeometry(0.7, 1, 40);
 export function ring(world, x, z, color, radius, life = 0.5) {
-  const m = new T.Mesh(new T.RingGeometry(0.7, 1, 40), new T.MeshBasicMaterial({ color, transparent: true, opacity: 0.7, side: T.DoubleSide, depthWrite: false }));
+  if (world.inView && !world.inView(x, z, radius)) return;
+  const m = new T.Mesh(ringGeo, new T.MeshBasicMaterial({ color, transparent: true, opacity: 0.7, side: T.DoubleSide, depthWrite: false }));
   m.rotation.x = -Math.PI / 2; m.position.set(x, 0.08, z); m.scale.setScalar(0.3);
   world.scene.add(m);
   world.effects.push({ m, life, maxLife: life, ring: radius });
@@ -626,7 +634,7 @@ export function updateEffects(world, dt) {
     if (f.ring) {
       const k = 1 - Math.max(0, f.life) / f.maxLife;
       f.m.scale.setScalar(0.3 + k * f.ring); f.m.material.opacity = (1 - k) * 0.7;
-      if (f.life <= 0) { world.scene.remove(f.m); f.m.material.dispose(); f.m.geometry.dispose(); fx.splice(i, 1); }
+      if (f.life <= 0) { world.scene.remove(f.m); f.m.material.dispose(); fx.splice(i, 1); }
       continue;
     }
     f.m.position.addScaledVector(f.v, dt); f.v.y -= dt * 8;

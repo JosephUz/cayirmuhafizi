@@ -91,11 +91,14 @@ export function cancelQueued(world, building, index) {
 
 /** Sıraların ilerlemesi; süre dolunca birim çıkar. */
 export function updateProduction(world, dt) {
+  // Sahadaki asker sayısı her bina için değil, sahip başına bir kez sayılır (5v5'te onlarca bina x yüzlerce birim).
+  const field = new Map();
+  const fieldOf = owner => { let n = field.get(owner); if (n == null) { n = fieldArmy(world, owner); field.set(owner, n); } return n; };
   for (const s of world.structures) {
     if (!s.alive || !s.ready || !s.queue.length) { s.progress = 0; continue; }
     const type = typeOf(s.queue[0]);
     // Asker sınırı dolduysa üretim durur: emir sırada bekler, asker ölüp yer açılınca hemen çıkar.
-    if (!type.worker && fieldArmy(world, s.owner) >= world.limits.army) {
+    if (!type.worker && fieldOf(s.owner) >= world.limits.army) {
       s.progress = Math.min(s.progress + dt, type.train);
       s.holdMsg = (s.holdMsg || 0) - dt;
       if (s.owner === world.me && s.holdMsg <= 0) { s.holdMsg = 6; world.ui.say(`Asker sınırı dolu (${world.limits.army}): üretim bekliyor`, 1800); }
@@ -106,6 +109,7 @@ export function updateProduction(world, dt) {
     s.progress = 0; s.queue.shift();
     const e = spawnUnit(world, type.key, s.owner, s);
     if (!e) continue;
+    if (!e.isWorker) field.set(s.owner, fieldOf(s.owner) + 1);
     // Çıkan asker sınıfının toplanma yerine (senin), botta ordu toplanma noktasına yürür.
     if (!e.isWorker) { const r = s.owner === world.me ? world.rally[classOf(type)] : !s.owner.human ? botRally(world, s.owner) : null; if (r) giveOrder(world, [e], { kind: 'move', x: r.x, z: r.z }); }
     // İşçi sınırı doluysa yerine geçtiği türü de söyle.

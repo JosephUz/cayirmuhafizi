@@ -1,5 +1,5 @@
 import * as T from '/vendor/three.module.js';
-import { ball, box, mesh, removeGroup } from './builders.js';
+import { CulledGroup, ball, box, mesh, removeGroup } from './builders.js';
 import { applyLevelUp, buildView, createEntity } from './characters.js';
 import { burst, ring } from './combat.js';
 import { ANTI, BANDITS, BUILD, BUILDINGS, CAMPS, ECONOMY, ENEMY_AI, ENEMY_HERO, LEVEL, POSITIONS, SIEGE, SOLDIER_BASE, SOLDIER_TYPES, TOWER, VISION, WORKER } from './config.js';
@@ -39,7 +39,7 @@ export function clearResources(world) {
 
 /** Çalışma yerinden çevreye bir ürün fırlatır; yere düşünce alınabilir. */
 export function produceItem(world, spot, claimedBy = null) {
-  const g = new T.Group(); g.position.set(spot.x, 0.6, spot.z); g.rotation.y = rrand(0, 6); world.scene.add(g);
+  const g = new CulledGroup(); g.position.set(spot.x, 0.6, spot.z); g.rotation.y = rrand(0, 6); world.scene.add(g);
   if (spot.kind === 'gold') {
     ball(g, '#f3c53d', 0, 0.28, 0, 0.32, 0.26, 0.3); ball(g, '#e2ad2c', 0.25, 0.2, 0.15, 0.2, 0.18, 0.2); ball(g, '#f7d76a', -0.2, 0.18, -0.15, 0.16);
   } else if (spot.kind === 'wood') {
@@ -58,9 +58,14 @@ export function produceItem(world, spot, claimedBy = null) {
   const glow = mesh(g, new T.RingGeometry(0.4, 0.5, 20), itemColor(spot.kind), 0, 0.03, 0);
   glow.rotation.x = -Math.PI / 2; glow.castShadow = false;
   glow.material = new T.MeshBasicMaterial({ color: glow.material.color.clone(), transparent: true, opacity: 0.35, side: T.DoubleSide });
+  // Yerdeki küçük eşya gölge atmaz (5v5'te yüzlercesi birikir; gölge geçişinden düşer).
+  g.traverse(o => { o.castShadow = false; });
   const a = rrand(0, Math.PI * 2), d = rrand(ECONOMY.work.throwMin, ECONOMY.work.throwMax);
+  const L = ECONOMY.loot;
   const item = {
     kind: spot.kind, owner: spot.owner || null, amount: spot.amount || 0, pos: g.position, g, claimedBy, taken: false, phase: rrand(0, 6),
+    // Ömür: ganimet (sahipsiz yiyecek / odun) kısa, exp küresi orta, işçi ürünü uzun; son saniyede küçülerek kaybolur.
+    ttl: spot.kind === 'xp' ? L.xpTtl : spot.owner ? L.ownedTtl : L.ttl,
     fly: { fx: spot.x, fz: spot.z, tx: spot.tx ?? spot.x + Math.cos(a) * d, tz: spot.tz ?? spot.z + Math.sin(a) * d, t: 0, dur: 0.45 },
   };
   burst(world, spot.x, 1, spot.z, itemColor(spot.kind), 5, 0.08);
@@ -96,7 +101,7 @@ function removeItem(world, item) {
 
 // ---------- Kaynak etkileri ----------
 
-const near = (a, b, r) => Math.hypot(a.x - b.x, a.z - b.z) < r;
+const near = (a, b, r) => { const dx = a.x - b.x, dz = a.z - b.z; return dx * dx + dz * dz < r * r; };
 
 /** Kahramanın bir kaynak çıkarışında düşen ürün sayısı: her LEVEL.gatherEvery seviyede bir fazla. */
 export const heroGather = e =>
@@ -175,6 +180,10 @@ export function updateEconomy(world, dt) {
   const gatherers = world.entities.filter(e => e.alive && (e.isHero || e.isWorker));
   for (let i = world.items.length - 1; i >= 0; i--) {
     const it = world.items[i];
+    // Toplanmayan eşya ömrü dolunca kaybolur (bkz. ECONOMY.loot.ttl); son saniyede küçülür.
+    it.ttl -= dt;
+    if (it.ttl <= 0) { removeItem(world, it); continue; }
+    if (it.ttl < 1 && !it.fly) it.g.scale.setScalar(0.15 + 0.85 * it.ttl);
     if (it.fly) continue;
     if (p.alive && (it.owner === me || it.owner === null) && near(it.pos, p.pos, p.radius + pickRadiusOf(p))) {
       // Yiyecek de yalnızca envantere girer: kahramanın canı yalnızca sancak alanında yenilenir.

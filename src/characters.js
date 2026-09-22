@@ -1,5 +1,5 @@
 import * as T from '/vendor/three.module.js';
-import { ball, box, clamp, makeHpBar, mesh, ownMat, removeGroup, setHpBar } from './builders.js';
+import { CulledGroup, ball, box, clamp, makeHpBar, mesh, ownMat, removeGroup, setHpBar } from './builders.js';
 import { COLORS, COMBAT, DASH, HERO, HORSE, KIT, LEVEL, PLAYER_BASE, SHIELD, SOLDIER_BASE, SPRINT_MULT, TOWER, WEAPONS } from './config.js';
 
 let nextId = 1;
@@ -157,7 +157,8 @@ export function buildView(scene, e) {
   const tunic = beast ? COLORS.beast : e.isWorker ? (blue ? '#5b7f9a' : '#9a6a5b') : blue ? (e.isPlayer ? COLORS.bluePlayer : COLORS.blue) : weapon === 'bow' ? COLORS.redBow : COLORS.red;
   const tunicMat = ownMat(tunic);
 
-  const g = new T.Group(), body = new T.Group();
+  // Kök CulledGroup: ekran dışında (bkz. main.js görüş elemesi) gizlenir ve matrisleri güncellenmez.
+  const g = new CulledGroup(), body = new T.Group();
   g.add(body); body.position.y = horse ? 0.78 : 0;
   box(body, tunicMat, 0, 1, 0, 0.62, 0.72, 0.36);
   // Kahraman kafası takım rengini söyler: senin takımınınki sarı, rakip takımınki kırmızı (müttefik bot kahramanı da sarı).

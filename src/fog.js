@@ -38,6 +38,8 @@ export function createFog(world) {
   const fog = {
     N, W, cell, explored, visible, plane,
     enabled: true,
+    /** Her yeniden hesaplamada artar: minimap sis katmanını yalnızca bu değişince yeniden çizer. */
+    version: 0,
     /** Omuz üstü kamerada karartma düzlemi kapanır: görünürlük 3B görüş mesafesiyle (sahne pusu) işler, ızgara minimap için sürer. */
     setPerspective(on) { plane.visible = !on; },
     /** Görüşü yeniden hesaplar; aralık dolmadıysa false döner. */
@@ -61,7 +63,8 @@ export function createFog(world) {
         if (!s.alive || s.faction !== 'blue' || s.seenByRed) continue;
         for (const e of world.entities) {
           if (!e.alive || e.faction !== 'red') continue;
-          if (Math.hypot(e.pos.x - s.pos.x, e.pos.z - s.pos.z) <= (e.vision || VISION.soldier) + s.radius) { s.seenByRed = true; break; }
+          const dx = e.pos.x - s.pos.x, dz = e.pos.z - s.pos.z, r = (e.vision || VISION.soldier) + s.radius;
+          if (dx * dx + dz * dz <= r * r) { s.seenByRed = true; break; }
         }
         if (!s.seenByRed) for (const r of world.structures) {
           if (!r.alive || r.faction !== 'red') continue;
@@ -75,7 +78,7 @@ export function createFog(world) {
         data[o] = 8; data[o + 1] = 12; data[o + 2] = 10;
         data[o + 3] = visible[k] ? 0 : explored[k] ? ea : 255;
       }
-      tex.needsUpdate = true;
+      tex.needsUpdate = true; fog.version++;
       return true;
     },
     isVisible(x, z) { const k = idx(x, z); return k >= 0 && visible[k] === 1; },

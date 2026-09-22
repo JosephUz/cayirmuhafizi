@@ -97,21 +97,38 @@ function updateAggressive(world, e, dt) {
       if (d < bd) { bd = d; best = t; }
     }
     if (best) { b.target = best; b.fightAt = { x: e.pos.x, z: e.pos.z }; }
+    // Yapı hedefi de aynı aralıkta seçilir (her adımda bütün yapıları taramak yerine).
+    b.structTarget = best ? null : nearestStructure(world, e, anchor, R);
   }
   const target = b.target && b.target.alive && (inZone(b.target) || withinChase(e, b.target)) ? b.target : null;
   if (target) { e.aim.copy(target.pos); engage(world, e, target.pos, target.radius, dt); return; }
-  const s = nearestStructure(world, e, anchor, R);
+  const s = b.structTarget && b.structTarget.alive ? b.structTarget : null;
   if (s) { e.aim.copy(s.pos); engage(world, e, s.pos, s.radius, dt); return; }
   if (distXZ(e.pos, anchor) > ARMY.arrive) { steerTo(e, anchor.x, anchor.z, dt, 1); avoidStuck(e, dt); } else e.moveDir.set(0, 0, 0);
 }
 
 /** Bu nokta ayakta bir **rakip** kulenin menzilinde (pay dahil) mi? Bot askerleri oraya girmez. */
 export function inEnemyTowerRange(world, faction, pos, margin = ENEMY_AI.towerMargin) {
-  for (const s of world.structures) {
-    if (!s.alive || s.kind !== 'tower' || s.faction === faction) continue;
-    if (distXZ(pos, s.pos) <= TOWER.range + margin) return true;
+  const r = TOWER.range + margin, r2 = r * r;
+  for (const s of enemyTowers(world, faction)) {
+    const dx = pos.x - s.pos.x, dz = pos.z - s.pos.z;
+    if (dx * dx + dz * dz <= r2) return true;
   }
   return false;
+}
+/** Takım için ayakta rakip kuleler; aynı simülasyon adımında (world.time) bir kez çıkarılır (yüzlerce asker sorar). */
+const towerCache = { world: null, time: -1, lists: null };
+function enemyTowers(world, faction) {
+  if (towerCache.world !== world || towerCache.time !== world.time) {
+    towerCache.world = world; towerCache.time = world.time;
+    const lists = { blue: [], red: [], beast: [] };
+    for (const s of world.structures) {
+      if (!s.alive || s.kind !== 'tower') continue;
+      for (const f in lists) if (f !== s.faction) lists[f].push(s);
+    }
+    towerCache.lists = lists;
+  }
+  return towerCache.lists[faction] || towerCache.lists.beast;
 }
 
 /**
@@ -121,23 +138,33 @@ export function inEnemyTowerRange(world, faction, pos, margin = ENEMY_AI.towerMa
 function updateAutonomous(world, e, dt) {
   const b = e.brain;
   b.timer -= dt; b.retarget -= dt;
-  if (b.retarget <= 0) { b.retarget = 0.3; b.target = retaliator(world, e) || findTarget(world, e, null); }
-  const target = b.target && b.target.alive ? b.target : null;
-  if (target) { e.aim.copy(target.pos); engage(world, e, target.pos, target.radius, dt); return; }
-  if (!e.isSiege) {
-    // Mancınığa eşlik: ordunun en yakın mancınığının yanında dur.
-    let cat = null, cd = Infinity;
-    for (const o of world.entities) { if (!o.alive || o.faction !== e.faction || !o.isSiege) continue; const d = distXZ(e.pos, o.pos); if (d < cd) { cd = d; cat = o; } }
-    if (cat) {
-      if (cd > ENEMY_AI.escortDist) { steerTo(e, cat.pos.x, cat.pos.z, dt, 1); avoidStuck(e, dt); } else e.moveDir.set(0, 0, 0);
-      return;
+  if (b.retarget <= 0) {
+    b.retarget = 0.3; b.target = retaliator(world, e) || findTarget(world, e, null);
+    // Boşta planı (eşlik edilecek mancınık, bilinen yapı, keşif noktası) her adımda değil burada, hedef aramayla birlikte
+    // seçilir: yüzlerce bot askerinin her adımda bütün birim ve yapıları taraması 5v5'i tıkıyordu.
+    b.escort = null; b.structTarget = null; b.march = null;
+    if (!b.target) {
+      if (!e.isSiege) {
+        // Mancınığa eşlik: ordunun en yakın mancınığının yanında dur.
+        let cat = null, cd = Infinity;
+        for (const o of world.entities) { if (!o.alive || o.faction !== e.faction || !o.isSiege) continue; const d = distXZ(e.pos, o.pos); if (d < cd) { cd = d; cat = o; } }
+        b.escort = cat;
+      }
+      // Yalnızca görülmüş (bilinen) rakip yapılara saldırır; asker kuleye vurmaz ve kule menziline girmez.
+      if (!b.escort) { b.structTarget = nearestStructure(world, e); if (!b.structTarget) b.march = nextMarchPoint(world, e); }
     }
   }
-  // Yalnızca görülmüş (bilinen) rakip yapılara saldırır; asker kuleye vurmaz ve kule menziline girmez.
-  const s = nearestStructure(world, e);
+  const target = b.target && b.target.alive ? b.target : null;
+  if (target) { e.aim.copy(target.pos); engage(world, e, target.pos, target.radius, dt); return; }
+  const cat = b.escort && b.escort.alive ? b.escort : null;
+  if (cat) {
+    if (distXZ(e.pos, cat.pos) > ENEMY_AI.escortDist) { steerTo(e, cat.pos.x, cat.pos.z, dt, 1); avoidStuck(e, dt); } else e.moveDir.set(0, 0, 0);
+    return;
+  }
+  const s = b.structTarget && b.structTarget.alive ? b.structTarget : null;
   if (s) { e.aim.copy(s.pos); engage(world, e, s.pos, s.radius, dt); return; }
   // Bilinen hedef yok: rakip kule yerlerine, sonra en yakın rakip sancağa doğru yürüyerek keşfet (kule menzilinin dışında kalır).
-  const p = nextMarchPoint(world, e);
+  const p = b.march;
   if (!p || (!e.isSiege && inEnemyTowerRange(world, e.faction, e.pos, ENEMY_AI.towerMargin - 1))) { e.moveDir.set(0, 0, 0); return; }
   steerTo(e, p.x, p.z, dt, 1); avoidStuck(e, dt);
 }
@@ -220,14 +247,20 @@ const knownTo = (e, st) => (e.faction === 'blue' ? st.seen : st.seenByRed);
  */
 function nearestStructure(world, e, anchor = null, radius = Infinity) {
   let tower = null, td = Infinity, other = null, od = Infinity, banner = null, bnd = Infinity;
+  const bot = botSoldier(e) && !e.isSiege;
   for (const st of world.structures) {
     if (!st.alive || st.faction === e.faction || !knownTo(e, st)) continue;
+    if (bot && st.kind === 'tower') continue;
     if (anchor && distXZ(st.pos, anchor) > radius) continue;
-    if (botSoldier(e) && !e.isSiege && (st.kind === 'tower' || inEnemyTowerRange(world, e.faction, st.pos))) continue;
     const d = distXZ(e.pos, st.pos);
-    if (st.kind === 'tower') { if (d < td) { td = d; tower = st; } }
-    else if (st.kind === 'banner') { if (d < bnd) { bnd = d; banner = st; } }
-    else if (d < od) { od = d; other = st; }
+    // Önce uzaklık: yalnızca kendi türünün en yakını olabilecek aday (pahalı) rakip kule menzili denetiminden geçer.
+    if (st.kind === 'tower') { if (d >= td) continue; }
+    else if (st.kind === 'banner') { if (d >= bnd) continue; }
+    else if (d >= od) continue;
+    if (bot && inEnemyTowerRange(world, e.faction, st.pos)) continue;
+    if (st.kind === 'tower') { td = d; tower = st; }
+    else if (st.kind === 'banner') { bnd = d; banner = st; }
+    else { od = d; other = st; }
   }
   // Kule kalmadıysa ve sancak görüş mesafesindeyse asker başka binaya gitmez, sancağı dövmeye devam eder.
   // Kalkanlı sancak (kulesi ayakta) can kaybetmediği için öne geçmez; yalnızca başka hedef yoksa dövülür (kuleleri ele verir).
@@ -267,10 +300,11 @@ function enrouteTarget(world, e) {
     let best = retaliator(world, e), bd = ARMY.sight;
     if (!best) for (const t of world.entities) {
       if (!t.alive || t.faction === e.faction || t.isWorker) continue;
+      const d = distXZ(e.pos, t.pos);
+      if (d >= bd) continue;
       if (e.faction === 'blue' && !world.fog.isVisible(t.pos.x, t.pos.z)) continue;
       if (botSoldier(e) && inEnemyTowerRange(world, e.faction, t.pos)) continue;
-      const d = distXZ(e.pos, t.pos);
-      if (d < bd) { bd = d; best = t; }
+      bd = d; best = t;
     }
     if (best) { b.target = best; b.fightAt = { x: e.pos.x, z: e.pos.z }; }
   }
@@ -281,22 +315,25 @@ function findTarget(world, e, anchor) {
   const aggro = e.owner && e.owner.human ? ARMY.aggro : ENEMY.aggro;
   const own = e.owner ? e.owner.banner : null;
   let best = null, bestScore = Infinity;
+  const bot = botSoldier(e);
   for (const t of world.entities) {
     if (!t.alive || t.faction === e.faction || (e.isPlayer && t.isWorker)) continue;
-    // Bot askeri rakip kule menzilindeki düşmanı kovalamaz.
-    if (botSoldier(e) && inEnemyTowerRange(world, e.faction, t.pos)) continue;
     const d = distXZ(e.pos, t.pos);
     if (anchor) {
       // Bekleyen / emirli asker: yalnızca kendi menzilindeki ve durduğu noktaya yakın düşmanlar.
-      if (d > aggro || distXZ(t.pos, anchor) > ARMY.leash) continue;
-      if (d < bestScore) { bestScore = d; best = t; }
+      if (d > aggro || d >= bestScore || distXZ(t.pos, anchor) > ARMY.leash) continue;
+      // Bot askeri rakip kule menzilindeki düşmanı kovalamaz (pahalı denetim: yalnızca en yakın adaylar için).
+      if (bot && inEnemyTowerRange(world, e.faction, t.pos)) continue;
+      bestScore = d; best = t;
       continue;
     }
     // Kendi sancağına yaklaşan düşman, uzakta olsa da öncelikli.
     const threat = own && own.alive && distXZ(t.pos, own.pos) < 14;
     if (d > aggro && !threat) continue;
     const score = threat ? d * 0.5 : d;
-    if (score < bestScore) { bestScore = score; best = t; }
+    if (score >= bestScore) continue;
+    if (bot && inEnemyTowerRange(world, e.faction, t.pos)) continue;
+    bestScore = score; best = t;
   }
   return best;
 }
@@ -452,15 +489,26 @@ function updateGatherer(world, e, dt) {
   const w = e.work || (e.work = { spot: null, item: null });
   const release = () => { w.spot = null; e.working = false; e.workTimer = 0; };
 
+  // Düşman taraması her adımda değil 0.1 sn'de bir: en yakın savaşçı (kahramanın dövüşü) ve en yakın herhangi düşman (kaçış)
+  // tek geçişte bulunur; aradaki adımlarda aynı adayın güncel uzaklığına bakılır.
+  e.scanTimer = (e.scanTimer || 0) - dt;
+  if (e.scanTimer <= 0) {
+    e.scanTimer = 0.1;
+    let foe = null, fd = Infinity, any = null, ad = Infinity;
+    for (const t of world.entities) {
+      if (!t.alive || t.faction === e.faction) continue;
+      const dx = t.pos.x - e.pos.x, dz = t.pos.z - e.pos.z, d2 = dx * dx + dz * dz;
+      if (d2 < ad) { ad = d2; any = t; }
+      if (!t.isWorker && d2 < fd) { fd = d2; foe = t; }
+    }
+    e.scan = { foe, any };
+  }
+  const scan = e.scan;
+
   // Bot kahramanı savaşır: görüşündeki en yakın düşman askerine saldırır (alan vuruşu, asker hasarı);
   // canı azalınca aşağıdaki kaçış mantığına döner.
   if (e.isHero && e.hp > e.stats.maxHp * ENEMY_HERO.fightHpRatio) {
-    let foe = null, fd = e.vision || VISION.hero;
-    for (const t of world.entities) {
-      if (!t.alive || t.faction === e.faction || t.isWorker) continue;
-      const d = distXZ(e.pos, t.pos);
-      if (d < fd) { fd = d; foe = t; }
-    }
+    const foe = scan.foe && scan.foe.alive && distXZ(e.pos, scan.foe.pos) < (e.vision || VISION.hero) ? scan.foe : null;
     if (foe) {
       release(); e.sprinting = false; e.brain.timer -= dt;
       e.aim.copy(foe.pos); engage(world, e, foe.pos, foe.radius, dt);
@@ -469,12 +517,7 @@ function updateGatherer(world, e, dt) {
   }
 
   const fleeR = e.isWorker ? WORKER.fleeRadius : ENEMY_HERO.fleeRadius;
-  let threat = null, td = fleeR;
-  for (const t of world.entities) {
-    if (!t.alive || t.faction === e.faction) continue;
-    const d = distXZ(e.pos, t.pos);
-    if (d < td) { td = d; threat = t; }
-  }
+  const threat = scan.any && scan.any.alive && distXZ(e.pos, scan.any.pos) < fleeR ? scan.any : null;
   if (threat) {
     release();
     const ax = e.pos.x - threat.pos.x, az = e.pos.z - threat.pos.z, al = Math.hypot(ax, az) || 1;

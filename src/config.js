@@ -403,6 +403,13 @@ export const BUILD = { heroRadius: 14, bannerRadius: 30 };
 export const VISION = { hero: 15, soldier: 10, worker: 8, /** Mancınık uzağı görür ki kule menzili dışından hedef alsın. */ siege: 14, cell: 2 };
 /** Savaş sisi: keşfedilmiş ama görünmeyen alanın karartması; güncelleme aralığı. */
 export const FOG = { exploredAlpha: 0.55, updateEvery: 0.15 };
+/**
+ * Performans (5v5 için). shadowBox: gölge kamerası arenayı değil kameranın baktığı yerin çevresini kaplar (yarı boy,
+ * izometrik / omuz üstü; birim başına daha çok gölge pikseli ve ekran dışı binlerce parça gölge geçişinden düşer);
+ * shadowMapSize: gölge haritası; cullMargin: ekran kenarı payı (birim) — bunun dışındaki birim, eşya ve efekt çizilmez;
+ * effectsMax: aynı anda en çok parçacık; uiEvery: HUD / komut ızgarası bu sıklıkta (sn) yenilenir (her karede değil).
+ */
+export const PERF = { shadowMapSize: 2048, shadowBox: { iso: 60, tps: 100 }, cullMargin: 8, effectsMax: 400, uiEvery: 0.12 };
 
 /**
  * Kamera. panSpeed: komutan modu kaydırma hızı (birim/sn).
@@ -540,7 +547,11 @@ export const ECONOMY = {
   gold: { value: 7 },
   /** Yiyecek yalnızca envantere girer; kahramanı iyileştirmez (can yalnızca sancak alanında yenilenir). */
   /** Ölen asker çevreye bu kadar yiyecek bırakır; ganimet saçılma yarıçapı. Ganimeti yalnızca kahramanlar toplar. */
-  loot: { soldierFood: 2, scatter: 2.2 },
+  /**
+   * Ganimet ömrü (sn): yok edilen hedeften düşen yiyecek / odun toplanmazsa ttl sonra kaybolur, exp küresi xpTtl sonra;
+   * işçinin çıkardığı ürün (sahipli) ownedTtl sonra (işçi ölürse yerde birikmesin).
+   */
+  loot: { soldierFood: 2, scatter: 2.2, ttl: 5, xpTtl: 20, ownedTtl: 60 },
   /** Çalışma süreleri (saniye) ve ürünün fırlatıldığı mesafe. */
   work: { time: 1.0, heroTime: 1.0, throwMin: 1.0, throwMax: 1.6, spotRadius: 0.9, /** Kahramanın aynı düğüme vuruşları arasındaki en az süre. */ hitCooldown: 0.5 },
   /** İşçilerin ve seviye 1 kahramanın ürün alma yarıçapı (birim); kahramanda seviyeyle büyür (bkz. LEVEL.pickPerLevel). */

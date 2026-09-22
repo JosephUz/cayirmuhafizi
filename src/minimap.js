@@ -17,7 +17,7 @@ export function createMinimap(canvas, world, hooks) {
 
   // Zemin katmanı: üstten bakış, 1 birim = 1 px.
   const terrain = document.createElement('canvas');
-  let fogCanvas = null, fc = null, img = null;
+  let fogCanvas = null, fc = null, img = null, fogVersion = -1;
 
   /** Arena kurulunca: ölçek, zemin katmanı (yollar, ağaçlar, tarla / maden yerleri) ve sis tamponu yeniden. */
   function rebuild() {
@@ -41,6 +41,7 @@ export function createMinimap(canvas, world, hooks) {
       fogCanvas = document.createElement('canvas'); fogCanvas.width = fogCanvas.height = fog.N;
       fc = fogCanvas.getContext('2d'); img = fc.createImageData(fog.N, fog.N);
     }
+    fogVersion = -1;
   }
 
   const drawTopDown = (image, size) => {
@@ -51,13 +52,17 @@ export function createMinimap(canvas, world, hooks) {
 
   function drawFog() {
     const fog = world.fog; if (!fog || !fogCanvas) return;
-    const N = fog.N, d = img.data;
-    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
-      const k2 = j * N + i, o = ((N - 1 - j) * N + i) * 4; // satırlar: z artarken aşağı
-      d[o] = 6; d[o + 1] = 9; d[o + 2] = 8;
-      d[o + 3] = fog.visible[k2] ? 0 : fog.explored[k2] ? 130 : 255;
+    // Sis görüntüsü yalnızca sis yeniden hesaplanınca (fog.version) kurulur; aradaki karelerde hazır tuval çizilir.
+    if (fogVersion !== fog.version) {
+      fogVersion = fog.version;
+      const N = fog.N, d = img.data;
+      for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+        const k2 = j * N + i, o = ((N - 1 - j) * N + i) * 4; // satırlar: z artarken aşağı
+        d[o] = 6; d[o + 1] = 9; d[o + 2] = 8;
+        d[o + 3] = fog.visible[k2] ? 0 : fog.explored[k2] ? 130 : 255;
+      }
+      fc.putImageData(img, 0, 0);
     }
-    fc.putImageData(img, 0, 0);
     drawTopDown(fogCanvas, fog.W);
   }
 

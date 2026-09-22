@@ -1,5 +1,5 @@
 import * as T from '/vendor/three.module.js';
-import { ball, box, makeHpBar, mesh, removeGroup, setHpBar } from './builders.js';
+import { CulledGroup, ball, box, makeHpBar, mesh, removeGroup, setHpBar } from './builders.js';
 import { burst, ring } from './combat.js';
 import { BUILD, BUILDINGS, CAMPS, COLORS, TOWER } from './config.js';
 
@@ -16,7 +16,8 @@ export const bannerOf = (world, owner) => (owner ? owner.banner : null);
 /** Yapı görünümü: grup, bayrak (takım rengi), sahip bandı (owner rengi) ve (kulede) menzil halkası. */
 export function structureMesh(kind, faction, owner = null) {
   const color = faction === 'blue' ? COLORS.blueBanner : COLORS.redBanner;
-  const g = new T.Group();
+  // Sisteki (görülmemiş) rakip yapısı gizlidir: CulledGroup gizliyken matrislerini de güncellemez.
+  const g = new CulledGroup();
   let flag = null, rng = null;
   if (kind === 'banner') {
     mesh(g, new T.CylinderGeometry(1.1, 1.3, 0.5, 8), '#8d8f9a', 0, 0.25, 0);
@@ -146,12 +147,14 @@ export function createStructure(world, kind, faction, x, z, { instant = false, o
     s.shooter = { pos, aim: new T.Vector3(), faction, owner, isPlayer: false, isHero: false, isTower: true, level: 1, buff: 0, jumpY: 3.2, view: null, facing: 0, stats: { weapon: { range: TOWER.range, damage: TOWER.damage, knockback: 0, arrowSpeed: TOWER.arrowSpeed, ranged: true } } };
   }
   if (!s.ready) { g.scale.set(1, 0.08, 1); if (rng) rng.visible = false; }
-  world.obstacles.push(obstacle);
+  world.obstacles.push(obstacle); bumpObstacles(world);
   world.structures.push(s);
   return s;
 }
 
-/** Sancak, aynı tarafın en az bir kulesi ayaktayken (inşası sürse de) vurulamaz. */
+/** Engel listesi değişti: fizik engel ızgarasını yeniden kurar (bkz. physics.js resolveObstacleCollisions). */
+const bumpObstacles = world => { world.obstacleVersion = (world.obstacleVersion || 0) + 1; };
+
 /** O oyuncunun ayakta duran kule sayısı (kind='tower') ya da kule dışındaki bina sayısı (sancak hariç). */
 export function structureCount(world, owner, towers) {
   let n = 0;
@@ -232,7 +235,7 @@ export function collapseStructure(world, s) {
     if (s.kind !== 'banner') s.deadTimer = 2.5;
   }
   burst(world, s.pos.x, 2, s.pos.z, '#d9c4a0', 14, 0.14);
-  const i = world.obstacles.indexOf(s.obstacle); if (i >= 0) world.obstacles.splice(i, 1);
+  const i = world.obstacles.indexOf(s.obstacle); if (i >= 0) { world.obstacles.splice(i, 1); bumpObstacles(world); }
   if (world.selected === s) world.selected = null;
 }
 
@@ -243,7 +246,7 @@ export function reviveCamp(world, s) {
   if (s.ruinMesh) s.ruinMesh.visible = false;
   if (s.ring) s.ring.visible = true;
   s.g.rotation.z = 0; s.g.scale.set(1, 1, 1);
-  if (!world.obstacles.includes(s.obstacle)) world.obstacles.push(s.obstacle);
+  if (!world.obstacles.includes(s.obstacle)) { world.obstacles.push(s.obstacle); bumpObstacles(world); }
   ring(world, s.pos.x, s.pos.z, '#8fd15a', 4, 0.8);
   burst(world, s.pos.x, 2, s.pos.z, '#8fd15a', 16, 0.13);
 }
@@ -252,7 +255,7 @@ export function removeStructure(world, s) {
   removeGroup(s.g);
   if (s.bars) { s.bars.g.parent.remove(s.bars.g); s.bars = null; }
   const i = world.structures.indexOf(s); if (i >= 0) world.structures.splice(i, 1);
-  const j = world.obstacles.indexOf(s.obstacle); if (j >= 0) world.obstacles.splice(j, 1);
+  const j = world.obstacles.indexOf(s.obstacle); if (j >= 0) { world.obstacles.splice(j, 1); bumpObstacles(world); }
   if (world.selected === s) world.selected = null;
 }
 

@@ -9,7 +9,8 @@ import { range, reseed } from './rng.js';
  * aralıkla dizilir; çapadaki üs (0. yuva) üç hattın başıdır, öbür üslerden haritanın ortasına birer yol (ve o yolda bir
  * başlangıç kulesi) çıkar, takımın üslerini birbirine bağlayan bir de takım yolu vardır.
  * Her üssün arkasında tarla, maden ve odunluk. Yapılar (sancak, kule, binalar) structures.js'te kurulur; burada yalnızca
- * yerleri hesaplanır. Sabit engeller (invMass 0) fizik için döndürülür. Ağaç ve çalılar InstancedMesh.
+ * yerleri hesaplanır. Sabit engeller (invMass 0) fizik için döndürülür. Ağaçlar, çalılar, yol parçaları ve tarla sapları
+ * InstancedMesh (5v5 arenasında binlerce parça tek çizimde); dekor matrisleri bir kez hesaplanır (kamp ateşi hariç).
  * Arena her oyunda yeniden kurulur (takım büyüklüğü değişebilir): dispose() öncekini sahneden kaldırır.
  */
 
@@ -75,17 +76,18 @@ export function buildEnvironment(scene, layout) {
       lanes.push(sorted.map(V));
     }
   }
-  const lanePoints = [];
+  const lanePoints = [], laneSegs = [];
   for (const pts of lanes) {
     const curve = new T.CatmullRomCurve3(pts, false, 'catmullrom', 0.3);
     const p = curve.getPoints(Math.round(220 * (pts.length > 2 ? 1 : 0.5) * scale));
     lanePoints.push(...p);
     for (let i = 1; i < p.length; i++) {
-      const a = p[i - 1], b = p[i], d = a.distanceTo(b);
-      const m = box(root, '#c5b07a', (a.x + b.x) / 2, 0.005, (a.z + b.z) / 2, 3.2, 0.025, d + 0.12);
-      m.rotation.y = Math.atan2(b.x - a.x, b.z - a.z); m.castShadow = false;
+      const a = p[i - 1], b = p[i];
+      laneSegs.push({ x: (a.x + b.x) / 2, y: 0.005, z: (a.z + b.z) / 2, rot: Math.atan2(b.x - a.x, b.z - a.z), sx: 3.2, sy: 0.025, sz: a.distanceTo(b) + 0.12 });
     }
   }
+  // Yol parçaları tek InstancedMesh: 5v5'te 5000'den fazla parça tek çizim çağrısı ve tek matris.
+  instanced(root, boxGeo, '#c5b07a', laneSegs, false);
   const nearLane = (x, z, r) => lanePoints.some(p => Math.abs(p.x - x) < r && Math.abs(p.z - z) < r && Math.hypot(p.x - x, p.z - z) < r);
 
   // Kule yerleri: her üste **tek** başlangıç kulesi, sancağın POSITIONS.towers.dist birim önünde, merkeze giden yolun üstünde
@@ -96,7 +98,7 @@ export function buildEnvironment(scene, layout) {
     towerSpots.push({ faction: b.faction, slot: b.slot, x: b.x - (b.x / l) * d, z: b.z - (b.z / l) * d });
   }
 
-  const trees = [];
+  const trees = [], stalks = [], heads = [];
   // Ağaçlar aynı zamanda kaynak düğümü: kahraman vurunca odun düşer.
   const addTree = (x, z, s) => { trees.push({ x, z, s }); addObstacle(x, z, s * 0.55); obstacles[obstacles.length - 1].kind = 'wood'; };
   const nodes = [];
@@ -113,10 +115,11 @@ export function buildEnvironment(scene, layout) {
     box(root, '#806747', farm.x, 0.01, farm.z, 7.5, 0.07, 6.5);
     fence(root, farm.x - 3.9, farm.z - 3.6, 8, true); fence(root, farm.x - 3.9, farm.z + 3.4, 8, true);
     fence(root, farm.x - 3.9, farm.z - 3.6, 7, false);
+    // Tarla sapları ve başakları bütün üsler için iki InstancedMesh'te toplanır (aşağıda).
     for (let r = 0; r < 8; r++) for (let cc = 0; cc < 11; cc++) {
       const px = farm.x - 3.2 + cc * 0.64, pz = farm.z - 2.6 + r * 0.7;
-      box(root, '#b9a65b', px, 0.3, pz, 0.07, 0.55, 0.07);
-      ball(root, '#ddc779', px, 0.63, pz, 0.12, 0.23, 0.12);
+      stalks.push({ x: px, y: 0.3, z: pz, rot: 0, sx: 0.07, sy: 0.55, sz: 0.07 });
+      heads.push({ x: px, y: 0.63, z: pz, rot: 0, sx: 0.12, sy: 0.23, sz: 0.12 });
     }
     const farmSlots = [];
     for (let cc = 0; cc < 3; cc++) { farmSlots.push({ x: farm.x - 2.4 + cc * 2.4, z: farm.z - 4.2 }); farmSlots.push({ x: farm.x - 2.4 + cc * 2.4, z: farm.z + 4.0 }); }
@@ -145,8 +148,9 @@ export function buildEnvironment(scene, layout) {
       woodSlots.push({ x: p.x + Math.cos(dir) * (s * 0.55 + 0.9), z: p.z + Math.sin(dir) * (s * 0.55 + 0.9) });
     }
 
-    // Kamp ateşi.
+    // Kamp ateşi (animasyonlu: matrisi her karede güncellenir, bkz. aşağıdaki sabitleme).
     const fire = ball(root, '#f0a040', b.x - side.x * 3, 0.35, b.z - side.z * 3, 0.32, 0.5, 0.32);
+    fire.userData.dynamic = true;
     bases[`${b.faction}:${b.slot}`] = { faction: b.faction, slot: b.slot, pos: { x: b.x, z: b.z }, farm, mine, woods, farmSlots, mineSlots, woodSlots, fire, back, side, at };
   }
 
@@ -177,11 +181,13 @@ export function buildEnvironment(scene, layout) {
   const blocked = (x, z) =>
     allBases.some(b => Math.hypot(x - b.x, z - b.z) < 22) ||
     nearLane(x, z, 3.8) || towerSpots.some(t => Math.hypot(t.x - x, t.z - z) < 5) || reserved.some(r => Math.hypot(r.x - x, r.z - z) < 5);
-  for (let i = 0; i < Math.round(720 * area); i++) {
+  for (let i = 0; i < Math.round(500 * area); i++) {
     const x = range(-half + 3, half - 3), z = range(-half + 3, half - 3);
     if (!blocked(x, z)) addTree(x, z, range(0.7, 1.35));
   }
   buildTrees(root, trees);
+  instanced(root, boxGeo, '#b9a65b', stalks, true);
+  instanced(root, ballGeo, '#ddc779', heads, true);
 
   const bushes = [[], []];
   for (let i = 0; i < Math.round(420 * area); i++) {
@@ -196,25 +202,13 @@ export function buildEnvironment(scene, layout) {
     root.add(im);
   });
 
-  // Evler ve koyunlar: hatların arasında dekor (arenayla ölçekli). Koyunlar aynı zamanda tükenmez yiyecek düğümü:
-  // kahraman vurunca ölmezler, ürkerler ve çevreye yiyecek düşer.
-  for (const [hx0, hz0] of [[-48, -24], [48, 24], [-16, 46], [16, -46]]) {
-    const hx = hx0 * scale, hz = hz0 * scale;
-    if (!blocked(hx, hz)) house(root, obstacles, hx, hz);
-    for (let i = 0; i < 3; i++) {
-      const g = new T.Group(); root.add(g);
-      const x = hx + range(-6, 6), z = hz + range(4, 9); g.position.set(x, 0, z);
-      ball(g, '#e4dcc2', 0, 0.66, 0, 0.57, 0.46, 0.9);
-      box(g, '#514638', 0, 0.69, 0.72, 0.44, 0.4, 0.4);
-      for (const a of [-1, 1]) for (const bb of [-1, 1]) box(g, '#544c3b', a * 0.28, 0.24, bb * 0.45, 0.12, 0.48, 0.12);
-      const animal = { g, x, z, phase: range(0, 7), startle: 0 };
-      animals.push(animal);
-      // Düğümün konumu koyunun kendi grubudur: otladıkça düğüm de onunla gezer.
-      nodes.push({ kind: 'food', pos: g.position, radius: 1.0, hitCd: 0, animal });
-    }
-  }
+  // Dekor evler ve koyunlar kaldırıldı (performans): arazide yalnızca ağaç, çalı, yol ve üs yerleşimi var.
 
   for (const o of obstacles) if (o.kind) nodes.push({ kind: o.kind, pos: o.pos, radius: o.radius, hitCd: 0 });
+
+  // Dekor sabittir: dünya matrisleri bir kez hesaplanır, her karede yeniden kurulmaz (animasyonlu kamp ateşi hariç).
+  root.updateMatrixWorld(true);
+  root.traverse(o => { if (o !== root && !o.userData.dynamic) o.matrixAutoUpdate = false; });
 
   /** Arenayı sahneden kaldırır; paylaşılmayan geometri ve malzemeleri serbest bırakır. */
   const dispose = () => {
@@ -247,17 +241,19 @@ function buildTrees(parent, trees) {
   }
 }
 
+/** Aynı geometri ve renkteki sabit parçaları tek InstancedMesh'e toplar: {x, y, z, rot, sx, sy, sz}. */
+function instanced(parent, geo, color, list, castShadow) {
+  if (!list.length) return null;
+  const im = new T.InstancedMesh(geo, mat(color), list.length);
+  im.castShadow = castShadow; im.receiveShadow = true;
+  const m = new T.Matrix4(), q = new T.Quaternion(), e = new T.Euler(), pos = new T.Vector3(), scl = new T.Vector3();
+  list.forEach((p, k) => im.setMatrixAt(k, m.compose(pos.set(p.x, p.y, p.z), q.setFromEuler(e.set(0, p.rot, 0)), scl.set(p.sx, p.sy, p.sz))));
+  parent.add(im);
+  return im;
+}
+
 function fence(parent, x, z, length, axis) {
   for (let i = 0; i <= length; i += 2) box(parent, '#795c3b', x + (axis ? i : 0), 0.52, z + (axis ? 0 : i), 0.16, 1.1, 0.16);
   box(parent, '#947346', x + (axis ? length / 2 : 0), 0.68, z + (axis ? 0 : length / 2), axis ? length : 0.12, 0.13, axis ? 0.12 : length);
 }
 
-function house(parent, obstacles, x, z) {
-  const g = new T.Group(); g.position.set(x, 0, z); parent.add(g);
-  box(g, '#d7c399', 0, 1.15, 0, 3, 2.3, 2.8);
-  const roof = mesh(g, new T.ConeGeometry(2.65, 1.5, 4), '#9e5838', 0, 3, 0, 1, 1, 0.85); roof.rotation.y = Math.PI / 4;
-  box(g, '#534433', 0, 0.7, 1.42, 0.7, 1.4, 0.04);
-  box(g, '#6a796e', -0.93, 1.4, 1.43, 0.52, 0.55, 0.04);
-  box(g, '#b49c79', 0.8, 3.1, -0.5, 0.4, 1.5, 0.45);
-  obstacles.push({ pos: new T.Vector3(x, 0, z), vel: new T.Vector3(), push: new T.Vector3(), radius: 2, invMass: 0 });
-}

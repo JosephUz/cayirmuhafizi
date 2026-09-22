@@ -320,8 +320,8 @@ Ordunun sürekli büyüyebilmesi için ekonomi cömerttir: bir altın ürünü *
 - Ürün alma yarıçapı işçilerde 2.5 birim; kahramanlarda seviye başına +0.2 büyür (en çok 14). İşçiler yalnızca kendi kaynağında çalışır, hiç beklemez, birbirinin içinden geçer, aynı noktada üst üste çalışabilir (çalışma yerinde sınır yok), düşman yaklaşınca kaçar; ürün alınınca anında envantere girer.
 - Kahramanın topladığı her şey (altın, odun, yiyecek, exp) **kahramanın üstünde "+N ◉ / 🪵 / 🌾 / exp" yazısı** olarak belirir.
 - Kahraman kaynak düğümlerine vurarak ürün düşürür ve toplar. **Ölen asker yiyecek**, **yıkılan yapı odun** bırakır (kule 2, bina 3, sancak 6);
-  bu ganimeti yalnızca kahramanlar (sen ve rakip kahraman) toplar, sancağa taşımak gerekmez.
-- **Koyunlar** da tükenmez birer yiyecek düğümüdür: kahraman vurunca ölmezler, ürküp zıplar ve çevreye yiyecek düşer.
+  bu ganimeti yalnızca kahramanlar (sen ve rakip kahraman) toplar, sancağa taşımak gerekmez. **Toplanmayan ganimet 5 sn sonra
+  kaybolur** (exp küresi 20 sn, işçinin çıkardığı ürün 60 sn; `ECONOMY.loot.ttl / xpTtl / ownedTtl`): yerde yüzlerce eşya birikmez.
   Yiyecek yalnızca envantere girer; kahramanı iyileştirmez.
 - **Haritanın ortasında**, iki ana kule arasında **bitişik üç tarafsız maden** (tek bir kaya kümesi hâlinde, ana yolun hemen yanında).
   İşçiler orada çalışmaz; yalnızca kahramanlar vurup altın çıkarır, seviye yükseldikçe vuruş başına daha çok altın alırlar.
@@ -397,6 +397,22 @@ takım oyununda "Rakip Aslan …" / "Müttefik Kurt …" diye başlar; sık mesa
 - Zorluk (Kolay / Normal / Zor): rakibin altın çarpanı 0.5x / 1x / 2x (taklit payı `ENEMY_AI.extra` ile ayarlanabilir, varsayılan 0).
 - Rakip takımın bütün sancakları yıkılınca zafer; kendi sancağın düşerse kaybedersin (sahibinin kuleleri ayaktayken sancağın canı azalmaz).
 
+## Performans (5v5)
+
+Büyük takım oyunlarında yüzlerce birim aynı anda sahadadır; oyun şu yollarla akıcı kalır (ayarlar `config.js` → `PERF`):
+
+- **Ekran dışı eleme**: ekranın zemin izdüşümünün (+8 birim pay) dışındaki birimler, eşyalar ve efektler çizilmez, canlandırılmaz
+  ve matrisleri güncellenmez; ekran dışında parçacık ve halka hiç yaratılmaz (en çok 400 parçacık). Omuz üstü kamerada sınır
+  görüş mesafesidir (90 birim).
+- **Gölge kutusu** arenayı değil kameranın baktığı yerin çevresini kaplar (izometrikte 60, omuz üstünde 100 birim yarı boy,
+  2048² harita): gölgeler daha keskin, ekran dışı birimler gölge geçişine girmez. Kutu ışık uzayında tam piksel adımlarıyla kayar.
+- **Simülasyon**: birim çarpışmaları uzaysal ızgarayla (4 birimlik hücre) çözülür; engel ızgarası yalnızca yapı kurulup yıkılınca
+  yeniden kurulur; askerin hedef araması önce uzaklık süzgecinden geçer, rakip kule menzili denetimi yalnızca en yakın adaylar
+  için yapılır; bot askerinin boşta planı (mancınığa eşlik, yapı, keşif) 0.3 sn'de bir, toplayıcıların düşman taraması 0.1 sn'de bir yenilenir.
+- **Dekor**: yol parçaları, tarla sapları, ağaçlar ve çalılar InstancedMesh; serbest ağaç sayısı azaltıldı (1v1 arenasında ~500),
+  dekor evler ve koyunlar kaldırıldı; dekor matrisleri bir kez hesaplanır.
+- **HUD** 0.12 sn'de bir yenilenir; minimap sis katmanı yalnızca sis yeniden hesaplanınca çizilir; ganimet 5 sn'de kaybolur.
+
 ## Dosyalar
 
 | Dosya | Sorumluluk |
@@ -405,7 +421,7 @@ takım oyununda "Rakip Aslan …" / "Müttefik Kurt …" diye başlar; sık mesa
 | `game.js` | Giriş; `src/main.js`'i yükler |
 | `src/config.js` | Tüm ayar sayıları (birimler, yapılar, maliyetler, üstünlük matrisi, görüş, sis, kamera) |
 | `src/main.js` | Sahne, izometrik + omuz üstü kamera (V), sabit adımlı döngü, sis / görünürlük, kuleler, ganimet, yaşam döngüsü |
-| `src/environment.js` | Arena yerleşimi (takım büyüklüğüne göre üsler, hatlar, kule yerleri), kaynak düğümleri, evler; ağaçlar InstancedMesh; her oyunda yeniden kurulur |
+| `src/environment.js` | Arena yerleşimi (takım büyüklüğüne göre üsler, hatlar, kule yerleri), kaynak düğümleri; ağaç, çalı, yol ve tarla parçaları InstancedMesh; her oyunda yeniden kurulur |
 | `src/players.js` | Oyuncular (sen + botlar): takım, sahip, kasa, bot durumu, sınırlar, en yakın rakip sancak / oyuncu |
 | `src/structures.js` | Yapılar: görünüm, kurma, yerleştirme denetimi, inşa, yıkım, sınıf toplanma bayrağı |
 | `src/production.js` | Üretim kuyruğu: sıraya alma, iptal, ilerleme, çıkış |

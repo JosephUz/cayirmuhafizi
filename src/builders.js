@@ -27,6 +27,15 @@ export function removeGroup(g) {
 export function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
 
 /**
+ * Görünmezken dünya matrislerini güncellemeyen grup. three.js her karede sahnedeki **bütün** nesnelerin matrisini
+ * yeniden kurar (görünmezler dahil); 5v5'te ekran dışındaki yüzlerce birim x 25 parça + can çubukları + eşyalar için bu
+ * boşa CPU'dur. Birim, yapı, eşya ve can çubuğu kökleri bu gruptur: gizlenince alt ağaç atlanır, görününce normal güncellenir.
+ */
+export class CulledGroup extends T.Group {
+  updateMatrixWorld(force) { if (this.visible) super.updateMatrixWorld(force); }
+}
+
+/**
  * Can çubuğu (Age of tarzı): **arka plan kırmızı, kalan can yeşil**. Çubuk sahnede ayrı durur (gövdeyle dönmesin)
  * ve hep kameraya bakar; yalnızca **darbe almış** birim / yapı için gösterilir (bkz. setHpBar).
  *
@@ -34,7 +43,7 @@ export function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
  * *sonra* çizildiği için eski saydam çerçeve yeşil / kırmızı şeritlerin üstünü kapatıp çubuğu siyah gösteriyordu.
  */
 export function makeHpBar(scene, width = 1, height = 0.16) {
-  const g = new T.Group(); g.visible = false; g.renderOrder = 10;
+  const g = new CulledGroup(); g.visible = false; g.renderOrder = 10;
   const geo = new T.PlaneGeometry(width, height);
   const frame = new T.Mesh(geo, new T.MeshBasicMaterial({ color: '#0c0e13', depthTest: false }));
   frame.scale.set(1.12, 1.55, 1); frame.renderOrder = 10; g.add(frame);
@@ -64,4 +73,4 @@ export function dampAngle(current, target, lambda, dt) {
   return current + d * (1 - Math.exp(-lambda * dt));
 }
 export function yawFromDir(x, z) { return Math.atan2(x, z); }
-export function distXZ(a, b) { return Math.hypot(a.x - b.x, a.z - b.z); }
+export function distXZ(a, b) { const dx = a.x - b.x, dz = a.z - b.z; return Math.sqrt(dx * dx + dz * dz); }
