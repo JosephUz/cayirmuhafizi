@@ -303,8 +303,10 @@ export const RALLY = {
   /**
    * Tek toplanma bayrağı: **orta tık** imlecin (omuz üstünde artının) gösterdiği yere diker; bütün ordu oraya yürür.
    * Bayrak yalnızca boştaki askerin gideceği yerdir: görüşüne düşman giren asker yürüyüşü bırakıp savaşır (ARMY.holdMult).
+   * Orta tık bir **düşmanın üstündeyse** (birim, kahraman, bina, kule; pickRadius kenar payı) bayrak oraya kırmızı dikilir ve
+   * bütün ordu o hedefe saldırır: görüşünde dövüşecek bir şey yoksa hedefe yürüyüp onu döver (bkz. ai.js updateAggressive).
    */
-  label: 'Toplanma alanı', color: '#ffd12e',
+  label: 'Toplanma alanı', color: '#ffd12e', attackColor: '#ff6a4a', attackLabel: 'Saldırı hedefi', pickRadius: 1.8,
 };
 
 /**

@@ -141,7 +141,7 @@ export function attachInput(world, canvas, camera, dragEl) {
     // Kilitli omuz üstünde nişan zaten ekran ortasında (input.aim); izometrikte ve serbest farede imleçten alınır.
     if (!(world.cam === 'tps' && input.locked)) updateAim(e);
     const x = input.aim.x, z = input.aim.z, ui = world.ui;
-    // Orta tık: ordunun toplanma alanı nişan noktasına dikilir; bütün askerler oraya yürür (bkz. main.js setRallyPoint).
+    // Orta tık: nişan noktasındaki düşmana (varsa) bütün ordu saldırır, boş yerde toplanma alanı dikilir (bkz. main.js setRallyPoint).
     if (e.button === 1) { e.preventDefault(); if (input.hasAim) ui.setRally(x, z); return; }
     // Birimler tek tek yönetilmez: sol tık yalnızca yapı seçer ya da yerleştirmeyi onaylar.
     if (e.button === 0) {

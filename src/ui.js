@@ -100,6 +100,8 @@ export function createUI(root, world, actions) {
 
   // ---- Kahraman geliştirme yardımcıları
   const heroNearBanner = () => { const p = world.player, b = world.me.banner; return p.alive && Math.hypot(p.pos.x - b.pos.x, p.pos.z - b.pos.z) <= HERO_UPGRADE.range; };
+  /** Saldırı hedefinin adı (mesaj için): yapı türü, düşman kahramanı ya da asker türü. */
+  const foeLabel = t => (t.kind ? BUILDINGS[t.kind].label : t.isPlayer || t.isHero ? 'Düşman kahramanı' : t.isBeast ? 'Haydut' : (typeOf(t.typeKey) || {}).label || 'Düşman birimi');
   const heroTypeLabel = p => { const t = SOLDIER_TYPES.find(x => !x.worker && x.weapon === p.loadout.weapon && x.shield === p.loadout.shield && x.horse === p.loadout.horse); return t ? t.label : 'Kılıçlı'; };
 
   // ---- Komut ızgarası
@@ -407,11 +409,16 @@ export function createUI(root, world, actions) {
       world.placing = null;
       ui.say(`${BUILDINGS[kind].label} kuruluyor (-${BUILDINGS[kind].wood} 🪵), ${BUILDINGS[kind].buildTime} sn`, 2200); ui.update();
     },
-    /** Orta tık: ordunun toplanma alanını (x, z)'ye diker; bütün askerler oraya yürür (kahraman yerde ya da oyun duruksa yok). */
+    /**
+     * Orta tık: tıklanan yerde düşman varsa (birim, kahraman, bina, kule) bütün ordu **o hedefe saldırır**; boş yereyse
+     * toplanma alanı oraya dikilir ve boştaki askerler oraya yürür. (Kahraman yerdeyse ya da oyun duruksa iş yapmaz.)
+     */
     setRally(x, z) {
       if (deadMsg() || busy()) return;
-      const n = actions.setRally(x, z);
-      ui.say(`${RALLY.label} kuruldu${n ? ` · ${n} asker yola çıktı` : ''} · orta tıkla taşınır`, 1800); ping('order'); ui.update();
+      const { n, target } = actions.setRally(x, z);
+      if (target) ui.say(`${RALLY.attackLabel}: ${foeLabel(target)}${n ? ` · ${n} asker saldırıyor` : ''} · orta tıkla yeni hedef`, 2000);
+      else ui.say(`${RALLY.label} kuruldu${n ? ` · ${n} asker yola çıktı` : ''} · orta tıkla taşınır`, 1800);
+      ping('order'); ui.update();
     },
     /** Açık bir mod (inşa / kahraman menüsü / seçim) varsa kapatır ve true döner. */
     cancelModes(keepSelection = false) {

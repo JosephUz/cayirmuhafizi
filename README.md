@@ -124,7 +124,7 @@ yönetilmez; **orta tıkla** dikilen tek **toplanma alanı** bütün ordu için 
 | --- | --- |
 | Sol tık | Kendi yapını seç (üretim / menü); boşluğa tıklayınca seçim kalkar |
 | Çift tık | Aynı türdeki **bütün** binaları seç: üretim emirleri aralarında paylaştırılır |
-| **Orta tık** | İmlecin yerine ordunun **toplanma alanını** kur: bütün askerler oraya yürür; hem varış noktası hem hedef bölgesi. Tekrar orta tık bayrağı taşır |
+| **Orta tık** | İmleç bir **düşmanın** (asker, kahraman, bina, kule, haydut kampı) üstündeyse bütün ordu **o hedefe saldırır**; boş yerdeyse oraya ordunun **toplanma alanını** diker. Tekrar orta tık hedefi / bayrağı değiştirir |
 | Sağ tık | Açık modu kapat (birim emri yok) |
 
 İnşa (kışla, okçuluk, ahır, kuşatma, kule) **yalnızca hiçbir şey seçili değilken** soldaki düğmelerle (sancak menüsünde bina
@@ -160,11 +160,16 @@ başladığı noktadan 16 birimden fazla uzaklaşırsa hedefi bırakıp yoluna d
 Birimler anında çıkmaz: binanın sırasına alınır (bina başına en fazla **30 emir**), süre dolunca binanın yanında,
 toplanma alanı varsa oraya yürüyerek çıkar. Kaliteli birim geç çıkar. Maliyet sıraya alınırken düşer.
 
-**Toplanma alanı** tektir ve bütün ordu içindir: haritada bir yere **orta tıkla** (fare tekerleği), imlecin yerine sarı bayrak
+**Toplanma alanı** tektir ve bütün ordu içindir: haritada boş bir yere **orta tıkla** (fare tekerleği), imlecin yerine sarı bayrak
 dikilir. **Boştaki tüm askerler** (piyade, okçu, süvari, mancınık) oraya yürür, yeni çıkanlar da oraya gider; yolda ya da bayrakta
-görüşüne düşman giren asker **savaşı yeğler**, bayrak yalnızca görecek düşmanı kalmayanın gideceği yerdir. Bayrağı düşman kulesinin
-yanına dikersen ordu oraya yürüyüp orayı döver; tekrar orta tık bayrağı taşır. Omuz üstü kamerada orta tık artının gösterdiği yere
-diker. Sınıf sınıf bayrak yoktur: ordu bir bütün olarak yönetilir. **Kahraman toplanma alanına hiç gitmez**: onu sen yürütürsün.
+görüşüne düşman giren asker **savaşı yeğler**, bayrak yalnızca görecek düşmanı kalmayanın gideceği yerdir. Omuz üstü kamerada orta tık
+artının gösterdiği yere diker. Sınıf sınıf bayrak yoktur: ordu bir bütün olarak yönetilir. **Kahraman toplanma alanına hiç gitmez**: onu sen yürütürsün.
+
+**Saldırı hedefi**: orta tıkladığın yerde bir **düşman** varsa (asker, kahraman, işçi, haydut, **bina, kule, sancak, haydut kampı**;
+imleç hedefin 1.8 birim yakınında olmalı) ordu oraya yürümekle yetinmez, **o hedefe kilitlenir**: bayrak hedefin üstüne **kırmızı**
+dikilir ve bütün askerler görüşlerinde dövüşecek bir şey kalmayınca hedefe yürüyüp onu döver. Yolda karşılarına çıkan düşmanla yine
+savaşırlar (görüş = savaş kuralı), hedef düşünce bayrağın yerinde tutunurlar ve yeni çıkan askerler de oraya akar. Sisin altındaki
+düşman hedef seçilemez: önce görmen gerekir.
 
 **Hedef önceliği** (her iki taraf): görünen düşman **birimleri** → **kuleler** → **binalar** → **sancak**. Sancak, o tarafın
 ayakta kulesi kaldıkça can kaybetmez (vuruş yine iner ve kuleleri ele verir); diğer binalar sancağı korumaz.

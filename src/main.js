@@ -1,5 +1,5 @@
 import * as T from '/vendor/three.module.js';
-import { giveOrder, updateUnit } from './ai.js';
+import { pickHostile, updateUnit } from './ai.js';
 import { animateView, applyLevelUp, buildView, createEntity, makeStats, rebuildSwing, removeView, xpNeeded, kitKey } from './characters.js';
 import { burst, damageMult, fireArrow, healBubble, heroArrows, reachMult, ring, towerTarget, updateArrows, updateCombat, updateEffects, updateSpins, updateTornadoes } from './combat.js';
 import { ALERT, BUILD, BUILDINGS, CAMERA, CAMPS, COMBAT, DIFFICULTY, KIT, ECONOMY, ENEMY, ENEMY_HERO, HERO_UPGRADE, LEVEL, PERF, PHYSICS, POSITIONS, RESPAWN, SOLDIER_TYPES, TEAMS, TOWER, VISION, RALLY, heroConvertCost, respawnDelay } from './config.js';
@@ -438,18 +438,25 @@ function updateMarkers(world, selRings, ghost, ghostMat, ghostRing, rangeRing, h
 // Seviye altınla alınmaz: kahraman öldürdüğü düşmanlardan exp kazanıp kendiliğinden atlar (bkz. gainXp).
 
 /**
- * Ordunun toplanma yeri (orta tık): bayrağı diker; bütün **kendi** askerleri (her sınıf, mancınık dahil) boşta kaldıkça oraya
- * yürür, yeni çıkanlar da oraya gider. Emir verilmez: asker kendi beyniyle gider ve yolda görüşüne giren her düşmanla savaşır
- * (bkz. ai.js updateAggressive). Müttefik botun askerleri senin bayrağına gelmez. Kahraman toplanma alanına gitmez.
- * Etkilenen asker sayısını döner.
+ * Orta tık: toplanma alanı ya da **saldırı hedefi**.
+ *  - Tıklanan yerde bir düşman varsa (birim, kahraman, bina, kule, haydut kampı; bkz. ai.js pickHostile) bütün **kendi**
+ *    askerlerin o hedefe kilitlenir: görüşlerinde dövüşecek bir şey yoksa hedefe yürüyüp onu döverler. Bayrak hedefin
+ *    üstüne kırmızı dikilir, böylece yeni çıkan askerler de oraya akar; hedef düşünce ordu orada tutunur.
+ *  - Boş yere tıklanırsa bayrak oraya sarı dikilir ve boştaki askerler oraya yürür.
+ * Emir verilmez: asker kendi beyniyle gider ve görüşüne giren her düşmanla savaşır (bkz. ai.js updateAggressive).
+ * Müttefik botun askerleri senin bayrağına gelmez; kahraman toplanma alanına gitmez.
+ * { n: etkilenen asker sayısı, target: saldırı hedefi ya da null } döner.
  */
 function setRallyPoint(world, x, z) {
+  const target = pickHostile(world, x, z);
+  const at = target ? target.pos : { x, z };
+  const color = target ? RALLY.attackColor : RALLY.color;
   if (world.rally) world.scene.remove(world.rally.g);
-  world.rally = { x, z, g: rallyFlag(world, x, z, RALLY.color) };
+  world.rally = { x: at.x, z: at.z, g: rallyFlag(world, at.x, at.z, color) };
   const units = world.entities.filter(e => e.alive && e.owner === world.me && !e.isWorker && !e.isHero && !e.isPlayer && e.brain);
-  for (const u of units) { u.brain.order = null; u.brain.retarget = 0; }
-  ring(world, x, z, RALLY.color, 3, 0.7);
-  return units.length;
+  for (const u of units) { u.brain.order = null; u.brain.focus = target || null; u.brain.retarget = 0; }
+  ring(world, at.x, at.z, color, target ? (target.radius || 1) + 3 : 3, 0.7);
+  return { n: units.length, target };
 }
 
 /**

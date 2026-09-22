@@ -1,6 +1,6 @@
 import { dampAngle, distXZ, yawFromDir } from './builders.js';
 import { canAttack, heroReach, startAttack, nearestEnemyTower } from './combat.js';
-import { ARMY, BUILD, CAMPS, ECONOMY, ENEMY, ENEMY_AI, ENEMY_HERO, POSITIONS, TOWER, VISION, WORKER } from './config.js';
+import { ARMY, BUILD, CAMPS, ECONOMY, ENEMY, ENEMY_AI, ENEMY_HERO, POSITIONS, RALLY, TOWER, VISION, WORKER } from './config.js';
 import { produceItem, heroGather } from './economy.js';
 import { rrand } from './rng.js';
 import { bannerShielded } from './structures.js';
@@ -13,7 +13,7 @@ import { botSoldier, nearestEnemyBanner, nearestEnemyPlayer } from './players.js
  * Emirler: move (yürü; yolda düşman görürse durup dövüşür), attackmove (yürü, yolda çıkanla dövüş),
  * attack (hedefi kovala; birim ya da yapı), stop.
  * **Senin askerin** emir almaz (updateAggressive): görüşüne (e.vision) giren her düşman birimi, kahramanı, binası ve kulesiyle
- * savaşır, hiçbir şey görmüyorsa toplanma bayrağına yürür. **Bot askeri** emirle yürür: yolda ARMY.sight yarıçapında düşman
+ * savaşır; hiçbir şey görmüyorsa orta tıkla verilen saldırı hedefine (brain.focus), o da yoksa toplanma bayrağına yürür. **Bot askeri** emirle yürür: yolda ARMY.sight yarıçapında düşman
  * görürse durup saldırır, kendisine vuran olursa (uzaktan bile) ona döner; dövüşe başladığı noktadan ARMY.chase kadar
  * uzaklaşınca hedefi bırakıp yoluna devam eder.
  * **Takım oyunu**: düşmanlık takıma (faction), komuta sahibe (owner) bağlıdır. Senin askerlerin toplanma alanınla yönetilir;
@@ -78,8 +78,9 @@ const rallyAnchor = (world, e) => (e.owner === world.me && world.rally) || e.bra
 /**
  * Senin askerin: **görüşü savaşa girme mesafesidir**. Görüşüne (e.vision: asker 10, mancınık 36) giren her düşmanla savaşır:
  * önce kendisine vuran, sonra en yakın düşman birimi (asker, kahraman, işçi, haydut), birim yoksa görüşündeki rakip yapı
- * (kule > bina > sancak). Hedefi görüşünün ARMY.holdMult katına kadar kovalar; daha uzağa kaçarsa bırakır. Hiçbir şey
- * görmüyorsa toplanma bayrağına (yoksa durduğu yere) yürür. Bayrağa gitmek savaşı hiçbir zaman bölmez.
+ * (kule > bina > sancak). Hedefi görüşünün ARMY.holdMult katına kadar kovalar; daha uzağa kaçarsa bırakır. Görüşünde
+ * dövüşecek bir şey yoksa orta tıkla verilen **saldırı hedefine** (brain.focus) yürüyüp onu döver, o da yoksa toplanma
+ * bayrağına (yoksa durduğu yere) gider. Yürümek savaşı hiçbir zaman bölmez.
  */
 function updateAggressive(world, e, dt) {
   const b = e.brain;
@@ -104,7 +105,31 @@ function updateAggressive(world, e, dt) {
   if (target) { e.aim.copy(target.pos); engage(world, e, target.pos, target.radius, dt); return; }
   const s = b.structTarget && b.structTarget.alive ? b.structTarget : null;
   if (s) { e.aim.copy(s.pos); engage(world, e, s.pos, s.radius, dt); return; }
+  // Orta tıkla verilen saldırı hedefi (birim ya da yapı): görüşünde dövüşecek bir şey kalmayınca hedefe yürünür ve dövülür.
+  // Hedef düşünce silinir; asker bayrağa (hedefin yerine dikilmiştir) döner.
+  const focus = b.focus && b.focus.alive ? b.focus : (b.focus = null);
+  if (focus) { e.aim.copy(focus.pos); engage(world, e, focus.pos, focus.radius, dt); return; }
   if (distXZ(e.pos, anchor) > ARMY.arrive) { steerTo(e, anchor.x, anchor.z, dt, 1); avoidStuck(e, dt); } else e.moveDir.set(0, 0, 0);
+}
+
+/**
+ * Orta tıkla hedef seçimi: (x, z) noktasının altındaki **düşman** — ekranda görünen bir birim / kahraman ya da
+ * **görülmüş** bir rakip yapı (kule, bina, sancak, haydut kampı). Kenar uzaklığı pad payı içindekilerin en yakını
+ * seçilir; sisin altındaki hedef seçilemez. Hiçbiri yoksa null döner, nokta toplanma alanı olur (bkz. main.js setRallyPoint).
+ */
+export function pickHostile(world, x, z, pad = RALLY.pickRadius) {
+  let best = null, bd = pad;
+  for (const t of world.entities) {
+    if (!t.alive || t.faction === 'blue' || !(t.view && t.view.g.visible)) continue;
+    const d = distXZ(t.pos, { x, z }) - t.radius;
+    if (d < bd) { bd = d; best = t; }
+  }
+  for (const st of world.structures) {
+    if (!st.alive || st.faction === 'blue' || !st.seen) continue;
+    const d = distXZ(st.pos, { x, z }) - st.radius;
+    if (d < bd) { bd = d; best = st; }
+  }
+  return best;
 }
 
 /** Bu nokta ayakta bir **rakip** kulenin menzilinde (pay dahil) mi? Bot askerleri oraya girmez. */
