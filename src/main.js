@@ -8,7 +8,6 @@ import { attachInput, clearSelection, createInput, lockPointer, resolveHeroInput
 import { createMinimap } from './minimap.js';
 import { createNetClient } from './net/client.js';
 import { createScreens } from './screens.js';
-import { canPlace, placementError } from './structures.js';
 import { createUI } from './ui.js';
 import { clearEffects, updateEffects } from './view/effects.js';
 import { syncArrowView, syncItemView } from './view/itemview.js';
@@ -274,6 +273,7 @@ export async function start(root) {
     for (const z of world.zones) syncZoneView(world, z, animDt);
     for (const s of world.structures) { if (s.faction === 'red' && !s.seen && world.cam === 'tps' && sees(s.pos.x, s.pos.z)) s.seen = true; syncStructureView(s, animDt, world.clock, camera.quaternion); }
     world.ui.updateCampLabels();
+    world.ui.updateHint();
     world.ui.updateCharge();
     world.ui.updateRespawn();
     animateScenery(world, animDt);
@@ -328,14 +328,14 @@ function updateMarkers(world, selRings, ghost, ghostMat, ghostRing, rangeRing, h
   heroRing.visible = Boolean(kind && p && p.alive);
   if (heroRing.visible) { heroRing.position.x = p.pos.x; heroRing.position.z = p.pos.z; }
   ghost.visible = Boolean(kind && p && world.input.hasAim && world.input.pointer.inside);
-  if (!ghost.visible) return;
+  if (!ghost.visible) { world.placeError = null; return; }
   const spec = BUILDINGS[kind], a = world.input.aim;
   ghost.position.set(a.x, 0, a.z);
   ghost.children[0].scale.set(spec.radius, 1, spec.radius); ghostRing.scale.set(spec.radius + 0.6, spec.radius + 0.6, 1);
   rangeRing.visible = kind === 'tower';
-  const nearHero = p.alive && Math.hypot(a.x - p.pos.x, a.z - p.pos.z) <= BUILD.heroRadius;
-  const ok = nearHero && !canPlace(world, a.x, a.z, spec.radius, world.me.faction) && !placementError(world, kind, a.x, a.z, world.me);
-  const c = ok ? '#8fe08f' : '#ff7a6a';
+  // Hayalet kırmızıysa nedeni imlecin yanında yazılır (bkz. ui.updateHint): kaynak, sınır, uzaklık, yol, çakışma, dolu yer.
+  world.placeError = buildError(world, kind, world.me, a.x, a.z);
+  const c = world.placeError ? '#ff7a6a' : '#8fe08f';
   ghostMat.color.set(c); ghostRing.material.color.set(c); rangeRing.material.color.set(c);
 }
 

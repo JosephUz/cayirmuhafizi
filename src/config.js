@@ -554,12 +554,12 @@ export const ENEMY_AI = {
 
 export const ECONOMY = {
   /** Başlangıç envanteri (her iki taraf). Kaynaklar envanterde birikir: altın + yiyecek asker, altın işçi, odun bina. */
-  start: { gold: 60, wood: 60, food: 40 },
+  start: { gold: 50, wood: 60, food: 40 },
   /**
-   * **Deneme ayarı**: yalnızca **oyuncunun** başlangıç altını (rakip her zaman start.gold ile başlar, dengesi bozulmasın).
-   * Kahraman türlerini, binaları ve orduyu beklemeden denemek içindir. Normal oyuna dönmek için: null yap.
+   * **Deneme ayarı**: yalnızca **insan oyuncuların** başlangıç altını (botlar her zaman start.gold ile başlar). Kahraman
+   * türlerini, binaları ve orduyu beklemeden denemek içindir; null iken herkes start.gold ile başlar (normal oyun).
    */
-  playerTestGold: 1000000,
+  playerTestGold: null,
   /** Kaynak noktaları tükenmez: çalışan işçi çevreye bir ürün fırlatır, sonra onu alır. Bir altın ürünü bu kadar altın. */
   gold: { value: 7 },
   /** Yiyecek yalnızca envantere girer; kahramanı iyileştirmez (can yalnızca sancak alanında yenilenir). */
@@ -711,8 +711,6 @@ export const LEVEL = {
   structureDamagePerLevel: 0.1,
   /** Kahramanın kaynak toplama yarıçapı seviye başına bu kadar büyür (en çok maxPickRadius). */
   pickPerLevel: 0.2, maxPickRadius: 14,
-  /** Kahraman her bu kadar seviyede bir, kaynak çıkarışında bir ürün daha düşürür (sv 1-9: 1, 10-19: 2, 20-29: 3...). */
-  gatherEvery: 10,
   /** Sağ tık hortumunun yarıçapı her dashEvery seviyede dashPerStep kadar büyür (sv 10: +%10, sv 20: +%20…). */
   dashEvery: 10, dashPerStep: 0.1,
 };

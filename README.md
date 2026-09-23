@@ -82,7 +82,7 @@ sancağı seç, **Geliştir** düğmesiyle menüyü aç (kahraman sancağa 12 bi
   görünür. Her seviye **+10 can**,
   **+%8 vuruş gücü** (yakın vuruş ve ok; sv 10'da 1.72x, sv 20'de 2.52x), **+%10 yapı hasarı** ve **vuruş alanı**: kılıç / mızrak menzili +%12, yay açısı +%10 (en çok 3 kat); okçu kahraman
   **seviyesi kadar ok** atar (sv 1: 1 ok, sv 12: 12 ok; en çok 40 — oklar dağılmaz, hepsi aynı hedefe yan yana gider) ve **yay menzili de her 10 seviyede +%20** büyür (menzil tavanı 9'a kadar). Seviye başına **kaynak toplama yarıçapı da +0.2** büyür
-  (2.5'ten başlar, en çok 14) ve **her 10 seviyede kaynak vuruşu başına bir ürün daha** düşer (sv 1-9: 1, 10-19: 2, 20-29: 3…);
+  (2.5'ten başlar, en çok 14) ve kaynak vuruşu başına **seviyesi kadar ürün** düşer (sv 1: 1, sv 7: 7);
   aynısı kahramanın bir çalışma yerinde durarak ürettiğinde de geçerlidir. Vuruş anında beliren şeffaf yay, kahramanın **gerçek vuruş alanını** (menzil ve açı) birebir
   gösterir; kenarı altın çizgiyle vurgulanır ve seviye atladıkça büyür. Hız seviyeyle değişmez; bilgi kartı seviyeli hasarı (x çarpanıyla) yazar. Geniş alan vuran yüksek seviye kahraman kalabalığa karşı koyar: oyun strateji ile de, kahramanı geliştirerek
   de kazanılabilir. **Rakip kahraman da seni izler**: kendi öldürdüklerinden exp kazanır, geride kalırsa her karar turunda bir seviye alarak senin seviyene çıkar (bedelsiz).
@@ -321,9 +321,9 @@ Askerler 100 can (at ve kalkan can bonusu yalnızca kahramanda: +50 / +30). Kalk
 
 Sol tarafta **senin** bilgilerin: can, seviye, altın, odun / yiyecek, **işçilerin** (👷 toplam **0/100** · ardından
 tür tür sayılar: ⛏ madenci · 🪓 oduncu · 🌾 çiftçi, kademeleri toplanarak) ve **ordun sınıf sınıf** (⚔ toplam **0/200** · 🛡 piyade · 🏹 okçu · 🐎 süvari · 🪨 mancınık),
-ayakta kule / bina sayın ve sancağının canı; takım oyununda 🤝 müttefik sayısı ve toplam askerleri. Sağ tarafta
-rakipten yalnızca **kule sayısı** ve **sancak canı** (takım oyununda ayakta / toplam sancak) görünür
-(bir rakip saldırıya kalkışınca sancağının yanında ⚡ çıkar).
+ayakta kule / bina sayın ve sancağının canı (bir rakip saldırıya kalkışınca yanında ⚡); takım oyununda 🤝 müttefik sayısı ve
+toplam askerleri. **Rakip hakkında HUD'da bilgi yok** (Age of gibi): rakiplerin durumu yalnızca sağ alttaki, haritanın üstündeki
+**canlı skor sıralamasından** okunur. Reddedilen komutun ve dikilemeyen binanın **nedeni imlecin yanında** kısa bir yazıyla çıkar.
 
 ## Yapı seçimi ve toplu üretim
 
@@ -368,10 +368,8 @@ normal exp verir (yaya 10, atlı 24, mancınık 14). Minimapte kamplar yeşil (y
 ## Ekonomi ve envanter
 
 Üç kaynak envanterde birikir: **altın** (maden), **odun** (odunluk / ağaçlar), **yiyecek** (tarla).
-Askerler altın + yiyecek, işçiler altın, binalar yalnızca odun. Her iki taraf 60 altın, 60 odun, 40 yiyecekle başlar.
-
-> **Deneme ayarı**: şu an **oyuncu 1.000.000 altınla** başlar (`config.js` → `ECONOMY.playerTestGold`), böylece kahraman
-> türleri, binalar ve ordu beklemeden denenebilir. Rakip her zaman normal 60 altınla başlar. Normal oyuna dönmek için bu ayarı `null` yap.
+Askerler altın + yiyecek, işçiler altın, binalar yalnızca odun. Herkes **50 altın, 60 odun, 40 yiyecekle** başlar
+(`ECONOMY.start`; deneme için yalnızca insanlara bol altın vermek istersen `ECONOMY.playerTestGold`, varsayılan kapalı).
 Ordunun sürekli büyüyebilmesi için ekonomi cömerttir: bir altın ürünü **7 altın**, bir çalışma **1.0 sn** sürer ve
 **ölen her asker 2 yiyecek** bırakır (kahramanların topladığı ganimet).
 

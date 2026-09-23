@@ -14,14 +14,16 @@ html,body{margin:0;height:100%;background:#19231d;overflow:hidden}
 #meadow-game canvas{display:block;width:100%;height:100%}
 #meadow-game #mg-hud{position:absolute;top:0;left:0;right:0;z-index:3;display:flex;justify-content:space-between;align-items:flex-start;padding:8px 12px;pointer-events:none;background:linear-gradient(#0b110ccc,#0b110c00)}
 #meadow-game #mg-hud .side{display:flex;align-items:center;gap:10px;pointer-events:auto}
-#meadow-game #mg-hud .theirs .stats span{border-color:#5a3a34;background:#2a1e1cdd}
-#meadow-game #mg-hud .theirs strong{color:#ff9f8c}
 #meadow-game strong{font-size:14px;letter-spacing:2px;font-weight:600}
 #meadow-game .stats{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 #meadow-game .stats span{background:#1c241edd;border:1px solid #3c4a3a;border-radius:6px;padding:4px 8px;font-variant-numeric:tabular-nums;transition:transform .15s,background .15s;font-size:13px}
 #meadow-game .stats span.flash{background:#5a5330;transform:scale(1.08)}
-#meadow-game #mg-health{color:#bfe59a}#meadow-game #mg-gold,#meadow-game #mg-enemy-gold{color:#f3c53d}#meadow-game #mg-banner-own{color:#8fd0ff}#meadow-game #mg-banner-enemy{color:#ff8f7c}
-#meadow-game #mg-level{color:#ffd12e}#meadow-game #mg-towers{color:#8fd0ff}#meadow-game #mg-enemy-towers{color:#ff8f7c}
+#meadow-game #mg-health{color:#bfe59a}#meadow-game #mg-gold{color:#f3c53d}#meadow-game #mg-banner-own{color:#8fd0ff}
+#meadow-game #mg-level{color:#ffd12e}#meadow-game #mg-towers{color:#8fd0ff}
+/* Yerleştirme / komut hatası: imlecin yanında kısa bir yazı. */
+#meadow-game .hint-label{position:absolute;z-index:4;pointer-events:none;transform:translate(14px,18px);background:#3a1c10d9;border:1px solid #d1743a;color:#ffe0c2;padding:3px 8px;border-radius:5px;font:600 12px/1.3 system-ui,sans-serif;white-space:nowrap;max-width:360px;text-overflow:ellipsis;overflow:hidden}
+#meadow-game .hint-label[hidden]{display:none}
+#meadow-game .hint-label.fixed{transform:translate(-50%,0);font-size:13px;padding:5px 12px}
 #meadow-game .vignette{position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 120px #2a220e66}
 /* Sancağın / kulen saldırı alınca ekran kenarlarının kızarması. */
 #meadow-game #mg-alert{position:absolute;inset:0;pointer-events:none;z-index:3;opacity:0;box-shadow:inset 0 0 90px 18px #d32b1ecc,inset 0 0 220px 40px #8e150c66}
@@ -122,6 +124,8 @@ html,body{margin:0;height:100%;background:#19231d;overflow:hidden}
 #meadow-game .difficulty label{padding:4px 0}
 #meadow-game .summary{margin:14px 0;padding:10px 12px;background:#1c241e;border-radius:8px;font-variant-numeric:tabular-nums;line-height:1.6}
 #meadow-game .row{display:flex;gap:10px;align-items:center}
+#meadow-game .overlay .card > .row{margin-top:18px}
+#meadow-game .overlay .card h2{margin-bottom:12px}
 #meadow-game #end-title{font-size:28px}
 
 @media(max-width:900px){#meadow-game #mg-bar{grid-template-columns:auto 1fr;height:auto}#meadow-game .mini{grid-column:1/-1;flex-direction:row}#meadow-game #mg-minimap{width:200px;height:100px}#meadow-game .minibtns{flex-direction:column}#meadow-game .picker{grid-template-columns:1fr}#meadow-game .overlay .card{padding:16px}}
@@ -166,7 +170,7 @@ html,body{margin:0;height:100%;background:#19231d;overflow:hidden}
 #meadow-game .card.menu-card h2{text-align:center}
 #meadow-game.screen #mg-view{cursor:default}
 /* Canlı skor: sağ üstte, HUD'un altında. */
-#meadow-game .score{position:absolute;top:92px;right:12px;z-index:3;background:#1c241ecc;border:1px solid #3c4a3a;border-radius:6px;min-width:150px;font-size:12px;pointer-events:auto}
+#meadow-game .score{position:absolute;bottom:10px;right:12px;z-index:3;background:#1c241ecc;border:1px solid #3c4a3a;border-radius:6px;min-width:150px;font-size:12px;pointer-events:auto}
 #meadow-game .score[hidden]{display:none}
 #meadow-game .score-head{padding:4px 8px;font-size:11px;letter-spacing:.1em;color:#b8c5aa;cursor:pointer;border-bottom:1px solid #3c4a3a}
 #meadow-game .score.folded .score-list{display:none}

@@ -92,9 +92,8 @@ function removeItem(world, item) {
 
 const near = (a, b, r) => { const dx = a.x - b.x, dz = a.z - b.z; return dx * dx + dz * dz < r * r; };
 
-/** Kahramanın bir kaynak çıkarışında düşen ürün sayısı: her LEVEL.gatherEvery seviyede bir fazla. */
-export const heroGather = e =>
-  (e.isPlayer || e.isHero ? 1 + Math.floor(e.level / LEVEL.gatherEvery) : 1);
+/** Kahramanın bir kaynak çıkarışında (vuruş ya da çalışma) düşen ürün sayısı: **seviyesi kadar** (sv 1: 1, sv 7: 7). */
+export const heroGather = e => (e.isPlayer || e.isHero ? Math.max(1, e.level || 1) : 1);
 
 /** Ürün alma yarıçapı: işçilerde sabit, kahramanlarda seviyeyle büyür. */
 export const pickRadiusOf = e =>

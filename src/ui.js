@@ -16,11 +16,11 @@ export function createUI(root, world, actions) {
   const $ = sel => root.querySelector(sel);
   const els = {
     health: $('#mg-health'), level: $('#mg-level'), gold: $('#mg-gold'), wood: $('#mg-wood'), workers: $('#mg-workers'), army: $('#mg-army'),
-    towers: $('#mg-towers'), enemyTowers: $('#mg-enemy-towers'), bannerOwn: $('#mg-banner-own'), bannerEnemy: $('#mg-banner-enemy'), allies: $('#mg-allies'),
+    towers: $('#mg-towers'), bannerOwn: $('#mg-banner-own'), allies: $('#mg-allies'), hint: $('#mg-hint'),
     cmd: $('#mg-cmd'), info: $('#mg-info'), floats: $('#mg-floats'), alert: $('#mg-alert'), full: $('#mg-full'), cam: $('#mg-cam'),
     score: $('#mg-score'), scoreList: $('#mg-score .score-list'), scoreHead: $('#mg-score .score-head'),
   };
-  let audio = null, cmdKey = '', infoKey = '', scoreKey = '';
+  let audio = null, cmdKey = '', infoKey = '', scoreKey = '', hintText = null, hintUntil = 0;
   const campLabels = new Map();
   let lastAlertPing = -99;
   const typeOf = key => SOLDIER_TYPES.find(t => t.key === key);
@@ -267,7 +267,7 @@ export function createUI(root, world, actions) {
       const st = sel().structure;
       if (!st) { ping('error'); return; }
       const err = actions.demolish(st);
-      if (err) { ping('error'); return; }
+      if (err) { ping('error'); ui.hint(err, 1.8); return; }
       clearSelection(world); world.heroMenu = false;
       ping('tower'); ui.update();
     },
@@ -288,22 +288,38 @@ export function createUI(root, world, actions) {
     heroConvert(key) {
       if (deadBlock() || busy()) return;
       const err = actions.heroConvert(key);
-      if (err) ping('error'); else ping('tower');
+      if (err) { ping('error'); ui.hint(err, 1.8); } else ping('tower');
       ui.update();
     },
     startPlacing(kind) {
       if (deadBlock() || busy()) return;
       const spec = BUILDINGS[kind]; if (!spec || kind === 'banner') return;
-      if (world.me.eco.gold < spec.cost || world.me.eco.wood < spec.wood) { ping('error'); return; }
-      world.placing = kind;
+      if (world.me.eco.gold < spec.cost || world.me.eco.wood < spec.wood) { ping('error'); ui.hint(`Yetersiz odun: ${spec.label} ${spec.wood} odun`, 1.8); return; }
+      world.placing = kind; ui.hint(null);
       ui.update();
     },
     confirmPlace(x, z) {
       const kind = world.placing; if (!kind || deadBlock()) return;
       const r = actions.build(kind, x, z);
-      if (typeof r === 'string') { ping('error'); return; }
-      world.placing = null;
+      if (typeof r === 'string') { ping('error'); ui.hint(r, 1.8); return; }
+      world.placing = null; ui.hint(null);
       ui.update();
+    },
+    /**
+     * İmlecin yanındaki kısa yazı: yerleştirme modunda hayalet kırmızıysa neden dikilemediği sürekli yazılır (bkz. main.js
+     * updateMarkers -> world.placeError); reddedilen komutun sebebi de kısa süre burada çıkar. seconds=0: kalıcı (mod bitince kalkar).
+     */
+    hint(text, seconds = 0) { hintText = text || null; hintUntil = text && seconds ? world.clock + seconds : Infinity; },
+    updateHint() {
+      const el = els.hint; if (!el) return;
+      const live = world.placing && world.placeError && world.input.pointer.inside ? world.placeError : null;
+      const transient = hintText && world.clock <= hintUntil ? hintText : null;
+      const text = transient || live;
+      if (!text) { el.hidden = true; return; }
+      el.hidden = false; el.textContent = text;
+      // Geçici (reddedilen komut) yazısı alt bandın hemen üstünde, ortada durur; canlı yerleştirme hatası imleci izler.
+      if (transient) { el.classList.add('fixed'); el.style.left = '50%'; el.style.top = 'auto'; el.style.bottom = '14px'; }
+      else { el.classList.remove('fixed'); el.style.bottom = 'auto'; el.style.left = `${world.input.pointer.x}px`; el.style.top = `${world.input.pointer.y}px`; }
     },
     /** Orta tık: düşman varsa bütün ordu ona saldırır, boş yerse toplanma alanı oraya dikilir. */
     setRally(x, z) {
@@ -330,7 +346,7 @@ export function createUI(root, world, actions) {
         err = actions.enqueue(key, building); if (err) break;
         n++;
       }
-      if (!n) ping('error');
+      if (!n) { ping('error'); if (err) ui.hint(err, 1.8); }
       else { const b = els.cmd.querySelector(`[data-soldier="${key}"]`); if (b) { b.classList.add('flash'); setTimeout(() => b.classList.remove('flash'), 240); } }
       ui.update();
     },
@@ -358,12 +374,8 @@ export function createUI(root, world, actions) {
       els.army.textContent = `⚔ ${c.army}/${world.limits.army}${queued ? ` ⏳${queued}` : ''} · 🛡 ${c.foot} 🏹 ${c.archer} 🐎 ${c.cavalry} 🪨 ${c.siege}`;
       const cnt = (f, k) => structureCount(world, f, k);
       els.towers.textContent = `🏰 ${cnt(world.me, 1)}/${world.limits.towers} 🏠 ${cnt(world.me, 0)}/${world.limits.buildings}`;
-      const foeTowers = foes.reduce((a, q) => a + cnt(q, 1), 0), attacking = foes.some(q => q.ai && q.ai.attacking);
-      const aliveFoes = foes.filter(q => q.banner && q.banner.alive);
-      els.enemyTowers.textContent = foes.length > 1 ? `🏰 ${foeTowers}` : `🏰 ${foeTowers}/${world.limits.towers}`;
-      els.bannerOwn.textContent = `⚑ ${own ? Math.ceil(own.hp) : 0}`;
-      els.bannerEnemy.textContent = foes.length > 1 ? `⚑ ${aliveFoes.length}/${foes.length}${attacking ? ' ⚡' : ''}` : `⚑ ${foes[0] && foes[0].banner ? Math.ceil(foes[0].banner.hp) : 0}${attacking ? ' ⚡' : ''}`;
-      els.bannerEnemy.title = foes.map(q => `${q.name}: ${q.banner && q.banner.alive ? `sancak ${Math.ceil(q.banner.hp)}` : 'sancağı yıkık'}${q.ai && q.ai.attacking ? ' · saldırıda' : ''}`).join(' · ');
+      // Rakip hakkında HUD'da bilgi yok (Age of gibi): yalnızca sağ alttaki skor sıralaması. Rakip saldırıya kalkınca sancağın yanında ⚡.
+      els.bannerOwn.textContent = `⚑ ${own ? Math.ceil(own.hp) : 0}${foes.some(q => q.ai && q.ai.attacking) ? ' ⚡' : ''}`;
       if (els.allies) {
         els.allies.hidden = !allies.length;
         if (allies.length) {
@@ -372,6 +384,7 @@ export function createUI(root, world, actions) {
         }
       }
       els.score.hidden = !world.running;
+      if (!world.placing && hintText === null) els.hint.hidden = true;
       renderScore();
       renderCmd(); renderInfo();
       root.classList.toggle('placing', Boolean(world.placing));
