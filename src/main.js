@@ -68,8 +68,8 @@ export async function start(root) {
    * Esc menüsünden yapılır, localStorage'da saklanır. Asker gölgesi kapalıyken yapılar ve ağaçlar gölge düşürmeye
    * devam eder, yani sahne yassılaşmaz; en pahalı kısım (yüzlerce kutu) gölge geçişinden çıkar.
    */
-  /** Ölçülen kare hızı (Esc menüsündeki grafik düğmesi gösterir; app.quality bunu okur). */
-  let fps = 0, fpsFrames = 0, fpsSince = 0;
+  /** Ölçülen kare hızı ve o karede çizilen birim sayısı (Esc menüsündeki ölçüm satırı; app.quality bunları okur). */
+  let fps = 0, fpsFrames = 0, fpsSince = 0, drawn = 0;
   let qualityKey = QUALITY.default;
   try { const k = localStorage.getItem('cm.quality'); if (k && QUALITY[k]) qualityKey = k; } catch { /* yok */ }
   let shadowTick = 0;
@@ -180,8 +180,11 @@ export async function start(root) {
     resume() { if (!world.replicated && world.running && world.paused) { world.paused = false; world.ui.update(); } },
     pauseForMenu() { if (!world.replicated && world.running && !world.ended) { world.paused = true; unlockPointer(); world.ui.update(); } },
     toggleSound() { return world.ui.toggleSound(); },
-    /** Esc menüsündeki grafik düğmesi: o anki kalite, etiketi ve ölçülen kare hızı. */
-    quality() { return { key: qualityKey, label: QUALITY.labels[qualityKey], fps }; },
+    /** Esc menüsündeki grafik düğmesi ve ölçüm satırı: kalite, kare hızı, çizim çağrısı, çizilen birim sayısı. */
+    quality() {
+      const r = renderer.info.render;
+      return { key: qualityKey, label: QUALITY.labels[qualityKey], fps, calls: r.calls, tris: r.triangles, drawn, units: world.entities.length };
+    },
     cycleQuality() {
       const i = QUALITY.order.indexOf(qualityKey);
       applyQuality(QUALITY.order[(i + 1) % QUALITY.order.length]);
@@ -299,6 +302,8 @@ export async function start(root) {
     const animDt = world.paused ? 0 : dt;
     const fog = world.fog;
     const hx = hero ? hero.pos.x : 0, hz = hero ? hero.pos.z : 0, vd2 = CAMERA.tps.viewDist * CAMERA.tps.viewDist;
+    const lod2 = PERF.lodDist * PERF.lodDist;
+    let seen = 0;
     const sees = world.cam === 'tps' && !kc ? (x, z) => (x - hx) ** 2 + (z - hz) ** 2 <= vd2 : (x, z) => fog.isVisible(x, z);
     const bounds = updateViewBounds(world, hero);
     // Ölüm kamerasında kadraj kahramanın değil katilin çevresidir: kırpma kapanır, katil her hâlükârda görünür.
@@ -307,15 +312,24 @@ export async function start(root) {
       const v = e.view; if (!v) continue;
       const shown = (kc && kc.target === e) || (inView(e.pos.x, e.pos.z, 0) && (e.faction === 'blue' || sees(e.pos.x, e.pos.z)));
       if (!shown) { v.g.visible = false; v.hpBar.visible = false; continue; }
-      animateView(e, animDt, camera.quaternion);
+      seen++;
+      // Uzaktaki birim sade çizilir (uzuvlar gizli, animasyon yok): kalabalıkta en büyük tasarruf burada.
+      const far = (e.pos.x - hx) ** 2 + (e.pos.z - hz) ** 2 > lod2;
+      animateView(e, animDt, camera.quaternion, far);
       v.sel.visible = world.sel.units.has(e);
     }
+    drawn = seen;
     for (const it of world.items) syncItemView(world, it, animDt, world.clock);
     for (const a of world.arrows) syncArrowView(a);
     for (const z of world.spins) syncZoneView(world, z, animDt);
     for (const z of world.tornadoes) syncZoneView(world, z, animDt);
     for (const z of world.zones) syncZoneView(world, z, animDt);
-    for (const s of world.structures) { if (s.faction === 'red' && !s.seen && world.cam === 'tps' && sees(s.pos.x, s.pos.z)) s.seen = true; syncStructureView(s, animDt, world.clock, camera.quaternion); }
+    for (const s of world.structures) {
+      if (s.faction === 'red' && !s.seen && world.cam === 'tps' && sees(s.pos.x, s.pos.z)) s.seen = true;
+      // Ekran dışındaki yapı hiç çizilmez: matris ve kesme denetimi de düşer (yapı başına ~14 mesh).
+      if (!inView(s.pos.x, s.pos.z, 6)) { if (s.view) { s.view.g.visible = false; if (s.view.bars) s.view.bars.g.visible = false; } continue; }
+      syncStructureView(s, animDt, world.clock, camera.quaternion);
+    }
     world.ui.updateCampLabels();
     world.ui.updateHint();
     world.ui.updateCharge();

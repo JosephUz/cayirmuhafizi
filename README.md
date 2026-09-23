@@ -526,9 +526,15 @@ kalemdir (yüzlerce asker kutusu). Sunucu simülasyonu kademelerden etkilenmez.
 
 Büyük takım oyunlarında yüzlerce birim aynı anda sahadadır; oyun şu yollarla akıcı kalır (ayarlar `config.js` → `PERF`):
 
-- **Ekran dışı eleme**: ekranın zemin izdüşümünün (+8 birim pay) dışındaki birimler, eşyalar ve efektler çizilmez, canlandırılmaz
-  ve matrisleri güncellenmez; ekran dışında parçacık ve halka hiç yaratılmaz (en çok 400 parçacık). Omuz üstü kamerada sınır
-  görüş mesafesidir (90 birim).
+- **Ekran dışı eleme**: ekranın zemin izdüşümünün (+8 birim pay) dışındaki birimler, **yapılar**, eşyalar ve efektler
+  çizilmez, canlandırılmaz ve matrisleri güncellenmez; ekran dışında parçacık ve halka hiç yaratılmaz (en çok 400 parçacık).
+  Omuz üstü kamerada sınır görüş mesafesidir (90 birim). Ölçüm (5v5, 300 birim, izometrik): sahadaki 300 birimin **34'ü**
+  çiziliyor, 267'si gizli; çizim çağrısı 130, üçgen 234 bin.
+- **Uzak birim sadeleştirmesi** (`PERF.lodDist` = 42 birim): uzaktaki birimde kol, bacak, silah, kalkan ve at bacakları
+  gizlenir, uzuv animasyonu hiç koşmaz; gövde, kafa ve can çubuğu durur. İzometrikte ekran köşesi ~35 birim olduğu için
+  görünürde değişiklik olmaz, kazanç omuz üstü kamerada belirir: aynı sahnede çizim çağrısı birim başına **3.2'den 1.8'e** indi.
+- **Ölçüm satırı**: Esc menüsünün altında `kare hızı · çizim çağrısı · üçgen · çizilen birim / sahadaki birim` yazar.
+  Takılma bildirirken bu satır okunur; "çizilen birim" sahadakinden çok küçükse eleme çalışıyor demektir.
 - **Gölge kutusu** arenayı değil kameranın baktığı yerin çevresini kaplar (izometrikte 60, omuz üstünde 100 birim yarı boy):
   gölgeler daha keskin, ekran dışı birimler gölge geçişine girmez. Kutu ışık uzayında tam piksel adımlarıyla kayar.
   Harita çözünürlüğü, yenileme sıklığı ve asker gölgesi **Grafik kalitesi** kademesine bağlıdır (bkz. yukarısı);

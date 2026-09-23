@@ -93,8 +93,17 @@ export function createScreens(root, world, app) {
   els.menuSound.onclick = () => { const on = app.toggleSound(); els.menuSound.textContent = `Ses: ${on ? 'açık' : 'kapalı'}`; };
   /** Grafik kalitesi: Düşük -> Orta -> Yüksek sırayla döner; düğme o anki kare hızını da gösterir. */
   const qualityText = () => { const q = app.quality(); return `Grafik: ${q.label}${q.fps ? ` · ${q.fps} fps` : ''}`; };
+  /** Ölçüm satırı: kare hızı, çizim çağrısı, çizilen birim / sahadaki birim. Takılma bildirirken bu satır okunur. */
+  const perfText = () => {
+    const q = app.quality();
+    return `${q.fps} fps · ${q.calls} çizim · ${q.tris ? Math.round(q.tris / 1000) + 'k üçgen' : '-'} · birim ${q.drawn}/${q.units}`;
+  };
   if (els.menuQuality) {
-    els.menuQuality.onclick = () => { app.cycleQuality(); els.menuQuality.textContent = qualityText(); };
+    els.menuQuality.onclick = () => {
+      app.cycleQuality();
+      els.menuQuality.textContent = qualityText();
+      const perf = root.querySelector('#menu-perf'); if (perf) perf.textContent = perfText();
+    };
     els.menuQuality.textContent = qualityText();
   }
   $('#menu-leave').onclick = () => { app.leaveGame(); show(els.home); };
@@ -116,6 +125,7 @@ export function createScreens(root, world, app) {
       if (!world.running) return;
       // Menü açılırken kare hızı tazelensin: grafik düğmesi o anki fps'i de yazar.
       if (els.menuQuality) els.menuQuality.textContent = qualityText();
+      const perf = root.querySelector('#menu-perf'); if (perf) perf.textContent = perfText();
       show(els.menu); app.pauseForMenu();
     },
     netStrip(show) { els.net.hidden = !show; },

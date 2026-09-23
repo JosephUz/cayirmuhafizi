@@ -273,7 +273,7 @@ export function buildView(scene, e) {
   const hpBar = bars.g, hpFill = bars.fill;
 
   scene.add(g);
-  e.view = { g, body, legs, arms, w, shieldMesh, horseLegs, swing, swingEdge, tunicMat, hpBar, hpFill, bars, sel, mounted: horse };
+  e.view = { g, body, legs, arms, w, shieldMesh, horseLegs, swing, swingEdge, tunicMat, hpBar, hpFill, bars, sel, mounted: horse, detail: true };
   // Grafik kalitesi düşükse asker gölge düşürmez (bkz. config.js QUALITY): kalabalık savaşta en pahalı kalem budur.
   if (!unitShadows) applyUnitShadows(e, false);
   return e.view;
@@ -287,9 +287,31 @@ export function removeView(e) {
 }
 
 /** Tamamen prosedürel canlandırma: yürüyüş sinüs, saldırı tek eğri, ölüm devrilip gömülme. */
-export function animateView(e, dt, camQuat) {
+/**
+ * Uzak birim: gövde ve kafa kalır, uzuvlar gizlenir (bkz. PERF.lodDist). Aç / kapat yalnızca durum değişince
+ * yapılır, her karede traverse edilmez.
+ */
+function setDetail(v, on) {
+  if (v.detail === on) return;
+  v.detail = on;
+  for (const l of v.legs) l.visible = on;
+  for (const a of v.arms) a.visible = on;
+  if (v.horseLegs) for (const l of v.horseLegs) l.visible = on;
+  if (v.shieldMesh) v.shieldMesh.visible = on;
+}
+
+export function animateView(e, dt, camQuat, far = false) {
   const v = e.view; if (!v) return;
   v.g.position.x = e.pos.x; v.g.position.z = e.pos.z; v.g.rotation.y = e.facing;
+  setDetail(v, !far);
+  if (far) {
+    // Uzakta: yalnızca konum, yön, zıplama yüksekliği ve can çubuğu. Uzuv animasyonu ve savurma yok.
+    v.g.position.y = e.jumpY;
+    v.g.rotation.x = 0; v.g.rotation.z = 0; v.g.scale.setScalar(1);
+    if (!e.alive) animateDeath(e, v);
+    setHpBar(v.bars, e.hp, e.stats.maxHp, e.pos.x, (v.mounted ? 3.3 : 2.35) + e.jumpY, e.pos.z, camQuat, e.alive);
+    return;
+  }
 
   if (!e.alive) { animateDeath(e, v); }
   else {

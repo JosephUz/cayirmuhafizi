@@ -436,7 +436,14 @@ export const FOG = { exploredAlpha: 0.55, updateEvery: 0.15 };
  * shadowMapSize: gölge haritası; cullMargin: ekran kenarı payı (birim) — bunun dışındaki birim, eşya ve efekt çizilmez;
  * effectsMax: aynı anda en çok parçacık; uiEvery: HUD / komut ızgarası bu sıklıkta (sn) yenilenir (her karede değil).
  */
-export const PERF = { shadowMapSize: 2048, shadowBox: { iso: 60, tps: 100 }, cullMargin: 8, effectsMax: 400, uiEvery: 0.12 };
+export const PERF = { shadowMapSize: 2048, shadowBox: { iso: 60, tps: 100 }, cullMargin: 8, effectsMax: 400, uiEvery: 0.12,
+  /**
+   * **Uzak birim sadeleştirmesi**: kahramandan bu uzaklıktan öteki birimlerde kol, bacak, silah, kalkan ve at
+   * bacakları gizlenir; uzuv animasyonu da koşmaz. Gövde, kafa ve can çubuğu durur, yani birim yine görünür ve
+   * seçilebilir. Omuz üstü kamerada 90 birime kadar saha görülüyor; asıl kazanç oradadır (birim başına ~15 mesh
+   * yerine ~4). İzometrikte ekranın köşesi ~35 birim olduğu için görünürde neredeyse hiçbir şey değişmez.
+   */
+  lodDist: 42 };
 /**
  * Grafik kalitesi (Esc menüsünden seçilir, localStorage'da saklanır). Geç safhada sahada yüzlerce asker olur ve
  * **gölge geçişi** çizim maliyetini ikiye katlar: her asker ~15 kutudan oluşur, hepsi ayrı çizim çağrısıdır.
