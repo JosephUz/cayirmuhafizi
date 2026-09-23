@@ -19,6 +19,13 @@ Port değiştirmek için PowerShell'de `$env:PORT=5174; npm start`.
 `cloudflared tunnel --url http://127.0.0.1:5173` (ya da kalıcı bir tünelle kendi alan adın); WebSocket tünelden geçer,
 sayfa https ile açılınca istemci kendiliğinden wss kullanır. Aynı tarayıcıda iki sekme iki ayrı oyuncudur (kimlik sekmeye özeldir).
 
+**Docker ile (compose)**: Node kurmadan, deploy edilmiş gibi çalıştırmak için `docker compose up -d --build`; oyun
+http://localhost:5173 adresinde, dış ağa `0.0.0.0` ile açıktır. `docker compose logs -f` oda kayıtlarını izler,
+`docker compose down` kapatır (SIGTERM ile yarım saniyede temiz kapanır). Port için `PORT=5174 docker compose up -d`.
+İmaj `node:22-alpine` üstünde ~300 MB; kaynak değişince yalnızca `--build` yeter, bağımlılık katmanı önbellekten gelir.
+Kalıcı Cloudflare Tunnel için `.env` dosyasına `TUNNEL_TOKEN=...` yaz ve `docker compose --profile tunnel up -d`:
+`cloudflared` konteyneri oyunu sağlıklı görünce tünele bağlanır (Zero Trust panelinde tünelin hedefi `http://game:5173`).
+
 ## Ekranlar
 
 Hesap yok. **Giriş**: ad (tarayıcıda hatırlanır) ve üç düğme: **Tek başına** (kurulum ekranı, sonra oyun), **Oda kur**
@@ -509,6 +516,7 @@ Simülasyon ile görünüm ayrıdır: `src/world.js` ve ona bağlı modüller re
 | `src/economy.js` | Çalışma yerleri, eşyalar (veri), kasalar, ganimet, bina kurma, bot ekonomisi / saldırı / savunma |
 | `src/input.js` | Klavye / fare (istemci): ham girdi, nişan, seçim, fare kilidi, omuz üstü kamera, girdi çözümü |
 | `src/ui.js` | HUD, canlı skor, alt bant (komut ızgarası, bilgi kartı), ses. **Metin mesaj barı yoktur** |
+| `Dockerfile`, `compose.yaml`, `.dockerignore` | Konteyner: tek imaj (statik + WebSocket), sağlık denetimi, isteğe bağlı `tunnel` profili (cloudflared) |
 | `server.mjs`, `server/rooms.mjs` | Tek süreç: statik dosyalar + WebSocket odaları (lobi, otoriter simülasyon, durum paketi, geri bağlanma, bot devralma) |
 
 Oyun dünyası tarayıcı konsolunda `__meadow` olarak erişilebilir; tek başına oyunda `__meadow.simulate(30)` oyunu

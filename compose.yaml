@@ -1,0 +1,27 @@
+# Yerel Docker kurulumu: `docker compose up -d --build`, ardından http://localhost:5173
+# Ekip testinde aynı ağdaki arkadaşlar http://<senin-ip>:5173 ile girer.
+# Cloudflare Tunnel için `--profile tunnel` ve TUNNEL_TOKEN ortam değişkeni (bkz. README).
+services:
+  game:
+    build: .
+    image: cayir-muhafizi
+    container_name: cayir-muhafizi
+    init: true
+    restart: unless-stopped
+    ports:
+      - "${PORT:-5173}:5173"
+    environment:
+      HOST: 0.0.0.0
+      PORT: 5173
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: cayir-tunnel
+    profiles: ["tunnel"]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:-}  # boşsa cloudflared başlamaz; .env dosyasına yaz
+    depends_on:
+      game:
+        condition: service_healthy

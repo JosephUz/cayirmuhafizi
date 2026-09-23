@@ -66,6 +66,7 @@ server.on('error', error => {
   console.error(error.code === 'EADDRINUSE' ? `${port} portu kullanimda. Baska port icin PORT ortam degiskenini ayarlayin.` : error);
   process.exit(1);
 });
+for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, () => { console.log(sig + ': kapaniyor.'); wss.close(); server.close(); process.exit(0); });
 server.listen(port, host, () => {
   console.log(`Cayir Muhafizi: ${address} (dinlenen: ${host}:${port})\nDurdurmak icin Ctrl+C.`);
   if (process.argv.includes('--open')) {
