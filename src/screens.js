@@ -13,7 +13,7 @@ export function createScreens(root, world, app) {
     home: $('#mg-home'), setup: $('#mg-setup'), lobby: $('#mg-lobby'), end: $('#mg-end'), help: $('#mg-help'), menu: $('#mg-menu'), net: $('#mg-net'),
     nick: $('#home-nick'), joinRow: $('#home-joinrow'), code: $('#home-code'), homeStatus: $('#home-status'),
     setupTitle: $('#setup-title'), lobbyCode: $('#lobby-code'), blue: $('#lobby-blue'), red: $('#lobby-red'), lobbyTeams: $('#lobby-teams'), lobbyDiff: $('#lobby-diff'), lobbyStart: $('#lobby-start'), lobbyStatus: $('#lobby-status'),
-    endCard: $('#end-card'), helpHero: $('#help-hero'), menuResume: $('#menu-resume'), menuSound: $('#menu-sound'),
+    endCard: $('#end-card'), helpHero: $('#help-hero'), menuResume: $('#menu-resume'), menuSound: $('#menu-sound'), menuQuality: $('#menu-quality'),
   };
   const overlays = [els.home, els.setup, els.lobby, els.end, els.help, els.menu];
   let setupMode = 'solo', helpReturn = null;
@@ -91,6 +91,12 @@ export function createScreens(root, world, app) {
   // ---- Esc menüsü
   els.menuResume.onclick = () => { show(null); app.resume(); };
   els.menuSound.onclick = () => { const on = app.toggleSound(); els.menuSound.textContent = `Ses: ${on ? 'açık' : 'kapalı'}`; };
+  /** Grafik kalitesi: Düşük -> Orta -> Yüksek sırayla döner; düğme o anki kare hızını da gösterir. */
+  const qualityText = () => { const q = app.quality(); return `Grafik: ${q.label}${q.fps ? ` · ${q.fps} fps` : ''}`; };
+  if (els.menuQuality) {
+    els.menuQuality.onclick = () => { app.cycleQuality(); els.menuQuality.textContent = qualityText(); };
+    els.menuQuality.textContent = qualityText();
+  }
   $('#menu-leave').onclick = () => { app.leaveGame(); show(els.home); };
   $('#mg-menu-btn').onclick = () => screens.escape();
 
@@ -108,6 +114,8 @@ export function createScreens(root, world, app) {
       if (v === els.menu) { show(null); app.resume(); return; }
       if (v) return; // giriş / lobi / kurulum / bitiş ekranında Esc bir şey yapmaz
       if (!world.running) return;
+      // Menü açılırken kare hızı tazelensin: grafik düğmesi o anki fps'i de yazar.
+      if (els.menuQuality) els.menuQuality.textContent = qualityText();
       show(els.menu); app.pauseForMenu();
     },
     netStrip(show) { els.net.hidden = !show; },

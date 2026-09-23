@@ -437,6 +437,21 @@ export const FOG = { exploredAlpha: 0.55, updateEvery: 0.15 };
  * effectsMax: aynı anda en çok parçacık; uiEvery: HUD / komut ızgarası bu sıklıkta (sn) yenilenir (her karede değil).
  */
 export const PERF = { shadowMapSize: 2048, shadowBox: { iso: 60, tps: 100 }, cullMargin: 8, effectsMax: 400, uiEvery: 0.12 };
+/**
+ * Grafik kalitesi (Esc menüsünden seçilir, localStorage'da saklanır). Geç safhada sahada yüzlerce asker olur ve
+ * **gölge geçişi** çizim maliyetini ikiye katlar: her asker ~15 kutudan oluşur, hepsi ayrı çizim çağrısıdır.
+ * - map: gölge haritası çözünürlüğü. every: gölge haritası kaç karede bir yenilenir (2 = yarı maliyet).
+ * - units: askerler gölge düşürsün mü (kapalıyken yapılar ve ağaçlar düşürmeye devam eder).
+ * Varsayılan **orta**: gölgeler duruyor ama asker gölgesi yok ve harita iki karede bir yenileniyor.
+ */
+export const QUALITY = {
+  order: ['low', 'medium', 'high'],
+  labels: { low: 'Düşük', medium: 'Orta', high: 'Yüksek' },
+  low: { shadows: false, map: 1024, every: 3, units: false },
+  medium: { shadows: true, map: 1024, every: 2, units: false },
+  high: { shadows: true, map: 2048, every: 1, units: true },
+  default: 'medium',
+};
 
 /**
  * Kamera. panSpeed: komutan modu kaydırma hızı (birim/sn).

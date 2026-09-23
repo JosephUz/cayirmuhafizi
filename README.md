@@ -507,6 +507,21 @@ edilen "sen", takım oyununda **rakip takımın toplamının takımdaki oyuncu s
 - Zorluk (Kolay / Normal / Zor): rakibin altın çarpanı 0.5x / 1x / 2x (taklit payı `ENEMY_AI.extra` ile ayarlanabilir, varsayılan 0).
 - Rakip takımın bütün sancakları yıkılınca zafer; kendi sancağın düşerse kaybedersin (sahibinin kuleleri ayaktayken sancağın canı azalmaz).
 
+## Grafik kalitesi (Esc menüsü)
+
+Geç safhada sahada **yüzlerce asker** olur. Her asker ~15 ayrı kutudan oluşur ve gölge geçişi bunların hepsini bir
+kez daha çizer, yani gölge maliyeti çizimin yarısıdır. Esc menüsündeki **Grafik** düğmesi üç kademe arasında döner ve
+o anki kare hızını da yazar (`config.js` → `QUALITY`, seçim `localStorage`'da kalır):
+
+| Kademe | Gölge | Harita | Yenileme | Asker gölgesi |
+| --- | --- | --- | --- | --- |
+| Yüksek | var | 2048 | her kare | var |
+| **Orta** (varsayılan) | var | 1024 | 2 karede bir | yok |
+| Düşük | yok | — | — | yok |
+
+Orta kademede yapılar, ağaçlar ve arazi gölge düşürmeye devam eder, yani sahne yassılaşmaz; kalkan yalnızca en pahalı
+kalemdir (yüzlerce asker kutusu). Sunucu simülasyonu kademelerden etkilenmez.
+
 ## Performans (5v5)
 
 Büyük takım oyunlarında yüzlerce birim aynı anda sahadadır; oyun şu yollarla akıcı kalır (ayarlar `config.js` → `PERF`):
@@ -514,8 +529,10 @@ Büyük takım oyunlarında yüzlerce birim aynı anda sahadadır; oyun şu yoll
 - **Ekran dışı eleme**: ekranın zemin izdüşümünün (+8 birim pay) dışındaki birimler, eşyalar ve efektler çizilmez, canlandırılmaz
   ve matrisleri güncellenmez; ekran dışında parçacık ve halka hiç yaratılmaz (en çok 400 parçacık). Omuz üstü kamerada sınır
   görüş mesafesidir (90 birim).
-- **Gölge kutusu** arenayı değil kameranın baktığı yerin çevresini kaplar (izometrikte 60, omuz üstünde 100 birim yarı boy,
-  2048² harita): gölgeler daha keskin, ekran dışı birimler gölge geçişine girmez. Kutu ışık uzayında tam piksel adımlarıyla kayar.
+- **Gölge kutusu** arenayı değil kameranın baktığı yerin çevresini kaplar (izometrikte 60, omuz üstünde 100 birim yarı boy):
+  gölgeler daha keskin, ekran dışı birimler gölge geçişine girmez. Kutu ışık uzayında tam piksel adımlarıyla kayar.
+  Harita çözünürlüğü, yenileme sıklığı ve asker gölgesi **Grafik kalitesi** kademesine bağlıdır (bkz. yukarısı);
+  varsayılan orta kademede asker gölgesi kapalıdır ve harita iki karede bir yenilenir.
 - **Simülasyon**: birim çarpışmaları uzaysal ızgarayla (4 birimlik hücre) çözülür; engel ızgarası yalnızca yapı kurulup yıkılınca
   yeniden kurulur; askerin hedef araması önce uzaklık süzgecinden geçer, rakip kule menzili denetimi yalnızca en yakın adaylar
   için yapılır; bot askerinin boşta planı (mancınığa eşlik, yapı, keşif) 0.3 sn'de bir, toplayıcıların düşman taraması 0.1 sn'de bir yenilenir.

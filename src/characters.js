@@ -162,6 +162,22 @@ function weaponMesh(parent, type) {
 }
 
 /** Kutulardan kurulu rig. Renk dışında herkes aynı iskeleti kullanır. */
+/** Askerler gölge düşürsün mü (grafik kalitesi; bkz. config.js QUALITY, main.js applyQuality). */
+let unitShadows = true;
+export function setUnitShadows(on) { unitShadows = Boolean(on); }
+/**
+ * Bir birimin bütün parçalarında gölge düşürmeyi aç / kapat. Seçim halkası ve yer işareti zaten gölge düşürmez;
+ * onlar `castShadow = false` ile kurulduğu için burada geri açılmasın diye işaretlenir.
+ */
+export function applyUnitShadows(e, on) {
+  const g = e && e.view && e.view.g; if (!g) return;
+  g.traverse(o => {
+    if (!o.isMesh) return;
+    if (o === (e.view.sel) || (o.geometry && o.geometry.type === 'RingGeometry')) { o.castShadow = false; return; }
+    o.castShadow = on;
+  });
+}
+
 export function buildView(scene, e) {
   const { weapon, shield, horse } = e.loadout;
   const blue = e.faction === 'blue', beast = e.faction === 'beast';
@@ -258,6 +274,8 @@ export function buildView(scene, e) {
 
   scene.add(g);
   e.view = { g, body, legs, arms, w, shieldMesh, horseLegs, swing, swingEdge, tunicMat, hpBar, hpFill, bars, sel, mounted: horse };
+  // Grafik kalitesi düşükse asker gölge düşürmez (bkz. config.js QUALITY): kalabalık savaşta en pahalı kalem budur.
+  if (!unitShadows) applyUnitShadows(e, false);
   return e.view;
 }
 

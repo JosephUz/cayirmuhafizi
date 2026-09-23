@@ -1,7 +1,7 @@
 import * as T from 'three';
 import { pickHostile } from './ai.js';
-import { animateView, rebuildSwing } from './characters.js';
-import { BUILD, BUILDINGS, CAMERA, PERF, TOWER } from './config.js';
+import { animateView, applyUnitShadows, rebuildSwing, setUnitShadows } from './characters.js';
+import { BUILD, BUILDINGS, CAMERA, PERF, QUALITY, TOWER } from './config.js';
 import { buildError } from './economy.js';
 import { buildEnvironmentView } from './environment.js';
 import { attachInput, clearSelection, createInput, lockPointer, resolveHeroInput, unlockPointer, updateTpsCamera } from './input.js';
@@ -62,6 +62,30 @@ export async function start(root) {
     sun.target.position.copy(shadowCenter);
     sun.position.copy(shadowCenter).add(SUN);
   };
+
+  /**
+   * Grafik kalitesi: geç safhada sahada yüzlerce asker olur ve **gölge geçişi** çizimi ikiye katlar. Seçim
+   * Esc menüsünden yapılır, localStorage'da saklanır. Asker gölgesi kapalıyken yapılar ve ağaçlar gölge düşürmeye
+   * devam eder, yani sahne yassılaşmaz; en pahalı kısım (yüzlerce kutu) gölge geçişinden çıkar.
+   */
+  /** Ölçülen kare hızı (Esc menüsündeki grafik düğmesi gösterir; app.quality bunu okur). */
+  let fps = 0, fpsFrames = 0, fpsSince = 0;
+  let qualityKey = QUALITY.default;
+  try { const k = localStorage.getItem('cm.quality'); if (k && QUALITY[k]) qualityKey = k; } catch { /* yok */ }
+  let shadowTick = 0;
+  function applyQuality(key) {
+    qualityKey = QUALITY[key] ? key : QUALITY.default;
+    const q = QUALITY[qualityKey];
+    renderer.shadowMap.enabled = q.shadows;
+    renderer.shadowMap.autoUpdate = q.shadows && q.every <= 1;
+    if (q.shadows) { sun.shadow.mapSize.set(q.map, q.map); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
+    sun.castShadow = q.shadows;
+    setUnitShadows(q.units);
+    for (const e of world.entities) applyUnitShadows(e, q.units);
+    renderer.shadowMap.needsUpdate = q.shadows;
+    fitShadow();
+    try { localStorage.setItem('cm.quality', qualityKey); } catch { /* yok */ }
+  }
 
   // Dünya: simülasyon + istemciye özel alanlar.
   const world = createWorld({ scene });
@@ -156,6 +180,13 @@ export async function start(root) {
     resume() { if (!world.replicated && world.running && world.paused) { world.paused = false; world.ui.update(); } },
     pauseForMenu() { if (!world.replicated && world.running && !world.ended) { world.paused = true; unlockPointer(); world.ui.update(); } },
     toggleSound() { return world.ui.toggleSound(); },
+    /** Esc menüsündeki grafik düğmesi: o anki kalite, etiketi ve ölçülen kare hızı. */
+    quality() { return { key: qualityKey, label: QUALITY.labels[qualityKey], fps }; },
+    cycleQuality() {
+      const i = QUALITY.order.indexOf(qualityKey);
+      applyQuality(QUALITY.order[(i + 1) % QUALITY.order.length]);
+      return qualityKey;
+    },
   };
   const screens = createScreens(root, world, app);
 
@@ -241,9 +272,12 @@ export async function start(root) {
 
   const look = new T.Vector3().copy(world.player.pos);
   let prev = 0, mapTick = 0, prevAlive = true;
+  applyQuality(qualityKey);
   renderer.setAnimationLoop(ms => {
     const dt = Math.min((ms - prev) / 1000 || 0.016, 0.1); prev = ms;
     world.clock += dt;
+    fpsFrames++;
+    if (ms - fpsSince >= 500) { fps = Math.round((fpsFrames * 1000) / (ms - fpsSince)); fpsFrames = 0; fpsSince = ms; }
     const replicated = world.replicated;
     if (!replicated) {
       const active = world.running && !world.paused && !world.ended;
@@ -303,6 +337,9 @@ export async function start(root) {
       isoCamera.lookAt(look.x, 0, look.z);
     }
     followShadow(look.x, look.z);
+    // Gölge haritası: yüksek kalitede her kare, orta / düşükte birkaç karede bir yenilenir (maliyetin yarısı).
+    const q = QUALITY[qualityKey];
+    if (q.shadows && !renderer.shadowMap.autoUpdate) { if ((shadowTick++ % q.every) === 0) renderer.shadowMap.needsUpdate = true; }
     renderer.render(scene, frameCam);
     if ((mapTick++ & 1) === 0) minimap.draw();
   });
