@@ -23,6 +23,11 @@ sayfa https ile açılınca istemci kendiliğinden wss kullanır. Aynı tarayıc
 http://localhost:5173 adresinde, dış ağa `0.0.0.0` ile açıktır. `docker compose logs -f` oda kayıtlarını izler,
 `docker compose down` kapatır (SIGTERM ile yarım saniyede temiz kapanır). Port için `PORT=5174 docker compose up -d`.
 İmaj `node:22-alpine` üstünde ~300 MB; kaynak değişince yalnızca `--build` yeter, bağımlılık katmanı önbellekten gelir.
+**Önbellek**: sunucu bütün oyun dosyalarını `no-store` ile verir, çünkü tek bir sürüm vardır ve güncelleme anında
+geçmelidir. Cloudflare'ın **Browser Cache TTL** ayarı (varsayılan 4 saat) bunu ezebiliyordu; `no-store` ile artık
+`cf-cache-status: BYPASS` döner. Yine de eski bir kopya takılı kalırsa **Ctrl+Shift+R** (Mac'te Cmd+Shift+R) ya da
+Cloudflare panelinde Caching > Purge Everything. `/health` yanıtındaki `surum` alanı ayakta olan yapının damgasıdır.
+
 Kalıcı Cloudflare Tunnel için `.env` dosyasına `TUNNEL_TOKEN=...` yaz ve `docker compose --profile tunnel up -d`:
 `cloudflared` konteyneri oyunu sağlıklı görünce tünele bağlanır (Zero Trust panelinde tünelin hedefi `http://game:5173`).
 Tünel rotası Zero Trust → Networks → Tunnels → tünel → **Published application routes**: alan adı, Path boş, Service `http://game:5173`.

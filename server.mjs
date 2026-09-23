@@ -1,5 +1,5 @@
 import http from 'node:http';
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
@@ -23,6 +23,22 @@ const types = {
   '.png': 'image/png',
 };
 const rootFiles = ['index.html', 'style.css', 'game.js'];
+/**
+ * Oyun dosyaları **hiç önbelleğe alınmaz**: tek bir sürüm vardır ve güncelleme anında geçmelidir. `no-cache` yetmez,
+ * çünkü araya giren vekiller (Cloudflare'ın "Browser Cache TTL" ayarı) onu kendi süresiyle değiştirebiliyor;
+ * `no-store` + `max-age=0` en katı olanıdır. Cloudflare tarafında ayrıca Caching > Browser Cache TTL "Respect
+ * Existing Headers" seçilmeli ya da bir Cache Rule ile bypass edilmelidir (bkz. README).
+ */
+const noStore = 'no-store, no-cache, must-revalidate, max-age=0';
+/** Sürüm damgası: en yeni oyun dosyasının değişme zamanı; /health ile hangi yapının ayakta olduğu görülür. */
+async function buildStamp() {
+  let newest = 0;
+  for (const f of ['index.html', 'game.js', 'style.css', 'src/main.js', 'src/config.js', 'src/input.js']) {
+    try { const s = await stat(path.join(root, f)); newest = Math.max(newest, s.mtimeMs); } catch { /* yok */ }
+  }
+  return new Date(newest).toISOString();
+}
+let stamp = 'bilinmiyor';
 
 function resolveFile(pathname) {
   if (pathname === '/' || pathname.startsWith('/?')) pathname = '/index.html';
@@ -43,7 +59,10 @@ const host = process.env.HOST || '127.0.0.1';
 const address = `http://${host === '0.0.0.0' ? '127.0.0.1' : host}:${port}`;
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, address);
-  if (url.pathname === '/health') { res.writeHead(200, { 'Content-Type': types['.json'] }); res.end(JSON.stringify(rooms.stats())); return; }
+  if (url.pathname === '/health') {
+    res.writeHead(200, { 'Content-Type': types['.json'], 'Cache-Control': noStore });
+    res.end(JSON.stringify({ ...rooms.stats(), surum: stamp })); return;
+  }
   const file = resolveFile(url.pathname);
   const type = file && types[path.extname(file).toLowerCase()];
   if (!file || !type || !['GET', 'HEAD'].includes(req.method)) {
@@ -51,7 +70,7 @@ const server = http.createServer(async (req, res) => {
   }
   try {
     const bytes = await readFile(file);
-    res.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'no-cache' });
+    res.writeHead(200, { 'Content-Type': type, 'Cache-Control': noStore });
     res.end(req.method === 'HEAD' ? undefined : bytes);
   } catch {
     res.writeHead(file.startsWith(vendorDir) ? 500 : 404);
@@ -67,6 +86,7 @@ server.on('error', error => {
   process.exit(1);
 });
 for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, () => { console.log(sig + ': kapaniyor.'); wss.close(); server.close(); process.exit(0); });
+buildStamp().then(s => { stamp = s; });
 server.listen(port, host, () => {
   console.log(`Cayir Muhafizi: ${address} (dinlenen: ${host}:${port})\nDurdurmak icin Ctrl+C.`);
   if (process.argv.includes('--open')) {
