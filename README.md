@@ -57,9 +57,20 @@ görseller `world.fx` kancalarından geçer (tarayıcıda mesh, sunucuda olay).
   (can, inşa, sıra), oklar ve bölgeler. Birimler 100 ms geriden ara değerle çizilir. Doğuş / silinme / efekt olayları JSON.
   5v5'te ölçülen: adım 0.8 ms, paket ortalama 1.8 KB, istemci başına ~17 KB/s.
 - **Akıcılık**: çizim saati paket varışına değil, yumuşatılmış bir sunucu saati farkına bakar (`NET.clockSmooth`);
-  paket geç gelince birimler donup sıçramaz. **Kendi kahramanın beklemez**: başkaları 100 ms geriden çizilirken senin
-  kahramanın en son pakete kadar çizilir ve 60 ms ileri sürülür (`NET.selfExtrapolate`), böylece tuşa basınca hareket
-  gecikmez. Sunucu yine tek yetkilidir; fark küçük bir düzeltmeyle kapanır.
+  paket geç gelince birimler donup sıçramaz.
+- **Kendi kahramanın beklemez (yerel tahmin)**: başkaları 100 ms geriden ara değerle çizilir, senin kahramanın
+  **yerelde tahmin edilir**: girdi aynı karede uygulanır (`physics.integrate` ile birebir aynı ivme modeli) ve
+  sunucudan gelen gerçek konum farkı saniyede `NET.predictCorrect` katıyla yumuşakça kapanır. Atılma, savrulma gibi
+  `NET.predictSnap` birimden büyük farklar yumuşatılmadan uygulanır. Yetki yine sunucudadır.
+  Node'da gerçek istemci kodu 60 Hz koşturularak ölçülen (yerel sunucu, 2v2):
+
+  | Ölçü | Tahmin açık | Tahmin kapalı |
+  | --- | --- | --- |
+  | Tuştan harekete tepki (ortanca) | 0 ms | 101 ms |
+  | Kare adımı değişim katsayısı (düşük = düzgün) | 0.15 | 0.25 |
+  | Donuk kare | yok | yok |
+
+  `NET.predict` false yapılırsa herkes gibi ara değerle çizilir.
 - **Sis** her istemcide kendi takımının birimlerinden yerelde hesaplanır (sunucu da oyun kuralları için hesaplar).
 - **Kopma**: kimlik sekmeye özel bir token'dır; sayfa yenilenince ya da bağlantı kopunca aynı koltuğa geri dönülür
   (üstte "Yeniden bağlanıyor" şeridi). 120 saniyede dönmeyenin kahramanını **bot devralır**; hiç insan kalmazsa oda kapanır.

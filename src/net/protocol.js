@@ -49,11 +49,15 @@ export const NET = {
    */
   clockSmooth: 0.12, clockJump: 0.5,
   /**
-   * **Kendi kahramanın beklemez**: başkaları interpDelay kadar geriden çizilir (yumuşak olsun diye), senin kahramanın
-   * en son pakete kadar çizilir ve bu kadar saniye ileri sürülür. Tuşa bastığında hareket interpDelay kadar
-   * gecikmez; karşılığında yön değiştirirken çok küçük bir düzeltme olur.
+   * **Kendi kahramanın beklemez**: başkaları interpDelay kadar geriden ara değerle çizilir, senin kahramanın
+   * **yerelde tahmin edilir** (girdin anında uygulanır, bkz. client.js predictSelf) ve sunucudan gelen gerçek konuma
+   * yumuşakça çekilir. Ara değeri ileri sürmek titreme yapıyordu; tahmin hem anında hem pürüzsüzdür.
+   * - predict: tahmin açık mı (kapatılırsa herkes gibi interpDelay kadar geriden çizilir).
+   * - predictCorrect: saniyede kaç kat hata kapatılır (12 = ~80 ms'de düzelir). Duvara yürürken denge sapması
+   *   yaklaşık hız / bu sayı kadardır (3.8 / 12 = 0.3 birim), yani lastik etkisi yoktur.
+   * - predictSnap: bu kadar birimlik fark (atılma, savrulma, ışınlanma) yumuşatılmaz, doğrudan atlanır.
    */
-  selfExtrapolate: 0.06,
+  predict: true, predictCorrect: 12, predictSnap: 2.5,
 };
 export const DIFFICULTIES = ['easy', 'normal', 'hard'];
 export const roomCode = () => {

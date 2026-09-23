@@ -1,5 +1,5 @@
 import http from 'node:http';
-import { readFile, stat } from 'node:fs/promises';
+import { readdir, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
@@ -33,9 +33,18 @@ const noStore = 'no-store, no-cache, must-revalidate, max-age=0';
 /** Sürüm damgası: en yeni oyun dosyasının değişme zamanı; /health ile hangi yapının ayakta olduğu görülür. */
 async function buildStamp() {
   let newest = 0;
-  for (const f of ['index.html', 'game.js', 'style.css', 'src/main.js', 'src/config.js', 'src/input.js']) {
-    try { const s = await stat(path.join(root, f)); newest = Math.max(newest, s.mtimeMs); } catch { /* yok */ }
-  }
+  const walk = async dir => {
+    let list = []; try { list = await readdir(dir, { withFileTypes: true }); } catch { return; }
+    for (const d of list) {
+      const full = path.join(dir, d.name);
+      if (d.isDirectory()) await walk(full);
+      else if (/.(js|mjs|css|html)$/.test(d.name)) { try { newest = Math.max(newest, (await stat(full)).mtimeMs); } catch { /* yok */ } }
+    }
+  };
+  for (const f of rootFiles) { try { newest = Math.max(newest, (await stat(path.join(root, f))).mtimeMs); } catch { /* yok */ } }
+  await walk(path.join(root, 'src'));
+  await walk(path.join(root, 'server'));
+  try { newest = Math.max(newest, (await stat(path.join(root, 'server.mjs'))).mtimeMs); } catch { /* yok */ }
   return new Date(newest).toISOString();
 }
 let stamp = 'bilinmiyor';
