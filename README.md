@@ -25,6 +25,8 @@ http://localhost:5173 adresinde, dış ağa `0.0.0.0` ile açıktır. `docker co
 İmaj `node:22-alpine` üstünde ~300 MB; kaynak değişince yalnızca `--build` yeter, bağımlılık katmanı önbellekten gelir.
 Kalıcı Cloudflare Tunnel için `.env` dosyasına `TUNNEL_TOKEN=...` yaz ve `docker compose --profile tunnel up -d`:
 `cloudflared` konteyneri oyunu sağlıklı görünce tünele bağlanır (Zero Trust panelinde tünelin hedefi `http://game:5173`).
+Tünel rotası Zero Trust → Networks → Tunnels → tünel → **Published application routes**: alan adı, Path boş, Service `http://game:5173`.
+Kök alan adı kullanılacaksa Cloudflare DNS sayfasındaki eski A / CNAME kaydı önce silinir; rota kaydedilince CNAME kendiliğinden oluşur.
 
 ## Ekranlar
 
