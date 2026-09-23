@@ -28,7 +28,7 @@ export function createPlayers(teamSize) {
 
 /** Kasa: altın + odun + yiyecek; basılan birim sayısı; kahraman çalışması (insan için). */
 export function createEconomy(human) {
-  const eco = { ...ECONOMY.start, hintTimer: 0, soldiersSpawned: 0, work: { spot: null, timer: 0 } };
+  const eco = { ...ECONOMY.start, soldiersSpawned: 0, work: { spot: null, timer: 0 } };
   // Deneme ayarı (bkz. ECONOMY.playerTestGold): yalnızca insan oyuncu bol altınla başlar, botlar normal başlar.
   if (human && ECONOMY.playerTestGold != null) eco.gold = ECONOMY.playerTestGold;
   return eco;
@@ -73,11 +73,3 @@ export function limitsFor(playerCount) {
   return { army: Math.min(LIMITS.army, Math.round(LIMITS.armyTotal / playerCount)), workers: Math.min(LIMITS.workers, Math.round(LIMITS.workersTotal / playerCount)), towers: LIMITS.towers, buildings: LIMITS.buildings };
 }
 
-/**
- * Bot mesajı: başlığıyla ("Rakip", "Rakip Aslan", "Müttefik Kurt") ekrana yazılır. `routine` (asker basıyor gibi
- * sık mesajlar) yalnızca 1v1'de gösterilir; kalabalık oyunda ekranı doldurmasın.
- */
-export function botSay(world, p, text, ms = 2000, routine = false) {
-  if (routine && world.players.length > 2) return;
-  world.ui.say(`${p.title} ${text}`, ms);
-}

@@ -259,7 +259,6 @@ export function damageStructure(world, s, amount, source) {
         ring(world, t.pos.x, t.pos.z, '#ffd12e', 1.6, 2.5);
         burst(world, t.pos.x, 3.2, t.pos.z, '#ffd12e', 8, 0.12);
       }
-      world.ui.say(`Kalkan: sancağın canı azalmıyor · ${towers.length} kule koruyor, yerleri haritada işaretlendi`, 2600);
       world.ui.ping('tower');
     }
     return;

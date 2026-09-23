@@ -1,8 +1,8 @@
 import * as T from '/vendor/three.module.js';
 import { pickHostile, updateUnit } from './ai.js';
-import { animateView, applyLevelUp, buildView, createEntity, makeStats, rebuildSwing, removeView, xpNeeded, kitKey } from './characters.js';
-import { burst, damageMult, fireArrow, healBubble, heroArrows, reachMult, ring, towerTarget, updateArrows, updateCombat, updateEffects, updateSpins, updateTornadoes } from './combat.js';
-import { ALERT, BUILD, BUILDINGS, CAMERA, CAMPS, COMBAT, DIFFICULTY, KIT, ECONOMY, ENEMY, ENEMY_HERO, HERO_UPGRADE, LEVEL, PERF, PHYSICS, POSITIONS, RESPAWN, SOLDIER_TYPES, TEAMS, TOWER, VISION, RALLY, heroConvertCost, respawnDelay } from './config.js';
+import { animateView, applyLevelUp, buildView, createEntity, makeStats, rebuildSwing, removeView, xpNeeded } from './characters.js';
+import { burst, fireArrow, healBubble, ring, towerTarget, updateArrows, updateCombat, updateEffects, updateSpins, updateTornadoes } from './combat.js';
+import { ALERT, BUILD, BUILDINGS, CAMERA, COMBAT, ECONOMY, ENEMY, ENEMY_HERO, HERO_UPGRADE, LEVEL, PERF, PHYSICS, POSITIONS, RESPAWN, SOLDIER_TYPES, TEAMS, TOWER, VISION, RALLY, heroConvertCost, respawnDelay } from './config.js';
 import { buildStructure, clearResources, dropLoot, dropXp, heroGather, hitNode, initBandits, initCamps, initResources, pickRadiusOf, updateBots, updateCamps, updateEconomy } from './economy.js';
 import { buildEnvironment, computeLayout } from './environment.js';
 import { createFog } from './fog.js';
@@ -112,11 +112,7 @@ export async function start(root) {
       world.me.eco.gold -= loss;
       // Her ölüm bir sonrakini geciktirir: ölüm sayısı arttıkça bekleme uzar (en çok RESPAWN.max).
       target.deaths = (target.deaths || 0) + 1;
-      const wait = respawnDelay(target.deaths);
       world.ui.cancelModes();
-      world.ui.say(world.me.banner.alive
-        ? `Düştün! ${loss} altın kaybettin. ${target.deaths}. ölüm: ${wait} sn sonra sancakta doğarsın${wait >= RESPAWN.max ? ' (en uzun bekleme)' : ' · her ölümde bekleme uzar'}.`
-        : 'Düştün!', 4000);
       return;
     }
     // Ölen asker çevreye yiyecek bırakır (her iki taraf); yalnızca kahramanlar toplar.
@@ -127,10 +123,7 @@ export async function start(root) {
     }
     // Bot kahramanı (rakip ya da müttefik) düştü: sahibinin sancağı ayaktaysa orada yeniden doğar.
     if (target.isHero && target.owner) {
-      const p = target.owner;
       target.deaths = (target.deaths || 0) + 1;
-      const wait = respawnDelay(target.deaths, ENEMY_HERO.respawn);
-      world.ui.say(p.banner.alive ? `${p.title} kahramanı düştü! ${target.deaths}. ölümü: ${wait} sn sonra sancağında doğar.` : `${p.title} kahramanı düştü!`, 3000);
     }
     // Ölen her birim yere bir exp küresi bırakır: kim toplarsa tecrübeyi o kahraman kazanır.
     dropXp(world, target.pos.x, target.pos.z, xpFor(target));
@@ -147,7 +140,7 @@ export async function start(root) {
     ring(world, s.pos.x, s.pos.z, '#ff4438', ALERT.worldRing, 0.7);
     world.alerts.push({ x: s.pos.x, z: s.pos.z, t: world.clock });
     if (world.alerts.length > 12) world.alerts.shift();
-    world.ui.alert(s.kind === 'banner' ? 'Sancağın saldırı altında!' : 'Kulen saldırı altında!');
+    world.ui.alert();
     void source;
   };
   /** Kahraman bir exp küresi topladı. */
@@ -157,20 +150,12 @@ export async function start(root) {
     dropLoot(world, 'wood', s.pos.x, s.pos.z, BUILDINGS[s.kind].loot);
     // Yıkılan kule / bina da exp bırakır (kule en değerlisi); kendi yıktığın yapı vermez, yoksa bedava exp olurdu.
     if (!s.demolished && s.kind !== 'banner') dropXp(world, s.pos.x, s.pos.z, s.kind === 'tower' ? LEVEL.xp.tower : s.kind === 'camp' ? LEVEL.xp.camp : LEVEL.xp.building);
-    if (s.kind === 'camp') {
-      world.ui.say(`Haydut kampı yıkıldı! ${Math.round(CAMPS.respawn / 60)} dakika içinde yeniden kurulur.`, 3000);
-      world.ui.update(); return;
-    }
-    if (s.kind !== 'banner') {
-      const label = BUILDINGS[s.kind].label;
-      world.ui.say(s.faction === 'red' ? `Düşman ${label.toLowerCase()} yapısı yıkıldı!` : s.owner === world.me ? `${label} yıkıldı!` : `${s.owner.title}: ${label.toLowerCase()} yıkıldı`, 2500);
-      world.ui.update(); return;
-    }
+    if (s.kind !== 'banner') { world.ui.update(); return; }
     s.g.rotation.z = 1.05;
     if (s.faction === 'red') {
-      // Zafer: rakip takımın **bütün** sancakları yıkılınca. Aradaki her sancak bir ilerleme mesajıdır.
+      // Zafer: rakip takımın **bütün** sancakları yıkılınca. Aradaki her sancak yalnızca ses verir.
       const left = enemyBanners(world, 'blue').length;
-      if (left) { world.ui.say(`${s.owner.title} sancağı yıkıldı! Kalan düşman sancağı: ${left}`, 3500); world.ui.ping('tower'); }
+      if (left) world.ui.ping('tower');
       else {
         world.ended = true;
         world.ui.showEnd('Zafer!', `Düşman sancakları yıkıldı. ${world.kills} düşman yenildi, ${world.me.eco.soldiersSpawned} birim basıldı, kahraman seviye ${world.player.level}.`);
@@ -179,7 +164,7 @@ export async function start(root) {
       // Yenilgi: **senin** sancağın düşünce; müttefiklerin ayakta olsa da kahramanın doğamaz.
       world.ended = true;
       world.ui.showEnd('Sancak düştü', 'Düşman sancağını ele geçirdi. Yeni oyunda daha erken kule dik, asker bas ve kampı savun.');
-    } else world.ui.say(`${s.owner.title} sancağı düştü! Ordusu artık yenilenmez, kahramanı doğmaz.`, 3500);
+    }
     world.ui.update();
   };
   /** İşçi birleşti: hedefin kademesi arttı, gelen işçi sahneden kalkar. */
@@ -187,11 +172,7 @@ export async function start(root) {
     const mine = target.owner === world.me, color = target.faction === 'blue' ? '#9fd6ff' : '#ffb59f';
     burst(world, target.pos.x, 1.2, target.pos.z, color, 10, 0.1);
     ring(world, target.pos.x, target.pos.z, color, 1.8, 0.45);
-    if (mine) {
-      const label = target.workerKind === 'wood' ? 'Oduncu' : target.workerKind === 'gold' ? 'Madenci' : 'Çiftçi';
-      world.ui.say(`${label} güçlendi: x${target.tier} üretim`, 1600);
-      world.ui.ping('worker');
-    }
+    if (mine) world.ui.ping('worker');
     void source;
     world.ui.update();
   };
@@ -213,7 +194,7 @@ export async function start(root) {
     setRally: (x, z) => setRallyPoint(world, x, z),
     setMode: mode => setMode(world, mode),
     heroConvert: key => heroConvert(world, key),
-    toggleFullscreen: () => { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => world.ui.say('Tarayıcı tam ekrana izin vermedi (F11 dene)', 2500)); },
+    toggleFullscreen: () => { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); },
     toggleCamera: () => world.toggleCamera(),
   });
   /**
@@ -236,18 +217,14 @@ export async function start(root) {
       world.input.lookDX = world.input.lookDY = 0;
       updateTpsCamera(world, tpsCamera, 0);
       lockPointer(renderer.domElement);
-      world.ui.say('Omuz üstü kamera: fare bakışı döndürür, WASD kameraya göre, sol tık artıya vurur · Orta tık artının yerine toplanma alanı · Tab fareyi serbest bırakır / yeniden kilitler · V izometriğe döner', 4500);
-    } else {
-      unlockPointer();
-      world.ui.say('İzometrik kamera', 1200);
-    }
+    } else unlockPointer();
     world.ui.update();
   };
   world.toggleCamera = () => setCameraMode(world.cam === 'tps' ? 'iso' : 'tps');
   attachInput(world, renderer.domElement, camera, root.querySelector('#mg-dragbox'));
   const minimap = createMinimap(root.querySelector('#mg-minimap'), world, {
     viewCorners: () => world.viewCorners(),
-    onLeft: (x, z) => { if (world.mode === 'aoe') world.camTarget.set(x, 0, z); else world.ui.say('Kamera kahramanı izler', 1200); },
+    onLeft: (x, z) => { if (world.mode === 'aoe') world.camTarget.set(x, 0, z); },
     onRight: () => {},
   });
   /** Arena kurulunca: minimap zemini yeni boyuta oturur, gölge kutusu kamera moduna göre kurulur. */
@@ -264,7 +241,6 @@ export async function start(root) {
 
   resetWorld(world, { ...HERO_UPGRADE.startLoadout }, false, 'normal', TEAMS.default);
   world.ui.showSelect(false);
-  world.ui.say('Karakterini seç ve savaşı başlat', 0);
 
   const look = new T.Vector3().copy(world.player.pos);
   let prev = 0, mapTick = 0;
@@ -326,10 +302,8 @@ function demolishStructure(world, s) {
   if (!s || !s.alive) return 'Yapı yok';
   if (s.owner !== world.me) return 'Yalnızca kendi yapını yıkabilirsin';
   if (s.kind === 'banner') return 'Sancak yıkılamaz';
-  const label = BUILDINGS[s.kind].label;
   s.demolished = true;
   world.onStructureDestroyed(s, null);
-  world.ui.say(`${label} yıkıldı · yerine yenisini dikebilirsin`, 2200);
   return null;
 }
 
@@ -477,7 +451,7 @@ function updateHeroRegen(world, dt) {
       hero.healFx = HERO_UPGRADE.bubbleEvery;
       healBubble(world, hero.pos.x, 2.1 + hero.jumpY + (hero.view && hero.view.mounted ? 0.9 : 0), hero.pos.z);
     }
-    if (hero.isPlayer && hero.hp >= hero.stats.maxHp) { ring(world, hero.pos.x, hero.pos.z, '#8fe08f', 3, 0.6); world.ui.say('Can doldu (sancak alanı)', 1500); world.ui.flash('health'); }
+    if (hero.isPlayer && hero.hp >= hero.stats.maxHp) { ring(world, hero.pos.x, hero.pos.z, '#8fe08f', 3, 0.6); world.ui.flash('health'); }
   }
 }
 
@@ -503,8 +477,6 @@ function heroConvert(world, key) {
   rebuildSwing(p);
   world.loadout = p.loadout;
   ring(world, p.pos.x, p.pos.z, '#ffd12e', 3.5, 0.8); burst(world, p.pos.x, 1.6, p.pos.z, '#ffd12e', 16, 0.13);
-  const kit = KIT[kitKey(p.loadout)] || KIT.sword;
-  world.ui.say(`Artık ${t.label}sın · seviye ${p.level} korundu. Sol tık: ${kit.primary}, sağ tık: atılma + ${kit.secondary}.`, 3000);
   world.ui.flash('level');
   return null;
 }
@@ -539,9 +511,6 @@ function levelUp(world, p) {
   applyLevelUp(p);
   ring(world, p.pos.x, p.pos.z, '#ffd12e', 3, 0.7);
   burst(world, p.pos.x, 1.6, p.pos.z, '#ffd12e', 12, 0.12);
-  const extra = p.stats.weapon.ranged ? `ok sayısı ${heroArrows(p)}` : `vuruş alanı x${reachMult(p).toFixed(2)}`;
-  const dmg = Math.round(p.stats.weapon.damage * damageMult(p));
-  world.ui.say(`Seviye ${p.level}! Can ${p.stats.maxHp}, vuruş ${dmg} (x${damageMult(p).toFixed(2)}), ${extra} · sonraki seviye ${xpNeeded(p.level)} exp.`, 3000);
   world.ui.flash('level');
 }
 
@@ -599,8 +568,6 @@ function respawnPlayer(world) {
   p.pos.set(b.pos.x + 2.2, 0, b.pos.z + 1.5); p.facing = Math.PI * 0.75;
   p.brain.order = null; p.brain.home = { x: p.pos.x, z: p.pos.z };
   burst(world, p.pos.x, 1, p.pos.z, '#9fd6ff', 8, 0.1);
-  const next = respawnDelay((p.deaths || 0) + 1);
-  world.ui.say(`Sancakta yeniden doğdun · sonraki ölümde ${next} sn beklersin`, 1800);
 }
 
 /** Bot kahramanı: sahibinin sancağında doğar; kaynak toplar, keşfe çıkar, bina yerine gider, haydut avlar, gördüğü düşmana saldırır. */
@@ -673,18 +640,12 @@ function resetWorld(world, loadout, run, difficulty = world.difficulty, teamSize
   world.player = p; me.hero = p; world.entities.push(p);
   world.camTarget.copy(p.pos);
 
-  const d = DIFFICULTY[difficulty];
   for (const q of players) if (!q.human) spawnBotHero(world, q);
   // Tarafsız kamplar boş köşelere, haydutlar araziye serpiştirilir.
   initCamps(world);
   initBandits(world);
   world.fog.reset();
   if (world.onArena) world.onArena();
-
-  if (run) {
-    const team = teamSize > 1 ? ` ${teamSize}v${teamSize}: yanında ${teamSize - 1} müttefik bot, karşında ${teamSize} rakip bot.` : '';
-    world.ui.say(`Kılıçlı kahramanla yola çıktın (${d.label}).${team} Soldan bina dik, orta tıkla ordunun toplanma alanını kur; sancağına tıkla: işçi sıraya al, kahramanı geliştir.`, 5000);
-  }
   world.ui.update();
 }
 

@@ -49,8 +49,8 @@ sancağı seç, **Geliştir** düğmesiyle menüyü aç (kahraman sancağa 12 bi
   bonusu ve atılmada daha uzun vurulmazlık verir.
 - Kahraman yerdeyken hiçbir komut verilemez: üretim, inşa, seçim, emir, mod değişimi kilitlenir.
 - **Her ölümde yeniden doğuş uzar**: ilk ölümde 5 sn, sonraki her ölümde **+4 sn** (5 · 9 · 13 · 17 …), en çok **30 sn**.
-  Rakip kahramanda da aynı kural işler, tabanı 8 sn'dir (8 · 12 · 16 …). Sayaç yeni oyunda sıfırlanır; ölüm mesajı kaçıncı
-  ölüm olduğunu ve beklemeyi yazar.
+  Rakip kahramanda da aynı kural işler, tabanı 8 sn'dir (8 · 12 · 16 …). Sayaç yeni oyunda sıfırlanır; ekranın ortasındaki geri sayım
+  kalan süreyi gösterir.
 - **İnşa kahramana bağlıdır**: her bina kahramanın 14 birim çevresine (yerleştirmede sarı halka) dikilir; uzağı kırmızı hayalet gösterir.
 
 ## Kahraman yetenek setleri
@@ -178,7 +178,7 @@ Askerler kalkanlı sancağı ancak başka hedef yokken döver: önce kuleler, so
 
 **Asker basımı kolaydır, ordu büyür**: maliyetler eski değerlerin ~%60'ı, üretim süreleri ~yarısı. Emir, bir bina seçili
 değilse o türü basan binalardan **sırası en kısa olanına** gider; **aynı türden ikinci bir kışla / okçuluk / ahır kurmak
-üretimi paralelleştirir** (toplu basımda emirler binalara dağılır, mesaj "2 binada paralel" der). Mancınık da artık aynı
+üretimi paralelleştirir** (toplu basımda emirler binalara dağılır). Mancınık da artık aynı
 fiyat aralığındadır.
 
 | Bina | Birim | Altın | Yiyecek | Süre |
@@ -285,8 +285,7 @@ askerler paralel çıkar. Hiçbir şey seçili değilken düğme yine o türü b
 
 Kendi **sancağın** ya da bir **kulen** vuruş aldığında: ekranın kenarları **kısa süre kızarır** (1.1 sn), vurulan
 yapının çevresinde dünyada kırmızı bir halka belirip söner ve **minimapte aynı noktada genişleyen kırmızı halkalar**
-çıkar (1.6 sn). Aynı yapı için uyarı 1.5 saniyede bir tazelenir; mesaj barında "Sancağın saldırı altında!" /
-"Kulen saldırı altında!" yazısı 4 saniyede birden sık tekrarlanmaz. Kuleler ayaktayken sancağa inen (hasarsız)
+çıkar (1.6 sn). Aynı yapı için uyarı 1.5 saniyede bir tazelenir; uyarı sesi 4 saniyede birden sık çalmaz. Kuleler ayaktayken sancağa inen (hasarsız)
 vuruşlar da uyarı verir.
 
 ## Can çubukları
@@ -368,14 +367,13 @@ ordusu, sınırları ve kahramanı vardır.
   çizgi üzerinde 46 birim arayla dizilir; çapadaki üs (senin ve rakip takımın 0. yuvası) üç hattın başıdır, öbür üslerden
   haritanın ortasına birer yol çıkar; her üs sancağının 14 birim önünde **tek kuleyle** başlar; takımın üslerini
   bir **takım yolu** bağlar. Ağaç, çalı ve haydut sayısı alanla ölçeklenir; kamplar yine iki boş köşede.
-- **Zafer** rakip takımın **bütün** sancakları yıkılınca (aradaki her sancak bir ilerleme mesajıdır); **yenilgi senin**
+- **Zafer** rakip takımın **bütün** sancakları yıkılınca (aradaki her sancak yalnızca ses verir); **yenilgi senin**
   sancağın düşünce (müttefikler ayakta olsa da). Sancağı düşen botun kahramanı bir daha doğmaz, ordusu yenilenmez.
 
 ## Rakip ve zorluk
 
 Aşağıdaki her şey **her bot** için (rakip ya da müttefik) kendi sancağı, kasası ve ordusuyla ayrı ayrı işler; taklit
-edilen "sen", takım oyununda **rakip takımın toplamının takımdaki oyuncu sayısına bölümüdür**. Mesajlar 1v1'de "Rakip …",
-takım oyununda "Rakip Aslan …" / "Müttefik Kurt …" diye başlar; sık mesajlar (asker basıyor) yalnızca 1v1'de gösterilir.
+edilen "sen", takım oyununda **rakip takımın toplamının takımdaki oyuncu sayısına bölümüdür**.
 
 - Kırmızı sancakta bir **rakip kahraman** (mızrak kalkan atlısı, **kırmızı kafa**; senin takımının kahramanları sarı kafalıdır): kaynak toplar, ganimet alır, keşfe çıkar, bina yerine
   gider ve **görüşüne giren düşman askerine saldırır** (alan vuruşu, asker hasarı); canı %35'in altına inince kaçar, ölürse 8 sn sonra doğar.
@@ -445,7 +443,7 @@ Büyük takım oyunlarında yüzlerce birim aynı anda sahadadır; oyun şu yoll
 | `src/ai.js` | Asker beyni (emirli / bekleyen / bot otonom), toplayıcı beyni (bot kahramanları ve işçiler) |
 | `src/economy.js` | Çalışma yerleri, ürünler, kasalar, ganimet, bina kurma, bot ekonomisi / saldırı / savunma (her bot için) |
 | `src/input.js` | Klavye / fare: hareket, nişan, seçim, fare kilidi ve omuz üstü kamera (updateTpsCamera) |
-| `src/ui.js` | HUD, alt bant (komut ızgarası, bilgi kartı), seçim ekranı, mesajlar, ses |
+| `src/ui.js` | HUD, alt bant (komut ızgarası, bilgi kartı), seçim ekranı, ses. **Metin mesaj barı yoktur**: geri bildirim ses, dünya halkaları, HUD ve düğme durumlarıdır |
 | `server.mjs` | Yalnızca yerel bilgisayara hizmet veren statik sunucu |
 
 Oyun dünyası tarayıcı konsolunda `__meadow` olarak erişilebilir; `__meadow.simulate(30)` oyunu

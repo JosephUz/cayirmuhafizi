@@ -284,7 +284,7 @@ export function updateStructures(world, dt) {
         s.ready = true; s.g.scale.set(1, 1, 1); if (s.ring) s.ring.visible = true; s.spawnTimer = 0.5;
         const color = s.faction === 'blue' ? '#9fd6ff' : '#ffb59f';
         burst(world, s.pos.x, 2.5, s.pos.z, color, 16, 0.13); ring(world, s.pos.x, s.pos.z, color, s.radius + 4, 0.7);
-        if (s.owner === world.me) { world.ui.say(`${BUILDINGS[s.kind].label} hazır`, 1800); world.ui.ping('tower'); }
+        if (s.owner === world.me) world.ui.ping('tower');
       }
     }
   }

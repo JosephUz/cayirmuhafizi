@@ -105,8 +105,7 @@ export function attachInput(world, canvas, camera, dragEl) {
     if (e.code === 'Tab') {
       e.preventDefault();
       if (e.repeat || world.cam !== 'tps' || !world.running) return;
-      if (input.locked) { unlockPointer(); world.ui.say('Fare serbest: imleçle seç, dik, vur · Tab yeniden kilitler', 2200); }
-      else { lockPointer(canvas); world.ui.say('Fare kilitli: bakış fareyle döner · Tab serbest bırakır', 1600); }
+      if (input.locked) unlockPointer(); else lockPointer(canvas);
       return;
     }
     if (MOVE.includes(e.code)) { e.preventDefault(); input.keys.add(e.code); if (e.code === 'Space' && !e.repeat && !aoe) input.jumpQueued = true; }

@@ -100,14 +100,9 @@ export function updateProduction(world, dt) {
     if (!s.alive || !s.ready || !s.queue.length) { s.progress = 0; continue; }
     const type = typeOf(s.queue[0]);
     // Sahadaki asker sınırı doluysa **çıkış** durur (sıraya alma değil): emir sırada bekler, üretim süresi dolmuş olarak
-    // tutulur ve asker ölüp yer açılınca sıradaki hemen çıkar. Uyarı bina başına değil oyuncu başına verilir:
-    // onlarca kışla aynı anda beklerken mesaj tekrarlanmasın.
+    // tutulur ve asker ölüp yer açılınca sıradaki hemen çıkar. HUD'daki ⏳ sayısı bekleyeni gösterir; metin uyarısı yoktur.
     if (!type.worker && fieldOf(s.owner) >= world.limits.army) {
       s.progress = Math.min(s.progress + dt, type.train);
-      if (s.owner === world.me && world.time - (world.holdMsgAt ?? -99) > 6) {
-        world.holdMsgAt = world.time;
-        world.ui.say(`Asker sınırı dolu (${world.limits.army}): sıradakiler sahada yer açılınca çıkar`, 2000);
-      }
       continue;
     }
     s.progress += dt;
@@ -118,8 +113,6 @@ export function updateProduction(world, dt) {
     if (!e.isWorker) field.set(s.owner, fieldOf(s.owner) + 1);
     // Bot askeri ordu toplanma noktasına yürür; senin askerin emir almaz: kendi beyniyle bayrağa gider, yolda gördüğüyle savaşır (ai.js updateAggressive).
     if (!e.isWorker && !s.owner.human) { const r = botRally(world, s.owner); if (r) giveOrder(world, [e], { kind: 'move', x: r.x, z: r.z }); }
-    // İşçi sınırı doluysa yerine geçtiği türü de söyle.
-    const swap = e.replacedLabel ? ` · işçi sınırı dolu (${world.limits.workers}), 1 ${e.replacedLabel} azaldı` : '';
-    if (s.owner === world.me) { world.ui.say(`${type.label} hazır${swap}${s.queue.length ? ` · sırada ${s.queue.length}` : ''}`, swap ? 2200 : 1400); world.ui.ping(type.worker ? 'worker' : 'soldier'); }
+    if (s.owner === world.me) world.ui.ping(type.worker ? 'worker' : 'soldier');
   }
 }

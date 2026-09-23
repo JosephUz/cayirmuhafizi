@@ -22,8 +22,6 @@ html,body{margin:0;height:100%;background:#19231d;overflow:hidden}
 #meadow-game .stats span.flash{background:#5a5330;transform:scale(1.08)}
 #meadow-game #mg-health{color:#bfe59a}#meadow-game #mg-gold,#meadow-game #mg-enemy-gold{color:#f3c53d}#meadow-game #mg-banner-own{color:#8fd0ff}#meadow-game #mg-banner-enemy{color:#ff8f7c}
 #meadow-game #mg-level{color:#ffd12e}#meadow-game #mg-towers{color:#8fd0ff}#meadow-game #mg-enemy-towers{color:#ff8f7c}
-#meadow-game #mg-message{position:absolute;top:56px;left:50%;transform:translateX(-50%);background:#283025db;padding:8px 16px;border-radius:6px;z-index:3;text-align:center;max-width:70%;pointer-events:none;transition:opacity .3s;font-size:15px;font-weight:500;box-shadow:0 6px 24px #0006}
-#meadow-game #mg-message[hidden]{display:block;opacity:0}
 #meadow-game .vignette{position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 120px #2a220e66}
 /* Sancağın / kulen saldırı alınca ekran kenarlarının kızarması. */
 #meadow-game #mg-alert{position:absolute;inset:0;pointer-events:none;z-index:3;opacity:0;box-shadow:inset 0 0 90px 18px #d32b1ecc,inset 0 0 220px 40px #8e150c66}

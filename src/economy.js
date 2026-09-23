@@ -7,7 +7,7 @@ import { giveOrder, inEnemyTowerRange } from './ai.js';
 import { armyCount, bestProducer, enqueue, queuedOf, queuedSoldiers, workerTotal } from './production.js';
 import { rrand } from './rng.js';
 import { canPlace, createStructure, placementError, reviveCamp, structureCount } from './structures.js';
-import { botSay, enemyOf, nearestEnemyBanner, resourceMult, teamOf } from './players.js';
+import { enemyOf, nearestEnemyBanner, resourceMult, teamOf } from './players.js';
 
 /**
  * Ekonomi: her üssün arkasında maden (altın), odunluk (odun) ve tarla (yiyecek).
@@ -155,7 +155,6 @@ function collect(world, owner, it, k = 1, taker = null) {
 
 export function updateEconomy(world, dt) {
   const me = world.me, eco = me.eco, E = ECONOMY, p = world.player;
-  eco.hintTimer -= dt;
   if (world.nodes) for (const n of world.nodes) if (n.hitCd > 0) n.hitCd -= dt;
 
   // Uçan ürünler yere düşer; altın parlar.
@@ -200,8 +199,7 @@ export function updateEconomy(world, dt) {
       // İşçi yalnızca kendi sahibinin kendi türündeki ürününü alır; kahraman ganimeti de alır.
       if (!(it.owner === g.owner || (g.isHero && it.owner === null)) || !near(it.pos, g.pos, g.radius + pickRadiusOf(g))) continue;
       if (g.workerKind && g.workerKind !== it.kind) continue;
-      const note = collect(world, g.owner, it, resourceMult(world, g.owner), g);
-      if (g.owner === me && (it.kind !== 'gold' || Math.random() < 0.25)) world.ui.say(`${g.workerKind === 'wood' ? 'Oduncu' : g.workerKind === 'gold' ? 'Madenci' : 'Çiftçi'}: ${note}`, 900);
+      collect(world, g.owner, it, resourceMult(world, g.owner), g);
       if (g.work && g.work.item === it) g.work.item = null;
       burst(world, it.pos.x, 0.7, it.pos.z, itemColor(it.kind), 4, 0.08);
       removeItem(world, it); break;
@@ -321,7 +319,6 @@ export function updateCamps(world, dt) {
         reviveCamp(world, camp);
         camp.waveTimer = CAMPS.waveTime; camp.guardTimer = CAMPS.guardEvery;
         for (const key of CAMPS.guards) spawnCampUnit(world, camp, key);
-        if (world.fog.isVisible(camp.pos.x, camp.pos.z)) world.ui.say('Haydut kampı yeniden kuruldu: 1 dakika sonra akın başlar!', 2600);
       }
       continue;
     }
@@ -339,7 +336,7 @@ export function updateCamps(world, dt) {
     for (const key of CAMPS.wave) spawnCampUnit(world, camp, key, camp.raidSide);
     spawnCampUnit(world, camp, 'catapult', camp.raidSide);
     ring(world, camp.pos.x, camp.pos.z, '#8fd15a', 5, 0.8);
-    if (camp.raidSide === 'blue') { world.ui.say('Haydut kampı akına çıktı: takımının kulelerine mancınıklı dalga geliyor!', 2600); world.ui.ping('tower'); }
+    if (camp.raidSide === 'blue') world.ui.ping('tower');
   }
   // Haydutlar arada bir yeniden belirir.
   world.banditTimer = (world.banditTimer || BANDITS.spawnEvery) - dt;
@@ -422,7 +419,7 @@ export function spawnUnit(world, typeKey, owner, building) {
   buildView(world.scene, e);
   world.entities.push(e);
   // İşçi sınırı toplamdır: gerekiyorsa en kalabalık türden bir kademe eksilir, yeni işçi onun yerine geçer.
-  if (e.isWorker) e.replacedLabel = trimWorkers(world, owner, e);
+  if (e.isWorker) trimWorkers(world, owner, e);
   const color = owner.faction === 'blue' ? '#9fd6ff' : '#ffb59f';
   burst(world, e.pos.x, 1, e.pos.z, color, 12, 0.11);
   ring(world, e.pos.x, e.pos.z, color, 2.2, 0.5);
@@ -564,26 +561,25 @@ function crowdAround(world, p, mine) {
 function updateBotStance(world, p, me, you) {
   const ai = p.ai, X = ENEMY_AI.extra[world.difficulty];
   const mine = world.entities.filter(e => e.alive && e.owner === p && !e.isHero && !e.isWorker);
-  const retreat = why => {
+  const retreat = () => {
     ai.attacking = false;
     const r = botRally(world, p);
     giveOrder(world, mine, { kind: 'move', x: r.x, z: r.z });
-    botSay(world, p, why, 2500);
   };
   // Rakipte kule varken bot mancınıksız yürümez: saldırıdaysa çekilir, değilse bekler ve mancınık için biriktirir.
   const foeTowers = world.structures.some(s => s.alive && s.kind === 'tower' && s.faction !== p.faction);
   const siege = world.entities.some(e => e.alive && e.owner === p && e.isSiege);
   ai.needSiege = foeTowers && !siege;
-  if (ai.needSiege) { if (ai.attacking) retreat('ordusu mancınıksız kulelere yürümez, çekiliyor'); return; }
+  if (ai.needSiege) { if (ai.attacking) retreat(); return; }
   const threshold = Math.max(ENEMY_AI.minWave, you.army + X.army);
   if (!ai.attacking) {
-    if (me.army >= threshold) { ai.attacking = true; ai.launchSize = me.army; botSay(world, p, `ordusu (${me.army} asker) saldırıya geçti!`, 3000); }
+    if (me.army >= threshold) { ai.attacking = true; ai.launchSize = me.army; }
     return;
   }
-  if (me.army < Math.max(2, ai.launchSize * ENEMY_AI.retreatRatio)) { retreat('ordusu eridi, kulelerine çekiliyor'); return; }
-  if (me.army < you.army) { retreat('ordusu sayıca geride kaldı, kulelerine çekiliyor'); return; }
+  if (me.army < Math.max(2, ai.launchSize * ENEMY_AI.retreatRatio)) { retreat(); return; }
+  if (me.army < you.army) { retreat(); return; }
   const c = crowdAround(world, p, mine);
-  if (c.foes > c.own * ENEMY_AI.crowdRatio) retreat(`ordusu kalabalık gördü (${c.foes} savaşçı), kulelerine çekiliyor`);
+  if (c.foes > c.own * ENEMY_AI.crowdRatio) retreat();
 }
 
 /**
@@ -605,13 +601,11 @@ function updateBotDefense(world, p, dt) {
     if (!hit || s.lastHitAt > hit.lastHitAt) hit = s;
   }
   if (!hit) return;
-  const fresh = !ai.defend || ai.defend.s !== hit;
   ai.defend = { s: hit, x: hit.pos.x, z: hit.pos.z, at: hit.lastHitAt };
   const near = e => Math.hypot(e.pos.x - hit.pos.x, e.pos.z - hit.pos.z);
   const away = world.entities.filter(e => e.alive && e.owner === p && !e.isHero && !e.isWorker && e.brain
     && !(e.brain.order && e.brain.order.defend) && near(e) < D.recall && near(e) > D.hold);
   if (away.length) giveOrder(world, away, { kind: 'move', x: hit.pos.x, z: hit.pos.z, defend: true });
-  if (fresh) botSay(world, p, `${hit.kind === 'tower' ? 'kulesi' : 'sancağı'} saldırı altında: ordusu ve kahramanı savunmaya koşuyor`, 2400);
 }
 
 /**
@@ -654,7 +648,7 @@ function updateBotEconomy(world, p, dt) {
     const n = me.workers[wt.worker] + queuedOf(world, p, wt.key);
     // Toplam işçi sınırı dolduysa bot yeni işçi basmaz (yerine geçirmeyle oynamaz).
     if (workerTotal(world, p) >= world.limits.workers) break;
-    if (n < target && banner.queue.length < ENEMY_HERO.queueDepth + 1) { if (!enqueue(world, banner, wt.key, p)) botSay(world, p, `${wt.label.toLowerCase()} basıyor`, 1200, true); break; }
+    if (n < target && banner.queue.length < ENEMY_HERO.queueDepth + 1) { enqueue(world, banner, wt.key, p); break; }
   }
 
   // 2) Binalar: her türde rakip payı kadar (kışla en az 1); bina kahramanın yanına dikilir, kahraman uzaksa oraya yollanır.
@@ -669,7 +663,7 @@ function updateBotEconomy(world, p, dt) {
     if (Math.hypot(hero.pos.x - spot.x, hero.pos.z - spot.z) > BUILD.heroRadius) { hero.errand = { x: spot.x, z: spot.z, kind, ttl: 30 }; return 'wait'; }
     const r = buildStructure(world, kind, p, spot.x, spot.z);
     hero.errand = null;
-    if (typeof r !== 'string') { botSay(world, p, `${BUILDINGS[kind].label.toLowerCase()} kuruyor`, 2000); return 'built'; }
+    if (typeof r !== 'string') return 'built';
     return 'fail';
   };
   const wants = [];
@@ -690,7 +684,7 @@ function updateBotEconomy(world, p, dt) {
   // basmayıp kaynak biriktirir.
   if (ai.needSiege && !hasCatapult) {
     const sw = bestProducer(world, p, 'siege'), ct = SOLDIER_ONLY.find(t => t.key === 'catapult');
-    if (sw && eco.gold >= ct.cost && eco.wood >= ct.wood) { if (!enqueue(world, sw, 'catapult', p)) botSay(world, p, 'mancınık basıyor', 1800, true); return; }
+    if (sw && eco.gold >= ct.cost && eco.wood >= ct.wood) { enqueue(world, sw, 'catapult', p); return; }
     if (me.army >= you.army) return;
   }
   // Taklit sınırı ve nüfus sınırı: hangisi önce dolarsa.
@@ -713,7 +707,7 @@ function updateBotEconomy(world, p, dt) {
     for (const t of copy) { r -= you.types[t.key]; if (r <= 0) { pick = t; break; } }
     pick = pick || copy[copy.length - 1];
   } else pick = options[ai.typeIndex++ % options.length];
-  if (!enqueue(world, bestProducer(world, p, pick.building), pick.key, p)) botSay(world, p, `${pick.label.toLowerCase()} basıyor`, 1400, true);
+  enqueue(world, bestProducer(world, p, pick.building), pick.key, p);
 }
 
 /** Bütün botlar (iki takımda da): önce savunma çağrısı, sonra ekonomi / ordu kararı. */

@@ -1,5 +1,5 @@
 import { makeStats } from './characters.js';
-import { ANTI, BUILDINGS, DIFFICULTY, HERO_UPGRADE, KIT, LEVEL, QUEUE, RALLY, SOLDIER_TYPES, SPIN, TORNADO, TOWER, antiInfo, heroConvertCost, loadoutKey, respawnDelay } from './config.js';
+import { ANTI, BUILDINGS, DIFFICULTY, HERO_UPGRADE, KIT, LEVEL, QUEUE, SOLDIER_TYPES, SPIN, TORNADO, TOWER, antiInfo, heroConvertCost, loadoutKey, respawnDelay } from './config.js';
 import { kitKey } from './characters.js';
 import { clearSelection, selectStructureGroup, setSelection, unlockPointer } from './input.js';
 import { bannerShielded, structureCount } from './structures.js';
@@ -17,15 +17,15 @@ export function createUI(root, world, actions) {
   const els = {
     health: $('#mg-health'), level: $('#mg-level'), gold: $('#mg-gold'), wood: $('#mg-wood'), workers: $('#mg-workers'), army: $('#mg-army'),
     towers: $('#mg-towers'), enemyTowers: $('#mg-enemy-towers'), bannerOwn: $('#mg-banner-own'), bannerEnemy: $('#mg-banner-enemy'), allies: $('#mg-allies'),
-    message: $('#mg-message'), select: $('#mg-select'), end: $('#mg-end'), cmd: $('#mg-cmd'), info: $('#mg-info'), floats: $('#mg-floats'), alert: $('#mg-alert'),
+    select: $('#mg-select'), end: $('#mg-end'), cmd: $('#mg-cmd'), info: $('#mg-info'), floats: $('#mg-floats'), alert: $('#mg-alert'),
     pause: $('#mg-pause'), newGame: $('#mg-new'), full: $('#mg-full'), cam: $('#mg-cam'),
     selStart: $('#sel-start'), selCancel: $('#sel-cancel'),
     endTitle: $('#end-title'), endText: $('#end-text'), endNew: $('#end-new'),
   };
-  let msgTimer = 0, pausedBySelect = false, audio = null, cmdKey = '', infoKey = '';
+  let pausedBySelect = false, audio = null, cmdKey = '', infoKey = '';
   /** Kamp -> ekrandaki geri sayım etiketi. */
   const campLabels = new Map();
-  let lastAlertMsg = -99;
+  let lastAlertPing = -99;
   const typeOf = key => SOLDIER_TYPES.find(t => t.key === key);
   /** Anti özeti: bu türün tek attığı türler ve bu türü tek atanlar. */
   const antiText = key => { const a = antiInfo(key); if (!a.beats.length && !a.beatenBy.length) return ''; return `Tek atar: ${a.beats.join(', ') || '—'} · Tek atılır: ${a.beatenBy.join(', ') || '—'}`; };
@@ -43,7 +43,8 @@ export function createUI(root, world, actions) {
   const flashTimers = {};
   const heroDown = () => world.player && !world.player.alive;
   const busy = () => !world.running || world.paused || world.ended || heroDown();
-  const deadMsg = () => { if (heroDown()) { ui.say(`Kahraman yerde: ${Math.max(0, respawnDelay(world.player.deaths) - world.player.deathTimer).toFixed(0)} sn sonra doğar, o zamana kadar komut veremezsin`, 1400); ping('error'); return true; } return false; };
+  /** Kahraman yerdeyken komut verilemez: yalnızca hata sesi çalar (metin mesaj barı yoktur; geri sayım ekranın ortasındadır). */
+  const deadBlock = () => { if (heroDown()) { ping('error'); return true; } return false; };
   const sel = () => world.sel;
 
   // ---- Komut ızgarası tıklamaları
@@ -60,9 +61,9 @@ export function createUI(root, world, actions) {
     else if (d.herotype) ui.heroConvert(d.herotype);
   });
   els.info.addEventListener('click', e => {
-    const b = e.target.closest('button[data-q]'); if (!b || !sel().structure || deadMsg()) return;
+    const b = e.target.closest('button[data-q]'); if (!b || !sel().structure || deadBlock()) return;
     actions.cancelQueued(sel().structure, Number(b.dataset.q));
-    ui.say('Emir iptal edildi, altın geri verildi', 1200); ui.update();
+    ui.update();
   });
   els.pause.onclick = () => ui.togglePause();
   els.newGame.onclick = () => ui.showSelect(world.running && !world.ended);
@@ -101,7 +102,6 @@ export function createUI(root, world, actions) {
   // ---- Kahraman geliştirme yardımcıları
   const heroNearBanner = () => { const p = world.player, b = world.me.banner; return p.alive && Math.hypot(p.pos.x - b.pos.x, p.pos.z - b.pos.z) <= HERO_UPGRADE.range; };
   /** Saldırı hedefinin adı (mesaj için): yapı türü, düşman kahramanı ya da asker türü. */
-  const foeLabel = t => (t.kind ? BUILDINGS[t.kind].label : t.isPlayer || t.isHero ? 'Düşman kahramanı' : t.isBeast ? 'Haydut' : (typeOf(t.typeKey) || {}).label || 'Düşman birimi');
   const heroTypeLabel = p => { const t = SOLDIER_TYPES.find(x => !x.worker && x.weapon === p.loadout.weapon && x.shield === p.loadout.shield && x.horse === p.loadout.horse); return t ? t.label : 'Kılıçlı'; };
 
   // ---- Komut ızgarası
@@ -245,12 +245,8 @@ export function createUI(root, world, actions) {
     void c;
   }
 
+  // Metin mesaj barı yoktur: oyun içi geri bildirim ses (ping), dünya halkaları, HUD ve düğme durumlarıyla verilir.
   const ui = {
-    say(text, ms = 2600) {
-      els.message.textContent = text; els.message.hidden = false;
-      clearTimeout(msgTimer);
-      if (ms > 0) msgTimer = setTimeout(() => { els.message.hidden = true; }, ms);
-    },
     ping,
     flash(key) {
       const el = els[key]; if (!el) return;
@@ -270,21 +266,20 @@ export function createUI(root, world, actions) {
       if (!world.running || world.ended || !els.select.hidden) return;
       world.paused = !world.paused;
       if (world.paused) unlockPointer();
-      ui.say(world.paused ? 'Duraklatıldı' : 'Devam', world.paused ? 0 : 1200);
       ui.update();
     },
     // Komutan modu kaldırıldı: oyun hep kahraman modunda oynanır, ordu tek toplanma alanıyla (orta tık) yönetilir.
 
     // ---- Seçim
-    /** Saldırı uyarısı: ekranın kenarları kısa süre kızarır ve üstte kırmızı bir uyarı yazısı çıkar. */
-    alert(text) {
+    /** Saldırı uyarısı: ekranın kenarları kısa süre kızarır; hata sesi 4 saniyede birden sık çalmaz. */
+    alert() {
       if (els.alert) {
         els.alert.classList.remove('on');
         // Sınıfı yeniden eklemeden önce tarayıcının animasyonu sıfırlaması için düzeni zorla.
         void els.alert.offsetWidth;
         els.alert.classList.add('on');
       }
-      if (world.clock - (lastAlertMsg || -99) > 4) { lastAlertMsg = world.clock; ui.say(text, 1800); ping('error'); }
+      if (world.clock - (lastAlertPing || -99) > 4) { lastAlertPing = world.clock; ping('error'); }
     },
     /**
      * Kampların üstündeki geri sayımlar: akıncı kampta bir sonraki dalgaya kalan süre, yıkık kampta yeniden
@@ -363,60 +358,58 @@ export function createUI(root, world, actions) {
     },
     /** Seçili yapıyı yıkar (sancak hariç): sınırdan düşer, yerine yenisi dikilebilir. */
     demolish() {
-      if (deadMsg() || busy()) return;
+      if (deadBlock() || busy()) return;
       const st = sel().structure;
-      if (!st) { ui.say('Önce bir yapı seç', 1400); ping('error'); return; }
+      if (!st) { ping('error'); return; }
       const err = actions.demolish(st);
-      if (err) { ui.say(err, 1600); ping('error'); return; }
+      if (err) { ping('error'); return; }
       clearSelection(world); world.heroMenu = false;
       ping('tower'); ui.update();
     },
     /** Yapı seçimi. group=true (çift tık): aynı türdeki bütün binalar seçilir, üretim aralarında paylaştırılır. */
     select(s, group = false) {
       if (s && s.owner !== world.me) return;
-      if (deadMsg()) return;
-      if (group && s) { const n = selectStructureGroup(world, s); if (n > 1) ui.say(`${n} ${BUILDINGS[s.kind].label} seçildi: üretim hepsine dağıtılır`, 1800); }
+      if (deadBlock()) return;
+      if (group && s) selectStructureGroup(world, s);
       else setSelection(world, [], s);
       world.placing = null; world.heroMenu = false; ping('select'); ui.update();
     },
     toggleHeroMenu() {
-      if (deadMsg()) return;
+      if (deadBlock()) return;
       if (!sel().structure || sel().structure.kind !== 'banner') { ui.select(world.me.banner); }
       world.heroMenu = !world.heroMenu; world.placing = null;
-      if (world.heroMenu && !heroNearBanner()) ui.say('Kahraman sancağa yaklaşmalı (12 birim)', 1600);
+      if (world.heroMenu && !heroNearBanner()) ping('error');
       ping('select'); ui.update();
     },
     heroConvert(key) {
-      if (deadMsg() || busy()) return;
+      if (deadBlock() || busy()) return;
       const err = actions.heroConvert(key);
-      if (err) { ui.say(err, 1500); ping('error'); } else { ping('tower'); }
+      if (err) ping('error'); else ping('tower');
       ui.update();
     },
 
     // ---- Modlar
     startPlacing(kind) {
-      if (deadMsg() || busy()) return;
+      if (deadBlock() || busy()) return;
       const spec = BUILDINGS[kind]; if (!spec || kind === 'banner') return;
-      if (world.me.eco.gold < spec.cost || world.me.eco.wood < spec.wood) { ui.say(`Yetersiz odun: ${spec.label} ${spec.wood} odun`, 1500); ping('error'); return; }
+      if (world.me.eco.gold < spec.cost || world.me.eco.wood < spec.wood) { ping('error'); return; }
       world.placing = kind;
-      ui.say(`${spec.label} (${spec.wood} 🪵): kahramanın çevresindeki halka içine sol tıkla · sağ tık / Esc / Vazgeç düğmesi`, 0); ui.update();
+      ui.update();
     },
     confirmPlace(x, z) {
-      const kind = world.placing; if (!kind || deadMsg()) return;
+      const kind = world.placing; if (!kind || deadBlock()) return;
       const r = actions.build(kind, x, z);
-      if (typeof r === 'string') { ui.say(r, 1500); ping('error'); return; }
+      if (typeof r === 'string') { ping('error'); return; }
       world.placing = null;
-      ui.say(`${BUILDINGS[kind].label} kuruluyor (-${BUILDINGS[kind].wood} 🪵), ${BUILDINGS[kind].buildTime} sn`, 2200); ui.update();
+      ui.update();
     },
     /**
      * Orta tık: tıklanan yerde düşman varsa (birim, kahraman, bina, kule) bütün ordu **o hedefe saldırır**; boş yereyse
      * toplanma alanı oraya dikilir ve boştaki askerler oraya yürür. (Kahraman yerdeyse ya da oyun duruksa iş yapmaz.)
      */
     setRally(x, z) {
-      if (deadMsg() || busy()) return;
-      const { n, target } = actions.setRally(x, z);
-      if (target) ui.say(`${RALLY.attackLabel}: ${foeLabel(target)}${n ? ` · ${n} asker saldırıyor` : ''} · orta tıkla yeni hedef`, 2000);
-      else ui.say(`${RALLY.label} kuruldu${n ? ` · ${n} asker yola çıktı` : ''} · orta tıkla taşınır`, 1800);
+      if (deadBlock() || busy()) return;
+      actions.setRally(x, z);
       ping('order'); ui.update();
     },
     /** Açık bir mod (inşa / kahraman menüsü / seçim) varsa kapatır ve true döner. */
@@ -424,7 +417,7 @@ export function createUI(root, world, actions) {
       const had = world.placing || world.heroMenu || (!keepSelection && sel().structure);
       world.placing = null; world.heroMenu = false;
       if (!keepSelection && had) clearSelection(world);
-      if (had) { els.message.hidden = true; ui.update(); }
+      if (had) ui.update();
       return Boolean(had);
     },
     /**
@@ -433,7 +426,7 @@ export function createUI(root, world, actions) {
      * Kaynak ya da sıra bitince durur ve kaçının alındığını söyler.
      */
     requestSoldier(key, count = 1) {
-      if (deadMsg() || busy()) return;
+      if (deadBlock() || busy()) return;
       const t = typeOf(key); if (!t) return;
       // Seçili binalar (çift tıkla tür seçimi) varsa emirler yalnızca onlara, en boş olandan başlayarak dağıtılır.
       const group = (sel().structures || []).filter(s => s.alive && s.ready && s.kind === t.building);
@@ -447,10 +440,8 @@ export function createUI(root, world, actions) {
         err = actions.enqueue(key, building); if (err) break;
         n++; used.add(building);
       }
-      if (!n) { ui.say(err, 1600); ping('error'); }
+      if (!n) ping('error');
       else {
-        const shops = used.size > 1 ? ` · ${used.size} binada paralel` : '';
-        ui.say(`${n > 1 ? n + ' ' : ''}${t.label} sıraya alındı (${building.queue.length}/${QUEUE.max})${shops} · ${t.train} sn${err && n < count ? ` · ${err}` : ''}`, 1600);
         const b = els.cmd.querySelector(`[data-soldier="${key}"]`); if (b) { b.classList.add('flash'); setTimeout(() => b.classList.remove('flash'), 240); }
       }
       ui.update();
