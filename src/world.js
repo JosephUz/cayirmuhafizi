@@ -56,6 +56,8 @@ function installHooks(world) {
       const loss = Math.floor(owner.eco.gold * ECONOMY.deathGoldLoss);
       owner.eco.gold -= loss;
       target.deaths = (target.deaths || 0) + 1;
+      // Seni kim öldürdü: kamera oraya döner ve o nesne sisin içinde olsa da görünür (bkz. main.js killcam).
+      if (source) world.fx.killer(owner, source.isTower && source.tower ? source.tower : source);
       return;
     }
     // Ölen asker çevreye yiyecek bırakır (her iki taraf); yalnızca kahramanlar toplar.

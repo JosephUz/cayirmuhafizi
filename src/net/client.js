@@ -18,6 +18,8 @@ export function createNetClient(world, hooks) {
   const byE = new Map(), byS = new Map(), byI = new Map(), byA = new Map(), byZ = new Map();
   const pending = { mv: [0, 0], aim: [0, 1], ha: false, sp: false, aq: false, ah: false, ar: false, dq: false, jq: false, yaw: 0, ly: false };
   let inputTimer = 0, keepAlive = 0, lastSnapTime = 0, lastSnapWall = 0, rtt = 0;
+  /** Sunucu saati - yerel saat farkı (sn); paket titremesi çizime yansımasın diye yumuşatılır (bkz. NET.clockSmooth). */
+  let clockOffset = 0, clockReady = false;
   const me = () => world.me;
   // Kimlik ve oda **sekmeye** özeldir (sessionStorage): aynı tarayıcıda iki sekme iki ayrı oyuncudur, sayfa yenilemesi
   // aynı koltuğa geri döner. Ad ise kalıcıdır (localStorage, bkz. screens.js).
@@ -86,7 +88,7 @@ export function createNetClient(world, hooks) {
     world.player = null;
     initResources(world);
     world.fog.reset();
-    lastSnapTime = msg.time || 0; lastSnapWall = performance.now();
+    lastSnapTime = msg.time || 0; lastSnapWall = performance.now(); clockReady = false;
     world.replicated = true;
     hooks.onArena && hooks.onArena();
   }
@@ -115,6 +117,7 @@ export function createNetClient(world, hooks) {
         case EV.FLASH: world.fx.flash(me(), ev[1]); break;
         case EV.FLOAT: world.fx.float(me(), ev[1], { x: ev[2], y: ev[3], z: ev[4] }, ev[5]); break;
         case EV.ALERT: { const s = byS.get(ev[1]); if (s) world.fx.alert(me(), s); break; }
+        case EV.KILLER: { const src = ev[1] === 's' ? byS.get(ev[2]) : byE.get(ev[2]); if (src) world.fx.killer(me(), src); break; }
         case EV.RALLY: {
           const p = me(); if (!p) break;
           if (ev[1] == null) p.rally = null;
@@ -176,6 +179,10 @@ export function createNetClient(world, hooks) {
     if (!snap || !world.replicated) return;
     const T0 = snap.time;
     lastSnapTime = T0; lastSnapWall = performance.now(); world.time = T0;
+    // Saat yumuşatma: ölçülen fark harmanlanır; büyük sapmada (arka plan sekme, yeniden bağlanma) doğrudan kurulur.
+    const measured = T0 - lastSnapWall / 1000;
+    if (!clockReady || Math.abs(measured - clockOffset) > NET.clockJump) { clockOffset = measured; clockReady = true; }
+    else clockOffset += (measured - clockOffset) * NET.clockSmooth;
     for (const r of snap.entities) {
       const e = byE.get(r.id); if (!e) continue;
       const n = e.net;
@@ -223,13 +230,19 @@ export function createNetClient(world, hooks) {
   }
 
   // ---------- Her kare ----------
+  const zoneLists = [world.spins, world.tornadoes, world.zones];
   function update(dt, nowWall) {
     if (!world.replicated) return;
-    const renderTime = lastSnapTime + (nowWall - lastSnapWall) / 1000 - NET.interpDelay;
+    const wall = nowWall / 1000;
+    const renderTime = (clockReady ? wall + clockOffset : lastSnapTime + (nowWall - lastSnapWall) / 1000) - NET.interpDelay;
+    // Kendi kahramanın en son pakete kadar çizilir (+ küçük bir ileri sürme): tuşa basınca beklemezsin.
+    const selfTime = Math.min(renderTime + NET.interpDelay, lastSnapTime + NET.selfExtrapolate);
     for (const e of world.entities) {
       const n = e.net; if (!n) continue;
+      const self = e === world.player;
       const span = n.t1 - n.t0;
-      const k = span > 1e-4 ? Math.max(0, Math.min(1, (renderTime - n.t0) / span)) : 1;
+      const t = self ? selfTime : renderTime;
+      const k = span > 1e-4 ? Math.max(0, Math.min(self ? 1 + NET.selfExtrapolate / span : 1, (t - n.t0) / span)) : 1;
       const px = e.pos.x, pz = e.pos.z;
       e.pos.x = n.x0 + (n.x1 - n.x0) * k; e.pos.z = n.z0 + (n.z1 - n.z0) * k; e.jumpY = n.j0 + (n.j1 - n.j0) * k;
       let df = n.f1 - n.f0; df = ((df + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI; e.facing = n.f0 + df * k;
@@ -246,7 +259,8 @@ export function createNetClient(world, hooks) {
       a.pos.set(n.x0 + (n.x1 - n.x0) * k, n.y0 + (n.y1 - n.y0) * k, n.z0 + (n.z1 - n.z0) * k);
     }
     for (const s of world.structures) { if (s.buildTimer > 0) s.buildTimer -= dt; if (s.spawnTimer > 0) s.spawnTimer -= dt; if (s.hitFlash > 0) s.hitFlash -= dt; if (s.respawnTimer > 0) s.respawnTimer -= dt; if (s.waveTimer > 0) s.waveTimer -= dt; }
-    for (const z of [...world.spins, ...world.tornadoes, ...world.zones]) { z.life -= dt; if (z.vacuum) z.vacuum.life -= dt; }
+    // Kare başına dizi kopyalamadan: üç listeyi ayrı gez (çöp toplayıcıyı boşuna yormasın).
+    for (const list of zoneLists) for (const z of list) { z.life -= dt; if (z.vacuum) z.vacuum.life -= dt; }
     world.fog.update(dt);
     // Girdi: saniyede 20 kez; kenar bayrakları gönderimden sonra sıfırlanır.
     inputTimer += dt;

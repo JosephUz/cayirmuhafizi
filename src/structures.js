@@ -22,7 +22,8 @@ export function createStructure(world, kind, faction, x, z, { instant = false, o
     queue: [], progress: 0, seen: faction !== 'red', seenByRed: faction !== 'blue', respawnTimer: 0, waveTimer: 0, raidSide: null, shots: 0, demolished: false, view: null,
   };
   if (kind === 'tower') {
-    s.shooter = { pos, aim: new T.Vector3(), faction, owner, isPlayer: false, isHero: false, isTower: true, level: 1, buff: 0, jumpY: 3.2, view: null, facing: 0, stats: { weapon: { range: TOWER.range, damage: TOWER.damage, knockback: 0, arrowSpeed: TOWER.arrowSpeed, ranged: true } } };
+    // tower: atıcı kendi yapısını bilir (ölüm kamerası "seni hangi kule vurdu" diye gösterebilsin).
+    s.shooter = { tower: s, pos, aim: new T.Vector3(), faction, owner, isPlayer: false, isHero: false, isTower: true, level: 1, buff: 0, jumpY: 3.2, view: null, facing: 0, stats: { weapon: { range: TOWER.range, damage: TOWER.damage, knockback: 0, arrowSpeed: TOWER.arrowSpeed, ranged: true } } };
   }
   world.obstacles.push(obstacle); bumpObstacles(world);
   world.structures.push(s);

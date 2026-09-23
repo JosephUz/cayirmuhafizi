@@ -71,6 +71,8 @@ export async function start(root) {
     sel: { units: new Set(), structure: null, structures: [] }, placing: null, heroMenu: false, camTarget: new T.Vector3(),
     cam: 'iso', look: { yaw: 0, pitch: CAMERA.tps.pitch }, tpsLook: new T.Vector3(),
     effects: [], alerts: [], rallyView: null, envView: null, loadout: null, replicated: false, net: null, uiTimer: 0,
+    /** Ölüm kamerası: { target, until } — seni öldüren birim / yapı (bkz. view/scenefx.js setKillcam). */
+    killcam: null,
   });
   Object.defineProperty(world, 'selected', { get: () => world.sel.structure, set: v => { world.sel.structure = v; } });
   globalThis.__meadow = world;
@@ -126,7 +128,7 @@ export async function start(root) {
       return err;
     },
     cancelQueued: (building, i) => (online() ? (building && net.cmd({ k: 'cancel', sid: building.id, i }), null) : cmdCancel(world, world.me, building, i)),
-    build: (kind, x, z) => { if (!online()) return cmdBuild(world, world.me, kind, x, z); const err = buildError(world, world.me, kind, x, z); if (!err) net.cmd({ k: 'build', kind, x, z }); return err; },
+    build: (kind, x, z) => { if (!online()) return cmdBuild(world, world.me, kind, x, z); const err = buildError(world, kind, world.me, x, z); if (!err) net.cmd({ k: 'build', kind, x, z }); return err; },
     demolish: s => (online() ? (net.cmd({ k: 'demolish', sid: s.id }), null) : cmdDemolish(world, world.me, s)),
     setRally: (x, z) => {
       const target = pickHostile(world, x, z);
@@ -182,7 +184,7 @@ export async function start(root) {
   function arenaReady() {
     if (world.envView) world.envView.dispose();
     world.envView = buildEnvironmentView(scene, world.env);
-    clearEffects(world); world.alerts.length = 0;
+    clearEffects(world); world.alerts.length = 0; world.killcam = null;
     if (world.rallyView) { scene.remove(world.rallyView); world.rallyView = null; }
     clearSelection(world); world.placing = null; world.heroMenu = false;
     world.input.blockToggle = false; world.input.rightDown = false; world.input.keys.clear();
@@ -253,15 +255,23 @@ export async function start(root) {
     }
     const hero = world.player;
     if (hero) { if (prevAlive && !hero.alive) world.ui.cancelModes(); prevAlive = hero.alive; }
+    /**
+     * Ölüm kamerası: kahraman düştüğünde kamera katilin üstüne gider ve o nesne **sisin içinde olsa da** çizilir.
+     * Kahraman dirilince, süre dolunca ya da oyun bitince kendiliğinden kapanır.
+     */
+    let kc = world.killcam;
+    if (kc && (!kc.target || !hero || hero.alive || world.ended || world.clock > kc.until)) { kc = world.killcam = null; }
     updateEffects(world, dt);
     const animDt = world.paused ? 0 : dt;
     const fog = world.fog;
     const hx = hero ? hero.pos.x : 0, hz = hero ? hero.pos.z : 0, vd2 = CAMERA.tps.viewDist * CAMERA.tps.viewDist;
-    const sees = world.cam === 'tps' ? (x, z) => (x - hx) ** 2 + (z - hz) ** 2 <= vd2 : (x, z) => fog.isVisible(x, z);
-    const inView = updateViewBounds(world, hero);
+    const sees = world.cam === 'tps' && !kc ? (x, z) => (x - hx) ** 2 + (z - hz) ** 2 <= vd2 : (x, z) => fog.isVisible(x, z);
+    const bounds = updateViewBounds(world, hero);
+    // Ölüm kamerasında kadraj kahramanın değil katilin çevresidir: kırpma kapanır, katil her hâlükârda görünür.
+    const inView = kc ? always : bounds;
     for (const e of world.entities) {
       const v = e.view; if (!v) continue;
-      const shown = inView(e.pos.x, e.pos.z, 0) && (e.faction === 'blue' || sees(e.pos.x, e.pos.z));
+      const shown = (kc && kc.target === e) || (inView(e.pos.x, e.pos.z, 0) && (e.faction === 'blue' || sees(e.pos.x, e.pos.z)));
       if (!shown) { v.g.visible = false; v.hpBar.visible = false; continue; }
       animateView(e, animDt, camera.quaternion);
       v.sel.visible = world.sel.units.has(e);
@@ -280,16 +290,20 @@ export async function start(root) {
     updateMarkers(world, selRings, ghost, ghostMat, ghostRing, rangeRing, heroRing);
     if (world.running) { world.uiTimer -= dt; if (world.uiTimer <= 0) { world.uiTimer = PERF.uiEvery; world.ui.update(); } }
 
-    if (world.cam === 'tps' && hero) {
+    // Ölüm kamerası omuz üstünde de izometrik kadrajla çizer: ölüyken bakış kahramanda değil katildedir.
+    let frameCam = camera;
+    if (world.cam === 'tps' && hero && !kc) {
       world.camTarget.copy(hero.pos); look.copy(hero.pos);
       updateTpsCamera(world, tpsCamera, animDt);
     } else {
-      if (hero) { world.camTarget.copy(hero.pos); look.lerp(hero.pos, 1 - Math.exp(-dt * 5)); }
-      camera.position.set(look.x + 24, 29, look.z + 24);
-      camera.lookAt(look.x, 0, look.z);
+      const focus = kc ? kc.target.pos : (hero ? hero.pos : null);
+      if (focus) { world.camTarget.copy(focus); look.lerp(focus, 1 - Math.exp(-dt * 5)); }
+      frameCam = isoCamera;
+      isoCamera.position.set(look.x + 24, 29, look.z + 24);
+      isoCamera.lookAt(look.x, 0, look.z);
     }
     followShadow(look.x, look.z);
-    renderer.render(scene, camera);
+    renderer.render(scene, frameCam);
     if ((mapTick++ & 1) === 0) minimap.draw();
   });
 }

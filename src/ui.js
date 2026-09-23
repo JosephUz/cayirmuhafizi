@@ -24,8 +24,8 @@ export function createUI(root, world, actions) {
   const campLabels = new Map();
   let lastAlertPing = -99;
   const typeOf = key => SOLDIER_TYPES.find(t => t.key === key);
-  const antiText = key => { const a = antiInfo(key); if (!a.beats.length && !a.beatenBy.length) return ''; return `Tek atar: ${a.beats.join(', ') || '—'} · Tek atılır: ${a.beatenBy.join(', ') || '—'}`; };
-  const antiHtml = key => { const a = antiInfo(key); if (!a.beats.length && !a.beatenBy.length) return ''; return `<div class="anti"><span class="good">⚔ Tek atar: <b>${a.beats.join(', ') || '—'}</b></span> <span class="bad">☠ Tek atılır: <b>${a.beatenBy.join(', ') || '—'}</b></span></div>`; };
+  const antiText = key => { const a = antiInfo(key); if (!a.beats.length && !a.beatenBy.length) return ''; return `Üstün: ${a.beats.join(', ') || '—'} · Zayıf: ${a.beatenBy.join(', ') || '—'}`; };
+  const antiHtml = key => { const a = antiInfo(key); if (!a.beats.length && !a.beatenBy.length) return ''; return `<div class="anti"><span class="good">⚔ Üstün: <b>${a.beats.join(', ') || '—'}</b></span> <span class="bad">☠ Zayıf: <b>${a.beatenBy.join(', ') || '—'}</b></span></div>`; };
   let soundOn = true;
   try { soundOn = localStorage.getItem('cm.sound') !== 'off'; } catch { /* yok */ }
   const ping = kind => {
@@ -50,6 +50,11 @@ export function createUI(root, world, actions) {
   els.cmd.addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
     const d = b.dataset;
+    /**
+     * Kapalı düğmeye basmak sessiz kalmaz: neyin eksik olduğunu alt bandın üstüne yazar. Sebep, düğmeler her
+     * tazelendiğinde `data-why` alanına yazılır (bkz. refreshCmd), böylece ipucunu beklemeye gerek kalmaz.
+     */
+    if (b.classList.contains('off')) { ui.hint(d.why || 'Şu an yapılamaz', 2.2); ping('error'); b.blur(); return; }
     if (d.soldier) ui.requestSoldier(d.soldier, e.ctrlKey ? QUEUE.batchCtrl : e.shiftKey ? QUEUE.batchShift : 1);
     else if (d.build) ui.startPlacing(d.build);
     else if (d.demolish) ui.demolish();
@@ -132,14 +137,28 @@ export function createUI(root, world, actions) {
       els.cmd.innerHTML = html;
     }
     const eco = world.me.eco, b = busy();
-    for (const el of els.cmd.querySelectorAll('button[data-soldier]')) { const t = typeOf(el.dataset.soldier); el.disabled = b || eco.gold < t.cost || eco.food < t.food; }
+    // Kapalılık sebebi düğmede taşınır: tıklayınca yazılır (yukarıdaki click), fareyle beklemeye gerek yok.
+    const off = (el, why) => { el.classList.toggle('off', Boolean(why)); el.dataset.why = why || ''; };
+    const busyWhy = () => (heroDown() ? 'Kahraman yerde: doğmasını bekle' : world.paused ? 'Oyun duraklatıldı' : world.ended ? 'Oyun bitti' : 'Şu an komut verilemez');
+    const gold = (n, what) => `Yetersiz altın: ${what} ${n.toLocaleString('tr-TR')} altın (sende ${Math.floor(eco.gold).toLocaleString('tr-TR')})`;
+    for (const el of els.cmd.querySelectorAll('button[data-soldier]')) {
+      const t = typeOf(el.dataset.soldier);
+      off(el, b ? busyWhy() : eco.gold < t.cost ? gold(t.cost, t.label) : eco.food < t.food ? `Yetersiz yiyecek: ${t.label} ${t.food} yiyecek (sende ${Math.floor(eco.food)})` : '');
+    }
     for (const el of els.cmd.querySelectorAll('button[data-build]')) {
       const kind = el.dataset.build, spec = BUILDINGS[kind], tower = kind === 'tower';
-      const capped = structureCount(world, world.me, tower) >= (tower ? world.limits.towers : world.limits.buildings);
-      el.disabled = b || capped || eco.gold < spec.cost || eco.wood < spec.wood;
+      const cap = tower ? world.limits.towers : world.limits.buildings;
+      const capped = structureCount(world, world.me, tower) >= cap;
+      off(el, b ? busyWhy()
+        : capped ? (tower ? `Kule sınırı dolu (en fazla ${cap}) · birini yıkabilirsin` : `Bina sınırı dolu (en fazla ${cap}) · birini yıkabilirsin`)
+        : eco.gold < spec.cost ? gold(spec.cost, spec.label)
+        : eco.wood < spec.wood ? `Yetersiz odun: ${spec.label} ${spec.wood} odun (sende ${Math.floor(eco.wood)})` : '');
     }
     const hn = heroNearBanner();
-    for (const el of els.cmd.querySelectorAll('button[data-herotype]')) { const t = typeOf(el.dataset.herotype); el.disabled = b || !hn || eco.gold < heroConvertCost(t, world.limits); }
+    for (const el of els.cmd.querySelectorAll('button[data-herotype]')) {
+      const t = typeOf(el.dataset.herotype), cc = heroConvertCost(t, world.limits);
+      off(el, b ? busyWhy() : !hn ? 'Kahraman sancağa yaklaşmalı' : eco.gold < cc ? gold(cc, t.label) : '');
+    }
   }
 
   // ---- Bilgi kartı (yalnızca sayılar; tuş anlatımı kısayol penceresinde)
@@ -210,6 +229,14 @@ export function createUI(root, world, actions) {
       if (els.alert) { els.alert.classList.remove('on'); void els.alert.offsetWidth; els.alert.classList.add('on'); }
       if (world.clock - (lastAlertPing || -99) > 4) { lastAlertPing = world.clock; ping('error'); }
     },
+    /** Seni öldüren birimin / yapının adı (ölüm kamerası için; bkz. main.js killcam). */
+    killerLabel(o) {
+      if (!o) return '';
+      if (o.kind) return (BUILDINGS[o.kind] && BUILDINGS[o.kind].label) || 'yapı';
+      if (o.isPlayer || o.isHero) return 'rakip kahraman';
+      const t = SOLDIER_TYPES.find(x => x.key === (o.typeKey || loadoutKey(o.loadout)));
+      return t ? t.label : 'asker';
+    },
     updateRespawn() {
       const el = root.querySelector('#mg-respawn'); if (!el) return;
       const p = world.player, banner = world.me && world.me.banner;
@@ -220,7 +247,11 @@ export function createUI(root, world, actions) {
       if (el.dataset.n !== String(n)) {
         el.dataset.n = String(n); num.textContent = n; num.classList.toggle('final', n <= 1);
         num.style.animation = 'none'; void num.offsetWidth; num.style.animation = '';
-        el.querySelector('.sub').textContent = `${p.deaths}. ölüm · sancakta yeniden doğarsın`;
+        const kc = world.killcam;
+        const who = kc && kc.target ? ui.killerLabel(kc.target) : '';
+        el.querySelector('.sub').textContent = who
+          ? `Seni ${who} öldürdü · sancakta yeniden doğarsın`
+          : `${p.deaths}. ölüm · sancakta yeniden doğarsın`;
       }
     },
     updateCharge() {

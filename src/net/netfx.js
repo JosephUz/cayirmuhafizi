@@ -54,6 +54,7 @@ export function createNetFx(room) {
     flash(p, key) { one(p, [EV.FLASH, key]); },
     float(p, text, pos, color) { one(p, [EV.FLOAT, text, r2(pos.x), r2(pos.y || 0), r2(pos.z), color]); },
     alert(p, s) { one(p, [EV.ALERT, s.id]); },
+    killer(p, src) { if (src) one(p, [EV.KILLER, src.kind ? 's' : 'e', src.id]); },
     rally(p) { const r = p.rally; one(p, [EV.RALLY, r ? r2(r.x) : null, r ? r2(r.z) : null, r ? r.color : null, r && r.target ? (r.target.kind ? 's' : 'e') + r.target.id : null]); },
   };
 }

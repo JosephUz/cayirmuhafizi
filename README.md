@@ -51,6 +51,10 @@ görseller `world.fx` kancalarından geçer (tarayıcıda mesh, sunucuda olay).
 - **Durum paketi** (ikili, 10 Hz): yalnızca **değişen** birimler (konum, yön, can, bayraklar, seviye), bütün yapılar
   (can, inşa, sıra), oklar ve bölgeler. Birimler 100 ms geriden ara değerle çizilir. Doğuş / silinme / efekt olayları JSON.
   5v5'te ölçülen: adım 0.8 ms, paket ortalama 1.8 KB, istemci başına ~17 KB/s.
+- **Akıcılık**: çizim saati paket varışına değil, yumuşatılmış bir sunucu saati farkına bakar (`NET.clockSmooth`);
+  paket geç gelince birimler donup sıçramaz. **Kendi kahramanın beklemez**: başkaları 100 ms geriden çizilirken senin
+  kahramanın en son pakete kadar çizilir ve 60 ms ileri sürülür (`NET.selfExtrapolate`), böylece tuşa basınca hareket
+  gecikmez. Sunucu yine tek yetkilidir; fark küçük bir düzeltmeyle kapanır.
 - **Sis** her istemcide kendi takımının birimlerinden yerelde hesaplanır (sunucu da oyun kuralları için hesaplar).
 - **Kopma**: kimlik sekmeye özel bir token'dır; sayfa yenilenince ya da bağlantı kopunca aynı koltuğa geri dönülür
   (üstte "Yeniden bağlanıyor" şeridi). 120 saniyede dönmeyenin kahramanını **bot devralır**; hiç insan kalmazsa oda kapanır.
@@ -102,16 +106,17 @@ sancağı seç, **Geliştir** düğmesiyle menüyü aç (kahraman sancağa 12 bi
 - **Türe dönüş**: 10 asker türünden birine dönüş, bedeli tür tür sabittir (`config.js` → `HERO_UPGRADE.convertCost`) ama
   **kadroya göre oranlanır**: bedel **işçi sınırıyla** birlikte iner (`limits.workers / 100`), çünkü kalabalık oyunda herkesin
   işçi sınırı ve kazancı düşer. Tek başına oyunda tam bedel, 5v5'te işçi sınırı 30 olduğu için bedelin **%30'u** geçerlidir.
+  **Tavan 30.000 altındır** (kalkanlı atlılar, tek başına oyunda).
   Alt banttaki düğme o oyundaki gerçek bedeli yazar.
 
   | Tür | 1v1 | 2v2 | 3v3 | 4v4 | 5v5 |
   | --- | --- | --- | --- | --- | --- |
-  | Kılıçlı | 750 | 550 | 400 | 300 | 250 |
-  | Mızraklı | 1.500 | 1.150 | 750 | 550 | 450 |
-  | Okçu, Kılıç Kalkan | 3.000 | 2.250 | 1.500 | 1.150 | 900 |
-  | Mızrak Kalkan | 6.000 | 4.500 | 3.000 | 2.300 | 1.800 |
-  | Atlı kılıç / mızrak / okçu | 30.000 | 22.500 | 15.000 | 11.400 | 9.000 |
-  | Kalkanlı atlılar | 45.000 | 33.750 | 22.500 | 17.100 | 13.500 |
+  | Kılıçlı | 500 | 400 | 250 | 200 | 150 |
+  | Mızraklı | 1.000 | 750 | 500 | 400 | 300 |
+  | Okçu, Kılıç Kalkan | 2.000 | 1.500 | 1.000 | 750 | 600 |
+  | Mızrak Kalkan | 4.000 | 3.000 | 2.000 | 1.500 | 1.200 |
+  | Atlı kılıç / mızrak / okçu | 20.000 | 15.000 | 10.000 | 7.600 | 6.000 |
+  | Kalkanlı atlılar (tavan) | 30.000 | 22.500 | 15.000 | 11.400 | 9.000 |
 
   Atlı olmak yine oyunun geç aşamasıdır: uzun süre işçi, maden ve ganimet biriktirmeyi gerektirir.
   **Seviyen ve exp'in korunur**
@@ -196,7 +201,7 @@ yönetilmez; **orta tıkla** dikilen tek **toplanma alanı** bütün ordu için 
 | --- | --- |
 | Sol tık | Kendi yapını seç (üretim / menü); boşluğa tıklayınca seçim kalkar |
 | Çift tık | Aynı türdeki **bütün** binaları seç: üretim emirleri aralarında paylaştırılır |
-| **Orta tık** | İmleç bir **düşmanın** (asker, kahraman, bina, kule, haydut kampı) üstündeyse bütün ordu **o hedefe saldırır**; boş yerdeyse oraya ordunun **toplanma alanını** diker. Tekrar orta tık hedefi / bayrağı değiştirir |
+| **Orta tık** *veya* **E** | İmleç bir **düşmanın** (asker, kahraman, bina, kule, haydut kampı) üstündeyse bütün ordu **o hedefe saldırır**; boş yerdeyse oraya ordunun **toplanma alanını** diker. Tekrar basmak hedefi / bayrağı değiştirir. **E**, orta tuşu olmayan donanım (Mac dizüstü izleme yüzeyi, tek tuşlu fare) için birebir aynı emri verir |
 | Sağ tık | Açık modu kapat (birim emri yok) |
 
 İnşa (kışla, okçuluk, ahır, kuşatma, kule) **yalnızca hiçbir şey seçili değilken** soldaki düğmelerle (sancak menüsünde bina
@@ -315,10 +320,11 @@ sancak can kaybetmeye başlar; **sancak yıkılınca oyun biter**: kırmızı sa
 ## Birim üstünlükleri: anti sistemi
 
 Askerler 100 can (at ve kalkan can bonusu yalnızca kahramanda: +50 / +30). Kalkan hızı %20 düşürür, **at %70 artırır**, kalkan önden gelen vuruşun %30'unu emer.
-**Asker tipi savaşın kendisidir**: her türün bir **anti listesi** vardır ve antisi olduğu türü **tek vuruşta öldürür**
-(`config.js` → `ANTI`):
+**Asker tipi savaşın kendisidir**: her türün bir **anti listesi** vardır ve antisi olduğu türü **üç vuruşta düşürür**
+(`config.js` → `ANTI`). **Tek atma yoktur**: anti vuruş çok sert ama hedefe kaçacak, karşılık verecek ve destek
+alacak kadar yaşama hakkı bırakır.
 
-| Saldıran | Tek attığı türler |
+| Saldıran | Üstün olduğu türler |
 | --- | --- |
 | **Kılıç** (yaya, ±kalkan) | Yaya mızrak, mızrak kalkan |
 | **Mızrak** (yaya, ±kalkan) | **Bütün atlılar** (atlı okçu, mızraklı, kılıçlı, kalkanlıları dahil) |
@@ -327,18 +333,20 @@ Askerler 100 can (at ve kalkan can bonusu yalnızca kahramanda: +50 / +30). Kalk
 | **Atlı kılıç** (±kalkan) | Okçu ve atlı okçu |
 | **Atlı okçu** | Kalkansızlar: kılıçlı, okçu, atlı mızrak — yaya mızrak ve atlı kılıç hariç (onlar atlı okçunun antisidir) |
 
-- **Anti vuruşun gücü**: askere canının **1.5 katı** (kalkanın %30 emişini de deler, yine tek vuruşta ölür); kahramana sabit
-  **150 hasar**: sv 1 kahraman (140 can) antisi olan **askere bile tek vuruşta** düşer; her seviye +10 can verdiği için sv 3'ten sonra
-  iki vuruş gerekir. Vuran kahramansa seviye çarpanı (+%8 / sv) da biner. Dönerek vuruş (0.5x) ve alan etkileri (0.6x) anti hasarı aynı oranda ölçekler.
+- **Anti vuruşun gücü**: askere canının **0.34 katı**, yani **üçüncü vuruşta ölür** (kalkan önden %30 emdiği için kalkanlı
+  hedef önden beş, arkadan üç vuruş dayanır). Normal vuruş canın ~%14'ünü götürdüğüne göre anti vuruş yaklaşık **2.4 kat**
+  serttir. Kahramana sabit **45 hasar**: sv 1 kahraman (140 can) **dördüncü vuruşta** düşer, her seviye +10 can verdiği için
+  üst seviyelerde daha çok vuruş gerekir. Vuran kahramansa seviye çarpanı (+%8 / sv) da biner. Dönerek vuruş (0.5x) ve
+  alan etkileri (0.6x) anti hasarı aynı oranda ölçekler.
 - Anti dışı eşleşmeler **1x**; yalnızca **ok zayıftır**: kalkanlıya 0.15x, atlıya 0.5x. Okçu dışındaki silahlar alan vuruşu yapar
-  (kılıç 112°, mızrak 81°): yayın içindeki her antisi tek vuruşta ölür.
-- Tablo **karşılıklı tek atma çifti** içermez: kim kimin antisiyse tek yönlüdür. Kalkanlı atlıları yalnızca mızrak durdurur, bedelleri de en yüksektir.
-- **Her türü tek atanlar**: kılıçlı → okçu, atlı mızrak, atlı okçu · kılıç kalkan → atlı mızrak · mızraklı → kılıç, okçu · mızrak kalkan → kılıç ·
+  (kılıç 112°, mızrak 81°): yayın içindeki her antisi aynı sert vuruşu yer.
+- Tablo **karşılıklı üstünlük çifti** içermez: kim kimin antisiyse tek yönlüdür. Kalkanlı atlıları yalnızca mızrak durdurur, bedelleri de en yüksektir.
+- **Her türe üstün olanlar**: kılıçlı → okçu, atlı mızrak, atlı okçu · kılıç kalkan → atlı mızrak · mızraklı → kılıç, okçu · mızrak kalkan → kılıç ·
   okçu → okçu, atlı mızrak, atlı kılıç, atlı okçu · atlı okçu → mızrak, atlı kılıç · atlı mızrak → mızrak, atlı okçu · atlı kılıç → mızrak ·
-  kalkanlı atlılar → yalnızca mızrak. Üretim düğmelerinin ipucu ve birim bilgi kartı bu iki listeyi gösterir.
+  kalkanlı atlılar → yalnızca mızrak. Üretim düğmelerinin ipucu ve birim bilgi kartı bu iki listeyi (Üstün / Zayıf) gösterir.
 - **Rakip anti basar**: her karar turunda senin en kalabalık türünün antisini seçme olasılığı kolayda %20, normalde %50, zorda %80;
-  tutmazsa eskisi gibi tür dağılımını kopyalar. Kahramanların vuruşları da bu tabloya uyar: kılıçlı kahraman mızraklıları tek atar,
-  okçular onu tek atar (sv 3'e kadar).
+  tutmazsa eskisi gibi tür dağılımını kopyalar. Kahramanların vuruşları da bu tabloya uyar: kılıçlı kahraman mızraklıları üç
+  vuruşta düşürür, okçular onu dört vuruşta düşürür (seviye arttıkça daha çok).
 
 ## Üst bant (HUD)
 

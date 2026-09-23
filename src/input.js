@@ -92,6 +92,15 @@ export function attachInput(world, canvas, camera, dragEl) {
       if (input.locked) unlockPointer(); else lockPointer(canvas);
       return;
     }
+    /**
+     * **E = orta tık**: toplanma alanı / saldırı hedefi. Mac dizüstülerinde ve orta tuşu olmayan farelerde orta tık
+     * yoktur; bu tuş imlecin (omuz üstünde artının) gösterdiği noktaya aynı emri verir.
+     */
+    if (e.code === 'KeyE' && !e.repeat) {
+      e.preventDefault();
+      if (world.ui) { if (input.hasAim) world.ui.setRally(input.aim.x, input.aim.z); else world.ui.hint('Önce imleci sahaya getir', 1.6); }
+      return;
+    }
     if (MOVE.includes(e.code)) { e.preventDefault(); input.keys.add(e.code); if (e.code === 'Space' && !e.repeat) input.jumpQueued = true; }
   });
   window.addEventListener('keyup', e => { input.keys.delete(e.code); input.shift = e.shiftKey; });

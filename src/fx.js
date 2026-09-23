@@ -15,7 +15,7 @@ export const FX_METHODS = [
   'addArrow', 'removeArrow',
   'addZone', 'removeZone',
   'burst', 'ring', 'heal', 'strip',
-  'ping', 'flash', 'float', 'alert', 'rally',
+  'ping', 'flash', 'float', 'alert', 'rally', 'killer',
 ];
 export function nullFx() {
   const fx = {};

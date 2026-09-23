@@ -215,19 +215,25 @@ export const HORSE = { speedMult: 1.7, hpBonus: 50, radius: 0.62, invMassMult: 0
 export const SHIELD = { hpBonus: 30, /** Kalkan taşıyan birim belirgin yavaştır. */ speedMult: 0.8, /** Yapay zekâ kalkanlıları önden gelen vuruşu pasif azaltır. */ passiveFrontMult: 0.7 };
 
 /**
- * Birim üstünlükleri: **anti sistemi**. Her tür, antisi olduğu türleri **tek vuruşta** öldürür; asker tipi savaşın kendisidir.
- * - Askere anti vuruş: hedef canının soldierMult katı (1.5x: kalkanın önden %30 emişini de deler, yine ölür).
- * - Kahramana anti vuruş: sabit heroDamage (sv 1 kahraman 140 can -> tek vuruş; her seviye +10 can, sv 3'ten sonra iki vuruş).
+ * Birim üstünlükleri: **anti sistemi**. Her tür, antisi olduğu türleri **üç vuruşta** düşürür; asker tipi savaşın kendisidir.
+ * **Tek atma yoktur**: anti vuruş çok sert ama hedefe en az üç vuruşluk yaşama hakkı bırakır, böylece kaçmak, karşılık
+ * vermek ve destek almak mümkün olur (tek vuruşta ölmek oyunu okunmaz kılıyordu).
+ * - Askere anti vuruş: hedef canının soldierMult katı (0.34x -> üçüncü vuruşta ölür; kalkan önden %30 emdiği için
+ *   kalkanlı hedef önden beş vuruş dayanır, arkadan üç).
+ * - Kahramana anti vuruş: sabit heroDamage (sv 1 kahraman 140 can -> dördüncü vuruşta düşer; her seviye +10 can
+ *   verdiği için üst seviyelerde daha çok vuruş gerekir).
  *   Vuran kahramansa seviye çarpanı da biner. Dönerek vuruş (0.5x) ve hortum (0.6x) anti hasarı da aynı oranda ölçekler.
  * - Anti dışı eşleşmeler 1x; yalnızca ok zayıftır (weak): kalkana 0.15x, atlıya 0.5x.
- * Tablo karşılıklı tek atma çifti oluşturmaz: atlı mızrak yaya mızrağı, atlı okçu yaya mızrak ile atlı kılıcı tek atmaz
- * (onlar atlının antisidir). Kalkanlı atlıları yalnızca mızrak durdurur; bedelleri de en yüksektir.
+ * Tablo karşılıklı üstünlük çifti oluşturmaz: atlı mızrak yaya mızrağına, atlı okçu yaya mızrak ile atlı kılıca üstün
+ * değildir (onlar atlının antisidir). Kalkanlı atlıları yalnızca mızrak durdurur; bedelleri de en yüksektir.
  */
 export const ANTI = {
-  soldierMult: 1.5,
-  heroDamage: 150,
+  /** Anti vuruşun askere hasarı: hedefin azami canının bu katı (0.34 -> üç vuruş). */
+  soldierMult: 0.34,
+  /** Anti vuruşun kahramana hasarı (sabit): 140 canlı sv 1 kahraman dördüncü vuruşta düşer. */
+  heroDamage: 45,
   weak: { bowVsShield: 0.15, bowVsHorse: 0.5 },
-  /** Saldıran tür -> tek vuruşta öldürdüğü türler (SOLDIER_TYPES anahtarları). */
+  /** Saldıran tür -> üstün olduğu, üç vuruşta düşürdüğü türler (SOLDIER_TYPES anahtarları). */
   table: {
     sword: ['spear', 'spearshield'],
     swordshield: ['spear', 'spearshield'],
@@ -250,7 +256,7 @@ export function loadoutKey(l) {
   if (!loadoutKeys.has(k)) { const t = SOLDIER_TYPES.find(x => !x.worker && !x.siege && x.weapon === l.weapon && Boolean(x.shield) === Boolean(l.shield) && Boolean(x.horse) === Boolean(l.horse)); loadoutKeys.set(k, t ? t.key : null); }
   return loadoutKeys.get(k);
 }
-/** Bir türün antisi olduğu türler ve bu türü tek atan türler (etiketleriyle). */
+/** Bir türün üstün olduğu türler ve bu türe üstün olan türler (etiketleriyle). */
 export function antiInfo(key) {
   const label = k => { const t = SOLDIER_TYPES.find(x => x.key === k); return t ? t.label : k; };
   const beats = (ANTI.table[key] || []).map(label);
@@ -440,6 +446,8 @@ export const CAMERA = {
   tps: { dist: 9, height: 2.4, shoulder: 0.9, fov: 62, sens: 0.0022, pitch: 0.42, pitchMin: -0.3, pitchMax: 1.15, minY: 0.9, follow: 18, aimFar: 40,
     /** Omuz üstünde savaş sisi düzlemi yok: düşman birim / yapı kahramana bu uzaklıktan yakınsa görünür, sahne pusu bu uzaklıkta tam kapanır. */
     viewDist: 90, fogNear: 30 },
+  /** Ölüm kamerası: kahramanın ölümünden sonra katile odaklanılan süre (sn). */
+  killcam: 3.5,
 };
 
 /**
@@ -465,11 +473,12 @@ export const HERO_UPGRADE = {
    * başlangıç türüdür, en ucuzu odur (ona geri dönmek kolay olsun diye).
    * Tablodaki sayılar **tek başına oyunun** (işçi sınırı LIMITS.workers) bedelidir; kalabalık oyunda işçi sınırıyla
    * birlikte düşer (bkz. heroConvertCost): kasan küçüldüğü kadar hedef de yaklaşır.
+   * **Tavan 30.000 altındır** (kalkanlı atlılar); oranlar korunarak buna göre ölçeklenmiştir.
    */
   convertCost: {
-    sword: 750, spear: 1500, bow: 3000, swordshield: 3000, spearshield: 6000,
-    horsesword: 30000, horsespear: 30000, horsebow: 30000,
-    horseswordshield: 45000, horsespearshield: 45000,
+    sword: 500, spear: 1000, bow: 2000, swordshield: 2000, spearshield: 4000,
+    horsesword: 20000, horsespear: 20000, horsebow: 20000,
+    horseswordshield: 30000, horsespearshield: 30000,
   },
 };
 /**

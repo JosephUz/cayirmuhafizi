@@ -31,7 +31,7 @@ export const EV = {
   ARROW_ADD: 'a+', ARROW_DEL: 'a-',
   ZONE_ADD: 'z+', ZONE_DEL: 'z-',
   BURST: 'fb', RING: 'fr', HEAL: 'fh', STRIP: 'fs',
-  PING: 'pp', FLASH: 'pf', FLOAT: 'pt', ALERT: 'pa', RALLY: 'pr',
+  PING: 'pp', FLASH: 'pf', FLOAT: 'pt', ALERT: 'pa', RALLY: 'pr', KILLER: 'pk',
 };
 export const NET = {
   /** Simülasyon adımı ve durum paketi sıklığı (sn). */
@@ -42,6 +42,18 @@ export const NET = {
   reconnectHold: 120,
   /** Cloudflare / vekil boşta bağlantıyı kapatmasın: bu aralıkta ping. */
   keepAlive: 20,
+  /**
+   * Sunucu saatinin yumuşatması. Paket varış anı ağ titremesiyle oynar; çizim saati her pakette sıfırlanırsa
+   * her pakette bir sıçrama görünür. Ölçüm bu oranda harmanlanır (0.12 = yumuşak), fark clockJump'ı aşarsa
+   * (sekme arka plandaydı, bağlantı koptu) saat doğrudan kurulur.
+   */
+  clockSmooth: 0.12, clockJump: 0.5,
+  /**
+   * **Kendi kahramanın beklemez**: başkaları interpDelay kadar geriden çizilir (yumuşak olsun diye), senin kahramanın
+   * en son pakete kadar çizilir ve bu kadar saniye ileri sürülür. Tuşa bastığında hareket interpDelay kadar
+   * gecikmez; karşılığında yön değiştirirken çok küçük bir düzeltme olur.
+   */
+  selfExtrapolate: 0.06,
 };
 export const DIFFICULTIES = ['easy', 'normal', 'hard'];
 export const roomCode = () => {

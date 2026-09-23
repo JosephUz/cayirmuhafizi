@@ -1,4 +1,5 @@
 import { buildView, rebuildSwing, removeView } from '../characters.js';
+import { CAMERA } from '../config.js';
 import { completeFx } from '../fx.js';
 import { burst, healBubble, ring, strip } from './effects.js';
 import { attachArrowView, attachItemView, detachArrowView, detachItemView, rallyFlag } from './itemview.js';
@@ -10,6 +11,15 @@ import { attachZoneView, detachZoneView } from './zones.js';
  * çağırır; çevrim içi oyunda istemci (net/client.js) sunucudan gelen olayları bunun aynı yöntemlerine iletir.
  * Oyuncuya özel geri bildirim (ping / flash / float / alert) yalnızca yerel oyuncu (world.me) içinse arayüze gider.
  */
+/**
+ * Ölüm kamerası: seni öldüren birim ya da yapı CAMERA.killcam saniye boyunca kamerayı üstüne çeker ve **sis içinde
+ * olsa da** çizilir (bkz. main.js). Katil bir yapıysa (kule) kalıcı olarak açılır: bir daha o kulenin yerini bilirsin.
+ */
+function setKillcam(world, src) {
+  world.killcam = { target: src, until: world.clock + CAMERA.killcam };
+  if (src.kind) src.seen = true;
+}
+
 export function createSceneFx(world) {
   const mine = p => p && p === world.me;
   return completeFx({
@@ -36,6 +46,11 @@ export function createSceneFx(world) {
       world.alerts.push({ x: s.pos.x, z: s.pos.z, t: world.clock });
       if (world.alerts.length > 12) world.alerts.shift();
       if (world.ui) world.ui.alert();
+    },
+    /** Seni öldüren birim ya da yapı: kamera oraya odaklanır, nesne sis içinde olsa da çizilir. */
+    killer(p, src) {
+      if (!mine(p) || !src) return;
+      setKillcam(world, src);
     },
     rally(p) {
       if (!mine(p)) return;
