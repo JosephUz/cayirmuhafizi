@@ -126,3 +126,81 @@ html,body{margin:0;height:100%;background:#19231d;overflow:hidden}
 
 @media(max-width:900px){#meadow-game #mg-bar{grid-template-columns:auto 1fr;height:auto}#meadow-game .mini{grid-column:1/-1;flex-direction:row}#meadow-game #mg-minimap{width:200px;height:100px}#meadow-game .minibtns{flex-direction:column}#meadow-game .picker{grid-template-columns:1fr}#meadow-game .overlay .card{padding:16px}}
 @media(max-width:600px){#meadow-game .cmd{grid-template-columns:repeat(5,48px);grid-auto-rows:40px}#meadow-game .cmd .slot .lbl{display:none}#meadow-game .stats span{padding:3px 5px;font-size:11px}#meadow-game .info .hint{display:none}}
+
+/* ---- Ekranlar: giriş, kurulum, lobi, kısayollar, menü. Hepsi aynı panel; her ekranda en fazla bir cümle. ---- */
+#meadow-game .overlay .card.home{max-width:420px;text-align:center}
+#meadow-game .card.home h1{margin:0 0 18px;font-size:28px;letter-spacing:4px;font-weight:700;color:#e6c25a}
+#meadow-game .field{display:flex;flex-direction:column;gap:6px;text-align:left;margin-bottom:14px}
+#meadow-game .field span{font-size:12px;color:#b8c5aa;letter-spacing:.1em}
+#meadow-game input[type=text]{font:inherit;color:#f6efd9;background:#1c241e;border:1px solid #718361;border-radius:6px;padding:9px 12px;font-size:16px}
+#meadow-game input[type=text]:focus{outline:2px solid #ffdf86;outline-offset:1px}
+#meadow-game .menu{display:flex;flex-direction:column;gap:8px}
+#meadow-game .menu button{padding:12px 16px;font-size:16px}
+#meadow-game .joinrow{margin-top:10px}
+#meadow-game .joinrow input{flex:1;text-transform:uppercase;letter-spacing:.2em;text-align:center}
+#meadow-game .foot{margin-top:14px;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#b8c5aa}
+#meadow-game button.link{background:none;border:none;color:#b8c5aa;text-decoration:underline;padding:0;font-size:12px}
+#meadow-game .status{font-size:12px;color:#ffd97a;min-height:1em}
+#meadow-game .card.lobby{max-width:720px}
+#meadow-game .codebox{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+#meadow-game .codebox .lbl{font-size:12px;color:#b8c5aa;letter-spacing:.1em}
+#meadow-game .codebox b{font-size:30px;letter-spacing:.2em;color:#e6c25a;font-variant-numeric:tabular-nums}
+#meadow-game .lobby .teams{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+#meadow-game .lobby .team h3{margin:0 0 6px;font-size:12px;letter-spacing:.1em;color:#b8c5aa;font-weight:600}
+#meadow-game .lobby .team.blue h3{color:#8fd0ff}#meadow-game .lobby .team.red h3{color:#ff9f8c}
+#meadow-game .seats{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+#meadow-game .seats li{background:#1c241e;border:1px solid #3c4a3a;border-radius:6px;padding:8px 10px;display:flex;align-items:center;gap:8px}
+#meadow-game .seats li.me{border-color:#e6c25a}#meadow-game .seats li.bot{color:#8a9a84}#meadow-game .seats li.off{opacity:.5}
+#meadow-game .seats li small,#meadow-game .score small,#meadow-game .rank small{font-size:10px;color:#b8c5aa;margin-left:4px}
+#meadow-game .dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#888;flex:none;margin-right:6px;vertical-align:middle}
+#meadow-game .dot.bot{background:#5a6a55}#meadow-game .dot.red{background:#ad5542}
+#meadow-game .lobby .settings{margin:14px 0 10px;gap:18px}
+#meadow-game .lobby select{font:inherit;color:#f6efd9;background:#1c241e;border:1px solid #718361;border-radius:6px;padding:6px 8px}
+#meadow-game .card.help{max-width:820px}
+#meadow-game .help .cols{display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;margin-bottom:12px}
+#meadow-game .help h3{margin:6px 0 4px;font-size:12px;letter-spacing:.1em;color:#b8c5aa;font-weight:600}
+#meadow-game .help table{width:100%;border-collapse:collapse;font-size:13px}
+#meadow-game .help th{text-align:left;white-space:nowrap;color:#ffd97a;font-weight:600;padding:3px 10px 3px 0;vertical-align:top;width:34%}
+#meadow-game .help td{padding:3px 0;color:#e7e0cb}
+#meadow-game .card.menu-card{max-width:320px}
+#meadow-game .card.menu-card h2{text-align:center}
+#meadow-game.screen #mg-view{cursor:default}
+/* Canlı skor: sağ üstte, HUD'un altında. */
+#meadow-game .score{position:absolute;top:92px;right:12px;z-index:3;background:#1c241ecc;border:1px solid #3c4a3a;border-radius:6px;min-width:150px;font-size:12px;pointer-events:auto}
+#meadow-game .score[hidden]{display:none}
+#meadow-game .score-head{padding:4px 8px;font-size:11px;letter-spacing:.1em;color:#b8c5aa;cursor:pointer;border-bottom:1px solid #3c4a3a}
+#meadow-game .score.folded .score-list{display:none}
+#meadow-game .score-list{list-style:none;margin:0;padding:4px 6px;display:flex;flex-direction:column;gap:2px}
+#meadow-game .score-list li{display:flex;align-items:center;gap:4px;padding:1px 2px;border-radius:4px}
+#meadow-game .score-list li.me{background:#5a533055}
+#meadow-game .score-list li.red .n{color:#ff9f8c}#meadow-game .score-list li.off{opacity:.5}
+#meadow-game .score-list .n{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#meadow-game .score-list b{font-variant-numeric:tabular-nums}
+/* Kopma şeridi. */
+#meadow-game .netstrip{position:absolute;top:46px;left:50%;transform:translateX(-50%);z-index:5;background:#3a1c10d9;border:1px solid #d1743a;color:#ffe0c2;padding:4px 12px;border-radius:6px;font-size:12px}
+#meadow-game .netstrip[hidden]{display:none}
+/* Bitiş karnesi. */
+#meadow-game .card.report{max-width:940px;color:#f6efd9}
+#meadow-game .report .tabs{display:flex;gap:4px;margin-bottom:12px;border-bottom:1px solid #3c4a3a;padding-bottom:8px}
+#meadow-game .report .tabs button.on{background:#917035;border-color:#e6c25a}
+#meadow-game .report .pane{min-height:220px;max-height:60vh;overflow:auto;margin-bottom:12px}
+#meadow-game .report .result{display:flex;align-items:baseline;gap:16px;margin-bottom:10px}
+#meadow-game .report .result b{font-size:34px;letter-spacing:4px}
+#meadow-game .report .result.win b{color:#bfe59a}#meadow-game .report .result.lose b{color:#ff9f8c}
+#meadow-game .report .result span{color:#b8c5aa}
+#meadow-game .report .mine{margin-bottom:12px;color:#ffd97a}
+#meadow-game .report .champs{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px}
+#meadow-game .report .champ{background:#1c241e;border:1px solid #3c4a3a;border-radius:6px;padding:8px 10px;display:grid;grid-template-columns:auto 1fr;gap:2px 8px;align-items:center}
+#meadow-game .report .champ .crown{grid-row:span 2;font-size:20px}
+#meadow-game .report .champ .lbl{font-size:11px;color:#b8c5aa}
+#meadow-game .report table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+#meadow-game .report th,#meadow-game .report td{padding:5px 8px;text-align:right;border-bottom:1px solid #2f3a2e;white-space:nowrap}
+#meadow-game .report th:nth-child(2),#meadow-game .report td:nth-child(2),#meadow-game .report .army td:first-child,#meadow-game .report .army td:nth-child(2){text-align:left}
+#meadow-game .report th[data-sort]{cursor:pointer;color:#b8c5aa}#meadow-game .report th.on{color:#ffd97a}
+#meadow-game .report tr.me td{background:#5a533033}
+#meadow-game .report tr.red td:nth-child(2){color:#ff9f8c}
+#meadow-game .report tfoot td{color:#b8c5aa;border-top:1px solid #718361}
+#meadow-game .report .chartbar{display:flex;gap:14px;margin-bottom:6px;font-size:12px}
+#meadow-game .report #tl-canvas{width:100%;max-width:860px;height:auto;background:#d9c59a;border-radius:6px;border:2px solid #8d6a45}
+#meadow-game .report .legend{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:6px;font-size:12px}
+#meadow-game .report .hint{font-size:11px;color:#b8c5aa}

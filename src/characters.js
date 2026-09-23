@@ -1,4 +1,4 @@
-import * as T from '/vendor/three.module.js';
+import * as T from 'three';
 import { CulledGroup, ball, box, clamp, makeHpBar, mesh, ownMat, removeGroup, setHpBar } from './builders.js';
 import { COLORS, COMBAT, DASH, HERO, HORSE, KIT, LEVEL, PLAYER_BASE, SHIELD, SOLDIER_BASE, SPRINT_MULT, TOWER, WEAPONS } from './config.js';
 
@@ -101,7 +101,18 @@ export function applyLevelUp(e) {
   rebuildSwing(e);
 }
 
-/** Yeni bir savaşçı varlığı (oyuncu, asker ya da düşman). faction takım, owner sahibi (players.js; haydutlarda null). Görünüm ayrı eklenir. */
+/**
+ * Varlığı dünyaya ekler: dünyaya özel kimlik alır (ağ paketleri u16 kimlik taşır), listeye girer ve görünümü fx ile kurulur
+ * (tarayıcıda mesh, sunucuda istemcilere olay). Bütün doğuşlar (asker, işçi, haydut, kahraman) buradan geçer.
+ */
+export function addEntity(world, e) {
+  e.id = world.ids.entity++;
+  world.entities.push(e);
+  world.fx.addEntity(e);
+  return e;
+}
+
+/** Yeni bir savaşçı varlığı (oyuncu, asker ya da düşman). faction takım, owner sahibi (players.js; haydutlarda null). Görünüm ayrı eklenir (addEntity). */
 export function createEntity({ faction, owner = null, loadout, isPlayer = false, x = 0, z = 0 }) {
   const stats = makeStats(loadout, isPlayer);
   return {
@@ -112,8 +123,8 @@ export function createEntity({ faction, owner = null, loadout, isPlayer = false,
     moveDir: new T.Vector3(),
     aim: new T.Vector3(x, 0, z + 1),
     attackTimer: 0, cooldown: 0, didHit: false, stun: 0, hitFlash: 0, deathTimer: 0,
-    blocking: false, sprinting: false, jumpY: 0, vy: 0, dodgeTimer: 0, dodgeCd: 0, invuln: 0, aimLocked: false,
-    level: 1, heroKills: 0, xp: 0, isHero: false, isWorker: false, workerKind: null, spawnTimer: 0, working: false, workTimer: 0, work: null, typeKey: null, vision: 10,
+    blocking: false, sprinting: false, charging: false, charge: 0, jumpY: 0, vy: 0, dodgeTimer: 0, dodgeCd: 0, invuln: 0, aimLocked: false,
+    level: 1, heroKills: 0, xp: 0, deaths: 0, isHero: false, isWorker: false, workerKind: null, spawnTimer: 0, working: false, workTimer: 0, work: null, typeKey: null, vision: 10,
     walkPhase: Math.random() * 6, bobPhase: Math.random() * 6,
     brain: isPlayer ? null : { mode: 'march', timer: 0, target: null, retarget: 0 },
     view: null,

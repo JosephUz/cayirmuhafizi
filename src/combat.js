@@ -1,12 +1,16 @@
-import * as T from '/vendor/three.module.js';
-import { ballGeo, box, mat, mesh } from './builders.js';
-import { ANTI, BLOCK, COMBAT, HERO_KNOCKBACK, HOMING_TURN, KNOCKBACK_SCALE, LEVEL, PERF, SHIELD, SPIN, TORNADO, TOWER, loadoutKey } from './config.js';
+import * as T from 'three';
+import { ANTI, BLOCK, COMBAT, HERO_KNOCKBACK, HOMING_TURN, KNOCKBACK_SCALE, LEVEL, SHIELD, SPIN, TORNADO, TOWER, loadoutKey } from './config.js';
 import { heroVolley } from './abilities.js';
 import { dashMult, isEvading, levelReachMult, reachOf, chargeMult } from './characters.js';
 import { applyImpulse } from './physics.js';
-import { rrand } from './rng.js';
 import { bannerShielded } from './structures.js';
+import { statDamage, statStructDamage } from './stats.js';
 
+/**
+ * Savaş: vuruş çözümü, hasar, oklar, dönerek vuruş çemberleri ve hortumlar. Yalnızca veri: oklar { pos, yaw, ... },
+ * çemberler / hortumlar { x, z, radius, life, ... }; görünümleri fx.addArrow / addZone ile kurulur ve view/ altında
+ * her karede bu verilerden çizilir. Parçacıklar (burst / ring) fx üzerinden istenir.
+ */
 export function canAttack(e) {
   return e.alive && e.cooldown <= 0 && e.attackTimer <= 0 && e.stun <= 0 && !e.blocking && e.dodgeTimer <= 0;
 }
@@ -18,7 +22,6 @@ export function startAttack(e) {
   return true;
 }
 
-/** Hasar çarpanı: kahraman seviyesi. */
 /** Kahramanın (oyuncu ve rakip kahraman) yakın dövüş menzili / yayı seviyeyle büyür (yay silahı hariç). */
 export function reachMult(e) {
   if (!isHeroUnit(e) || e.stats.weapon.ranged) return 1;
@@ -32,12 +35,10 @@ export function hitDamage(attacker, target, base) {
   let d;
   if (isAnti(attacker, target)) {
     // Anti vuruş: askerde canının ANTI.soldierMult katı, kahramanda sabit ANTI.heroDamage (vuran kahramansa seviye çarpanıyla).
-    // Vuruşun türü (normal 1, dönerek vuruş 0.5, hortum 0.6) anti hasarı da aynı oranda ölçekler.
     const normal = (w ? w.damage : 0) * damageMult(attacker);
     const ratio = normal > 0 ? Math.min(1, base / normal) : 1;
     d = (isHeroUnit(target) ? ANTI.heroDamage * damageMult(attacker) : target.stats.maxHp * ANTI.soldierMult) * ratio;
   } else d = base * matchup(attacker, target);
-  // Kuşatma taşı canlı hedefte dağılır: askere / kahramana tam hasarın yalnızca unitMult katı geçer (kuleye tam katlı).
   if (w && w.unitMult) d *= w.unitMult;
   if (attacker && attacker.isTower && (TOWER.lethalVsHeroes || !(target.isPlayer || target.isHero))) return Math.max(d, target.stats.maxHp * TOWER.lethalVsSoldiers);
   return d;
@@ -47,10 +48,8 @@ export function hitDamage(attacker, target, base) {
 export function heroArrows(e) { return isHeroUnit(e) ? Math.max(1, Math.min(e.level, LEVEL.arrowsMax)) : 1; }
 
 /**
- * Vuruş kısıtı yoktur: her birim (kahraman, asker, işçi, mancınık, kule) her düşmana vurabilir; kalkanlı sancak dahil
- * her hedefe vuruş iner. Yalnızca iki istisna var: kulesi ayakta olan sancak **can kaybetmez** (vuruş kalkana çarpar ve
- * kuleleri ele verir, bkz. bannerShielded) ve zıplayan kahramana ne birlikler ne de kuleler vurabilir
- * (bkz. isEvading / towerTarget).
+ * Vuruş kısıtı yoktur: her birim her düşmana vurabilir. İki istisna: kulesi ayakta olan sancak **can kaybetmez** (vuruş
+ * kalkana çarpar ve kuleleri ele verir, bkz. bannerShielded) ve zıplayan kahramana ne birlikler ne kuleler vurabilir.
  */
 export const isHeroUnit = e => Boolean(e && (e.isPlayer || e.isHero));
 
@@ -164,7 +163,7 @@ function resolveCorridor(world, attacker, corridor, damage, knockback, fx, fz) {
     if (!inside(n, n.radius * 0.8)) continue;
     landed = true; world.onNodeHit(n, attacker);
   }
-  if (!landed) burst(world, attacker.pos.x + fx * 1.4, 0.9, attacker.pos.z + fz * 1.4, '#ffffff', 3, 0.25);
+  if (!landed) world.fx.burst(attacker.pos.x + fx * 1.4, 0.9, attacker.pos.z + fz * 1.4, '#ffffff', 3, 0.25);
 }
 
 function resolveSwing(world, attacker) {
@@ -205,12 +204,12 @@ function resolveSwing(world, attacker) {
     landed = true;
     world.onNodeHit(n, attacker);
   }
-  if (!landed) burst(world, attacker.pos.x + fx * 1.4, 0.9, attacker.pos.z + fz * 1.4, '#ffffff', 3, 0.25);
+  if (!landed) world.fx.burst(attacker.pos.x + fx * 1.4, 0.9, attacker.pos.z + fz * 1.4, '#ffffff', 3, 0.25);
 }
 
 /**
- * Hasar: kalkanla önden karşılanırsa büyük ölçüde emilir, yapay zekâ kalkanlıları
- * pasif ön koruma alır. Yalnızca kahramanın vuruşları biraz iter; diğerleri itmez.
+ * Hasar: kalkanla önden karşılanırsa büyük ölçüde emilir, yapay zekâ kalkanlıları pasif ön koruma alır.
+ * Yalnızca kahramanın vuruşları biraz iter; diğerleri itmez.
  */
 export function damageEntity(world, target, amount, nx, nz, knockback, source) {
   knockback *= source && source.isPlayer ? HERO_KNOCKBACK : KNOCKBACK_SCALE;
@@ -222,15 +221,17 @@ export function damageEntity(world, target, amount, nx, nz, knockback, source) {
 
   // Kim vurdu: yürüyüşteki asker karşılık vermek için bunu okur (bkz. ai.js retaliator).
   if (source && source !== target && source.faction !== target.faction) { target.lastHitBy = source; target.lastHitAt = world.time; }
+  const dealt = Math.min(target.hp, amount * mult);
   target.hp -= amount * mult;
+  statDamage(target, source, dealt);
   target.hitFlash = blocked ? COMBAT.hitFlash * 0.4 : COMBAT.hitFlash;
   if (COMBAT.stunOnHit > 0) target.stun = Math.max(target.stun, blocked ? COMBAT.stunOnHit * 0.3 : COMBAT.stunOnHit);
   applyImpulse(target, nx, nz, knockback);
-  burst(world, target.pos.x, 1 + target.jumpY, target.pos.z, blocked ? '#e3ca82' : target.isPlayer ? '#ff6a4a' : target.faction === 'blue' ? '#9fd6ff' : '#f5d38a', blocked ? 4 : 6);
+  world.fx.burst(target.pos.x, 1 + target.jumpY, target.pos.z, blocked ? '#e3ca82' : target.isPlayer ? '#ff6a4a' : target.faction === 'blue' ? '#9fd6ff' : '#f5d38a', blocked ? 4 : 6);
 
   if (target.hp <= 0) {
     target.hp = 0; target.alive = false; target.deathTimer = 0;
-    target.moveDir.set(0, 0, 0); target.blocking = false; target.sprinting = false;
+    target.moveDir.set(0, 0, 0); target.blocking = false; target.sprinting = false; target.charging = false;
     applyImpulse(target, nx, nz, knockback * 0.6);
     world.onDeath(target, source);
   }
@@ -243,23 +244,23 @@ export function damageStructure(world, s, amount, source) {
   if (isHeroUnit(source)) amount *= 1 + LEVEL.structureDamagePerLevel * ((source.level || 1) - 1);
   // Kim vurdu: botun kulesi / sancağı vurulunca ordusunu ve kahramanını savunmaya çağırır (bkz. economy.js updateBots).
   if (source && source.faction !== s.faction) { s.lastHitBy = source; s.lastHitAt = world.time; }
-  // Kendi sancağın / kulen vuruldu: ekran kenarı kızarır, haritada kırmızı halka çıkar.
-  if (s.owner === world.me && (s.kind === 'banner' || s.kind === 'tower') && world.onOwnStructureHit) world.onOwnStructureHit(s, source);
+  // İnsanın sancağı / kulesi vuruldu: sahibine uyarı (ekran kenarı kızarır, haritada kırmızı halka çıkar).
+  if (s.owner && s.owner.human && (s.kind === 'banner' || s.kind === 'tower') && world.onOwnStructureHit) world.onOwnStructureHit(s, source);
   // Kuleler ayaktayken sancağın canı azalmaz: vuruş iner, kalkana çarpar ve hasar vermez.
   if (bannerShielded(world, s)) {
     s.hitFlash = 0.18;
-    burst(world, s.pos.x + (Math.random() - 0.5), 1.8, s.pos.z + (Math.random() - 0.5), '#9fd6ff', 3, 0.14);
+    world.fx.burst(s.pos.x + (Math.random() - 0.5), 1.8, s.pos.z + (Math.random() - 0.5), '#9fd6ff', 3, 0.14);
     if (source && source.faction === 'blue' && world.time - (world.shieldMsgAt ?? -9) > 2.5) {
       world.shieldMsgAt = world.time;
       // Sancağa vurmak kalkanı besleyen kuleleri (sahibinin kuleleri) ele verir: hepsi haritada açılır ve yerleri işaretlenir.
       const towers = world.structures.filter(t => t.alive && t.kind === 'tower' && t.owner === s.owner);
       for (const t of towers) {
-        t.seen = true; t.g.visible = true;
-        ring(world, t.pos.x, t.pos.z, '#ff8a6a', 3.2, 2.5);
-        ring(world, t.pos.x, t.pos.z, '#ffd12e', 1.6, 2.5);
-        burst(world, t.pos.x, 3.2, t.pos.z, '#ffd12e', 8, 0.12);
+        t.seen = true;
+        world.fx.ring(t.pos.x, t.pos.z, '#ff8a6a', 3.2, 2.5);
+        world.fx.ring(t.pos.x, t.pos.z, '#ffd12e', 1.6, 2.5);
+        world.fx.burst(t.pos.x, 3.2, t.pos.z, '#ffd12e', 8, 0.12);
       }
-      world.ui.ping('tower');
+      if (source.owner && source.owner.human) world.fx.ping(source.owner, 'tower');
     }
     return;
   }
@@ -267,37 +268,22 @@ export function damageStructure(world, s, amount, source) {
   if (s.kind === 'tower' && source && !isHeroUnit(source) && !source.isSiege) amount *= TOWER.soldierDamageMult;
   // Mancınık kuleye tam hasarın katını verir: kuşatma aleti kule kırmak içindir.
   else if (s.kind === 'tower' && source && source.isSiege) amount *= TOWER.siegeDamageMult;
+  statStructDamage(s, source, Math.min(s.hp, amount));
   s.hp -= amount; s.hitFlash = 0.18;
-  burst(world, s.pos.x + (Math.random() - 0.5), 1.5, s.pos.z + (Math.random() - 0.5), '#d9c4a0', 5);
+  world.fx.burst(s.pos.x + (Math.random() - 0.5), 1.5, s.pos.z + (Math.random() - 0.5), '#d9c4a0', 5);
   if (s.hp <= 0) { s.hp = 0; s.alive = false; world.onStructureDestroyed(s, source); }
 }
 
 // ---------- Oklar ----------
 
-/** Nişan yönündeki (koni) düşmanlar, yakından uzağa. */
-function hostilesInCone(world, e, range) {
-  const fx = Math.sin(e.facing), fz = Math.cos(e.facing), out = [];
-  for (const t of world.entities) {
-    if (t === e || !t.alive || t.faction === e.faction) continue;
-    const dx = t.pos.x - e.pos.x, dz = t.pos.z - e.pos.z, d = Math.hypot(dx, dz);
-    if (d > range + t.radius || (fx * dx + fz * dz) / d < 0.3) continue;
-    out.push({ t, d });
-  }
-  return out.sort((a, b) => a.d - b.d).map(o => o.t);
-}
-
 /**
- * Ok atışı. Kahraman seviyeye göre birden çok ok atar: oklar **dağılmaz**, hepsi aynı yöne ve **aynı hedefe** gider
- * (yelpaze yok). Yan yana çıksınlar diye yalnızca çıkış noktaları birkaç santim kaydırılır; hedef varsa hepsi onu
- * takip eder, yoksa tıklanan noktaya paralel uçarlar.
+ * Ok atışı. Kahraman seviyeye göre birden çok ok atar (bkz. abilities.heroVolley). Mancınık her hedefe atar: dövüştüğü
+ * birim varsa ona, yoksa menzilindeki bilinen kuleye. Yalnızca **kahraman** mancınığının taşı hedefi takip eder.
  */
 function shootArrow(world, e) {
   const dir = new T.Vector3().subVectors(e.aim, e.pos); dir.y = 0;
   if (dir.lengthSq() < 1e-4) dir.set(Math.sin(e.facing), 0, Math.cos(e.facing));
   dir.normalize();
-  // Mancınık da her hedefe atar: dövüştüğü birim varsa ona, yoksa menzilindeki bilinen kuleye nişan alır.
-  // Yalnızca **kahraman** mancınığının taşı hedefi takip eder; asker mancınığın taşı atış anındaki konuma **düz** uçar
-  // (hedef yer değiştirirse ıskalar), kule oku ise her zaman kesindir.
   if (e.isSiege) {
     const foe = e.brain && e.brain.target && e.brain.target.alive ? e.brain.target : null;
     const target = foe || nearestEnemyTower(world, e, e.stats.weapon.range * 1.1);
@@ -305,39 +291,34 @@ function shootArrow(world, e) {
     if (target) {
       const tx = target.pos.x - e.pos.x, tz = target.pos.z - e.pos.z, dist = Math.hypot(tx, tz);
       if (dist > 1e-3) dir.set(tx / dist, 0, tz / dist);
-      fireArrow(world, e, dir, null);
+      const a = fireArrow(world, e, dir, null);
       // Taşın ömrü hedefe yetsin: düz atış menzilin biraz ötesindeki kuleye de ulaşır.
-      const a = world.arrows[world.arrows.length - 1]; a.life = Math.max(a.life, dist / a.speed + 0.2);
+      a.life = Math.max(a.life, dist / a.speed + 0.2);
     } else fireArrow(world, e, dir, null);
     return;
   }
   if (!isHeroUnit(e)) { fireArrow(world, e, dir, null); return; }
-  // Kahraman: sete göre yaylım (Okçu geniş yelpaze, Atlı Okçu iki kat ok dar yelpazede; bkz. abilities.heroVolley).
   heroVolley(world, e, dir);
 }
 
-/** `side`: çıkış noktasının yana kaydırması (toplu atışta oklar üst üste binmesin diye); uçuş yönünü değiştirmez. */
-/** opts: pierce (çarptığı birimleri delip geçer, yapıda durur), scale (ok boyutu), rangeMult (ömür / menzil çarpanı). */
+/**
+ * Ok verisi: { id, pos, yaw, vel, speed, target, faction, sure, siege, homing (görsel: uçlu / takipli), damage, ... }.
+ * `side`: çıkış noktasının yana kaydırması; opts: pierce (birimleri delip geçer), scale (görsel), rangeMult (ömür).
+ */
 export function fireArrow(world, e, dir, target = null, dmgMult = 1, side = 0, opts = {}) {
   const w = e.stats.weapon;
-  const g = new T.Group();
-  if (w.siege) mesh(g, new T.IcosahedronGeometry(0.34, 0), '#6a6f74', 0, 0, 0);
-  else {
-    box(g, '#65482f', 0, 0, 0, 0.055, 0.055, 0.9);
-    mesh(g, new T.ConeGeometry(0.09, 0.23, 4), target ? '#ffd86b' : '#d8d7b7', 0, 0, 0.56).rotation.x = Math.PI / 2;
-  }
-  g.position.set(e.pos.x + dir.x * 0.6 + dir.z * side, (w.siege ? 2.2 : 1.25) + e.jumpY + (e.view && e.view.mounted ? 0.8 : 0), e.pos.z + dir.z * 0.6 - dir.x * side);
-  g.rotation.y = Math.atan2(dir.x, dir.z);
-  if (opts.scale) g.scale.setScalar(opts.scale);
-  world.scene.add(g);
+  const pos = new T.Vector3(e.pos.x + dir.x * 0.6 + dir.z * side, (w.siege ? 2.2 : 1.25) + e.jumpY + (e.loadout && e.loadout.horse ? 0.8 : 0), e.pos.z + dir.z * 0.6 - dir.x * side);
   const speed = w.arrowSpeed || 17;
   // Kule oku "kesin": hedefi anında döner, kaçış / zıplama / vurulmazlık savuşturamaz, hedef ölmedikçe ömrü bitmez.
   const sure = Boolean(e.isTower && target);
-  world.arrows.push({
-    g, vel: dir.clone().multiplyScalar(speed), speed, target, faction: e.faction, sure, siege: Boolean(w.siege),
+  const a = {
+    id: world.ids.arrow++, pos, yaw: Math.atan2(dir.x, dir.z), vel: dir.clone().multiplyScalar(speed), speed, target, faction: e.faction, sure, siege: Boolean(w.siege), homing: Boolean(target), scale: opts.scale || 1,
     damage: w.damage * damageMult(e) * dmgMult, knock: w.knockback, life: (heroReach(e).range || 14) * (opts.rangeMult || 1) / speed + (target ? 1.2 : 0.2), source: e,
-    pierce: Boolean(opts.pierce), pierced: opts.pierce ? new Set() : null,
-  });
+    pierce: Boolean(opts.pierce), pierced: opts.pierce ? new Set() : null, view: null,
+  };
+  world.arrows.push(a);
+  world.fx.addArrow(a);
+  return a;
 }
 
 export function updateArrows(world, dt) {
@@ -349,43 +330,40 @@ export function updateArrows(world, dt) {
       // Hedef zıpladıysa kesin ok kilidini kaybeder: zıplayan kahramanı kule oku da ıskalar.
       else if (a.sure && a.target.jumpY > COMBAT.jumpDodgeHeight) { a.sure = false; a.target = null; }
       else if (a.sure) {
-        // Kesin ok: doğrudan hedefe kilitli, dönüş sınırı yok; hedefin yüksekliğine de uyar.
-        const tp = a.target.pos, yaw = Math.atan2(tp.x - a.g.position.x, tp.z - a.g.position.z);
-        a.vel.set(Math.sin(yaw) * a.speed, 0, Math.cos(yaw) * a.speed); a.g.rotation.y = yaw;
-        a.g.position.y += (1.1 + a.target.jumpY - a.g.position.y) * Math.min(1, dt * 6);
+        const tp = a.target.pos, yaw = Math.atan2(tp.x - a.pos.x, tp.z - a.pos.z);
+        a.vel.set(Math.sin(yaw) * a.speed, 0, Math.cos(yaw) * a.speed); a.yaw = yaw;
+        a.pos.y += (1.1 + a.target.jumpY - a.pos.y) * Math.min(1, dt * 6);
         a.life = Math.max(a.life, 1);
       } else {
         // Takipli ok: hız vektörünü hedefe doğru sınırlı hızla döndür.
-        const want = Math.atan2(a.target.pos.x - a.g.position.x, a.target.pos.z - a.g.position.z);
+        const want = Math.atan2(a.target.pos.x - a.pos.x, a.target.pos.z - a.pos.z);
         const cur = Math.atan2(a.vel.x, a.vel.z);
         let d = (want - cur) % (Math.PI * 2);
         if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2;
         const maxTurn = HOMING_TURN * dt;
         const yaw = cur + Math.max(-maxTurn, Math.min(maxTurn, d));
         a.vel.set(Math.sin(yaw) * a.speed, 0, Math.cos(yaw) * a.speed);
-        a.g.rotation.y = yaw;
+        a.yaw = yaw;
       }
     }
-    a.g.position.addScaledVector(a.vel, dt);
+    a.pos.addScaledVector(a.vel, dt);
     a.life -= dt;
     let hit = a.life <= 0;
     if (!hit && a.sure) {
-      const t = a.target, p = a.g.position;
+      const t = a.target, p = a.pos;
       if (Math.hypot(p.x - t.pos.x, p.z - t.pos.z) <= t.radius + 0.3 + a.speed * dt * 0.5) {
         const len = Math.hypot(a.vel.x, a.vel.z) || 1;
         damageEntity(world, t, hitDamage(a.source, t, a.damage), a.vel.x / len, a.vel.z / len, a.knock, a.source);
         hit = true;
       }
     } else if (!hit) {
-      const p = a.g.position;
+      const p = a.pos;
       for (const t of world.entities) {
         if (!t.alive || t.faction === a.faction || t.dodgeTimer > 0 || t.invuln > 0) continue;
         const dx = p.x - t.pos.x, dz = p.z - t.pos.z, rr = t.radius + 0.25;
         if (dx * dx + dz * dz > rr * rr) continue;
-        // Yerdeyken ok göğüs hizasında; zıplayan karakter oku altında bırakır.
         if (t.jumpY > COMBAT.jumpDodgeHeight) continue;
         const len = Math.hypot(a.vel.x, a.vel.z);
-        // Delici ok: birimi vurur ve durmadan yoluna devam eder (aynı birime bir kez).
         if (a.pierce) { if (a.pierced.has(t)) continue; a.pierced.add(t); damageEntity(world, t, hitDamage(a.source, t, a.damage), a.vel.x / len, a.vel.z / len, a.knock, a.source); continue; }
         damageEntity(world, t, hitDamage(a.source, t, a.damage), a.vel.x / len, a.vel.z / len, a.knock, a.source);
         hit = true; break;
@@ -401,35 +379,16 @@ export function updateArrows(world, dt) {
         world.onNodeHit(n, a.source); hit = true; break;
       }
     }
-    if (hit) { world.scene.remove(a.g); arrows.splice(i, 1); }
+    if (hit) { world.fx.removeArrow(a); arrows.splice(i, 1); }
   }
 }
 
-// ---------- Parçacık efektleri ----------
-
-export function burst(world, x, y, z, color, count = 6, size = 0.1) {
-  // Ekran dışındaki parçacık hiç yaratılmaz (kimse görmez); yoğun savaşta toplam parçacık PERF.effectsMax'ı aşmaz.
-  if (world.inView && !world.inView(x, z, 2)) return;
-  const room = PERF.effectsMax - world.effects.length;
-  if (room <= 0) return;
-  if (count > room) count = room;
-  for (let i = 0; i < count; i++) {
-    const m = new T.Mesh(ballGeo, mat(color));
-    m.position.set(x, y, z); m.scale.setScalar(size); m.castShadow = false;
-    world.scene.add(m);
-    world.effects.push({ m, life: 0.45, v: new T.Vector3(rrand(-2, 2), rrand(1, 3), rrand(-2, 2)), size });
-  }
-}
+// ---------- Dönerek vuruş çemberi ve hortum (veri; görünüm view/zones.js) ----------
 
 /**
  * Dönerek vuruş çemberi: kahramanın **çevresinde** dönen, onu takip eden ve SPIN.duration boyunca her SPIN.tick
- * saniyede içindeki bütün düşmanlara (birim ve yapı) vuran halka. Yakın dövüşte dönen bıçak izleri, yayda
- * kahramanın **seviyesi kadar** dönen oktan oluşur. Çember zaten varsa yenilenir (üst üste binmez).
+ * saniyede içindeki bütün düşmanlara (birim ve yapı) vuran halka. Çember zaten varsa yenilenir (üst üste binmez).
  */
-const spinShaftGeo = new T.BoxGeometry(0.05, 0.05, 0.8);
-const spinTipGeo = new T.ConeGeometry(0.085, 0.22, 4);
-const spinBladeGeo = new T.BoxGeometry(0.12, 0.06, 1.1);
-
 export function spawnSpin(world, e) {
   const bow = Boolean(e.stats.weapon.ranged);
   const radius = bow ? SPIN.bowRadius : Math.max(SPIN.minRadius, heroReach(e).range);
@@ -437,54 +396,23 @@ export function spawnSpin(world, e) {
   const damage = e.stats.weapon.damage * damageMult(e) * SPIN.damageMult;
   const old = world.spins.find(s => s.owner === e);
   if (old && old.bow === bow && old.count === count) {
-    // Aynı çember: yeniden kurmak yerine ömrü ve gücü tazelenir (peş peşe tıklamada üst üste binmez).
     old.life = SPIN.duration; old.radius = radius; old.damage = damage;
     return old;
   }
   if (old) removeSpin(world, old);
-  const g = new T.Group(), mats = [];
-  // Parçalar kendi (paylaşılmayan) malzemesini kullanır: sönerken başka nesnelerin malzemesi bozulmasın.
-  const piece = (parent, geo, color, opacity, z = 0) => {
-    const m = new T.Mesh(geo, new T.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false }));
-    m.position.z = z; mats.push({ m: m.material, o: opacity }); parent.add(m); return m;
-  };
-  for (let i = 0; i < count; i++) {
-    const a = (i / count) * Math.PI * 2;
-    const item = new T.Group();
-    if (bow) {
-      // Çemberde dönen ok: gövde + uç, ucu dışa bakar.
-      piece(item, spinShaftGeo, '#65482f', 0.95);
-      piece(item, spinTipGeo, '#ffd86b', 0.95, 0.5).rotation.x = Math.PI / 2;
-    } else {
-      // Dönen bıçak izi: ince, parlak bir dilim.
-      piece(item, spinBladeGeo, '#ffe9a8', 0.9);
-    }
-    item.position.set(Math.sin(a) * radius, 1.05, Math.cos(a) * radius);
-    item.rotation.y = a;
-    g.add(item);
-  }
-  // Yerdeki halka: çemberin gerçek sınırını gösterir (yarıçapa bağlı, çemberle birlikte atılır).
-  const ringGeo = new T.RingGeometry(radius * 0.92, radius, 44);
-  const ringMesh = new T.Mesh(ringGeo, new T.MeshBasicMaterial({ color: bow ? '#ffd86b' : '#ffe9a8', transparent: true, opacity: 0.35, side: T.DoubleSide, depthWrite: false }));
-  ringMesh.rotation.x = -Math.PI / 2; ringMesh.position.y = 0.07;
-  mats.push({ m: ringMesh.material, o: 0.35 });
-  g.add(ringMesh);
-  g.position.set(e.pos.x, 0, e.pos.z);
-  world.scene.add(g);
-  const s = { g, mats, ringGeo, owner: e, faction: e.faction, bow, count, radius, damage, life: SPIN.duration, maxLife: SPIN.duration, tick: 0, spin: 0 };
+  const s = { id: world.ids.zone++, kind: 'spin', owner: e, faction: e.faction, bow, count, radius, damage, life: SPIN.duration, maxLife: SPIN.duration, tick: 0, view: null };
   world.spins.push(s);
+  world.fx.addZone(s);
   return s;
 }
 
 function removeSpin(world, s) {
-  world.scene.remove(s.g);
-  for (const it of s.mats) it.m.dispose();
-  s.ringGeo.dispose();
+  world.fx.removeZone(s);
   const i = world.spins.indexOf(s);
   if (i >= 0) world.spins.splice(i, 1);
 }
 
-/** Vuruş çemberleri: sahibini takip eder, döner, her tick içindekilere vurur; ömrü bitince ya da sahibi ölünce kalkar. */
+/** Vuruş çemberleri: sahibini takip eder, her tick içindekilere vurur; ömrü bitince ya da sahibi ölünce kalkar. */
 export function updateSpins(world, dt) {
   const list = world.spins;
   for (let i = list.length - 1; i >= 0; i--) {
@@ -492,11 +420,6 @@ export function updateSpins(world, dt) {
     s.life -= dt;
     const e = s.owner;
     if (!e.alive || s.life <= 0) { removeSpin(world, s); continue; }
-    s.spin += dt * SPIN.spin;
-    s.g.position.set(e.pos.x, e.jumpY, e.pos.z);
-    s.g.rotation.y = s.spin;
-    const k = Math.max(0, s.life) / s.maxLife;
-    for (const it of s.mats) it.m.opacity = it.o * (k < 0.3 ? k / 0.3 : 1);
     s.tick -= dt;
     if (s.tick > 0) continue;
     s.tick = SPIN.tick;
@@ -515,36 +438,19 @@ export function updateSpins(world, dt) {
 }
 
 /**
- * Hortum: sağ tıkla kahramanın **durduğu yerde** açılan alan vuruşu. Çağrıldığı noktada kalır (kahraman uzaklaşabilir),
- * TORNADO.duration boyunca döner ve her TORNADO.tick saniyede yarıçapındaki bütün düşmanlara — birim ve yapı —
- * yeniden vurur. Yarıçapı seviyeyle büyür (dashMult), hasarı vuruş gücünün TORNADO.damageMult katıdır.
+ * Hortum: kahramanın **durduğu yerde** açılan alan vuruşu. TORNADO.duration boyunca döner ve her TORNADO.tick saniyede
+ * yarıçapındaki bütün düşmanlara yeniden vurur. Yarıçapı seviyeyle büyür (dashMult).
  */
 export function spawnTornado(world, e) {
   const radius = TORNADO.radius * dashMult(e);
-  const g = new T.Group(), mats = [];
-  // Huni: aşağıdan yukarı genişleyen, hafifçe kaçık merkezli dönen halkalar.
-  for (let i = 0; i < TORNADO.rings; i++) {
-    const k = i / (TORNADO.rings - 1);
-    const o = 0.55 - k * 0.22;
-    const m = new T.Mesh(new T.TorusGeometry(radius * (0.22 + k * 0.85), radius * 0.06 + 0.04, 6, 22),
-      new T.MeshBasicMaterial({ color: k < 0.5 ? '#e2e8f0' : '#9fb4cc', transparent: true, opacity: o, depthWrite: false }));
-    m.rotation.x = -Math.PI / 2;
-    m.position.set(rrand(-0.14, 0.14), 0.22 + k * TORNADO.height, rrand(-0.14, 0.14));
-    mats.push({ m: m.material, o }); g.add(m);
-  }
-  // Tabandaki toz halkası: hortumun bastığı alanı gösterir.
-  const base = new T.Mesh(new T.RingGeometry(radius * 0.5, radius, 40),
-    new T.MeshBasicMaterial({ color: '#e8e2c6', transparent: true, opacity: 0.45, side: T.DoubleSide, depthWrite: false }));
-  base.rotation.x = -Math.PI / 2; base.position.y = 0.07;
-  mats.push({ m: base.material, o: 0.45 }); g.add(base);
-  g.position.set(e.pos.x, 0, e.pos.z);
-  world.scene.add(g);
-  world.tornadoes.push({
-    g, mats, x: e.pos.x, z: e.pos.z, radius, source: e, faction: e.faction,
+  const t = {
+    id: world.ids.zone++, kind: 'tornado', x: e.pos.x, z: e.pos.z, radius, source: e, faction: e.faction,
     damage: e.stats.weapon.damage * damageMult(e) * TORNADO.damageMult,
-    life: TORNADO.duration, maxLife: TORNADO.duration, tick: 0, spin: 0, hits: 0,
-  });
-  burst(world, e.pos.x, 0.6, e.pos.z, '#e8e2c6', 10, 0.12);
+    life: TORNADO.duration, maxLife: TORNADO.duration, tick: 0, hits: 0, view: null,
+  };
+  world.tornadoes.push(t);
+  world.fx.addZone(t);
+  world.fx.burst(e.pos.x, 0.6, e.pos.z, '#e8e2c6', 10, 0.12);
 }
 
 /** Hortumlar: yerlerinde döner, her tick yarıçapındaki düşmanlara vurur, ömrü bitince söner. */
@@ -553,15 +459,6 @@ export function updateTornadoes(world, dt) {
   for (let i = list.length - 1; i >= 0; i--) {
     const t = list[i];
     t.life -= dt;
-    t.spin += dt * TORNADO.spin;
-    const k = Math.max(0, t.life) / t.maxLife;
-    // Hızla açılır, sonuna doğru söner; halkalar farklı hızlarda döner ki burgaç dursun.
-    const grow = Math.min(1, (1 - k) * 5) * 0.35 + 0.65;
-    t.g.scale.set(grow, grow, grow);
-    t.g.rotation.y = t.spin;
-    t.g.children.forEach((m, j) => { m.rotation.z = t.spin * (1 + j * 0.4); });
-    const fade = k < 0.25 ? k / 0.25 : 1;
-    for (const it of t.mats) it.m.opacity = it.o * fade;
     t.tick -= dt;
     if (t.tick <= 0 && t.life > 0) {
       t.tick = TORNADO.tick;
@@ -578,66 +475,6 @@ export function updateTornadoes(world, dt) {
         damageStructure(world, s, t.damage, t.source); t.hits++;
       }
     }
-    if (t.life <= 0) {
-      world.scene.remove(t.g);
-      for (const m of t.g.children) m.geometry.dispose();
-      for (const it of t.mats) it.m.dispose();
-      list.splice(i, 1);
-    }
-  }
-}
-
-
-/** Can baloncuğu: kahramanın tepesinden çıkıp yükselerek sönen küçük yeşil küre (üstünde beyaz artı). */
-export function healBubble(world, x, y, z) {
-  const g = new T.Group();
-  const bodyMat = new T.MeshBasicMaterial({ color: '#7ee787', transparent: true, opacity: 0.85, depthWrite: false });
-  const ball = new T.Mesh(ballGeo, bodyMat); ball.scale.setScalar(0.22); g.add(ball);
-  const crossMat = new T.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.95, depthWrite: false });
-  const bar1 = new T.Mesh(new T.BoxGeometry(0.22, 0.07, 0.07), crossMat); g.add(bar1);
-  const bar2 = new T.Mesh(new T.BoxGeometry(0.07, 0.22, 0.07), crossMat); g.add(bar2);
-  g.position.set(x + rrand(-0.45, 0.45), y, z + rrand(-0.45, 0.45));
-  world.scene.add(g);
-  world.effects.push({ m: g, life: 0.95, maxLife: 0.95, rise: rrand(1.3, 2.1), mats: [bodyMat, crossMat] });
-}
-
-/** Yere paralel genişleyen halka (yetenek efektleri). Geometri paylaşılır (her halkada yeniden kurulup GPU'ya yüklenmez); ekran dışında yaratılmaz. */
-const ringGeo = new T.RingGeometry(0.7, 1, 40);
-export function ring(world, x, z, color, radius, life = 0.5) {
-  if (world.inView && !world.inView(x, z, radius)) return;
-  const m = new T.Mesh(ringGeo, new T.MeshBasicMaterial({ color, transparent: true, opacity: 0.7, side: T.DoubleSide, depthWrite: false }));
-  m.rotation.x = -Math.PI / 2; m.position.set(x, 0.08, z); m.scale.setScalar(0.3);
-  world.scene.add(m);
-  world.effects.push({ m, life, maxLife: life, ring: radius });
-}
-
-export function updateEffects(world, dt) {
-  const fx = world.effects;
-  for (let i = fx.length - 1; i >= 0; i--) {
-    const f = fx[i];
-    f.life -= dt;
-    if (f.rise) {
-      // Yükselen baloncuk: yukarı süzülür, hafifçe büyüyüp söner.
-      f.m.position.y += f.rise * dt;
-      const k = Math.max(0, f.life) / f.maxLife;
-      for (const mt of f.mats) mt.opacity = k * 0.9;
-      f.m.scale.setScalar(0.85 + (1 - k) * 0.5);
-      if (f.life <= 0) { world.scene.remove(f.m); for (const mt of f.mats) mt.dispose(); fx.splice(i, 1); }
-      continue;
-    }
-    if (f.fade) {
-      f.m.material.opacity = f.fade * Math.max(0, f.life) / f.maxLife;
-      if (f.life <= 0) { world.scene.remove(f.parent || f.m); f.m.material.dispose(); f.m.geometry.dispose(); fx.splice(i, 1); }
-      continue;
-    }
-    if (f.ring) {
-      const k = 1 - Math.max(0, f.life) / f.maxLife;
-      f.m.scale.setScalar(0.3 + k * f.ring); f.m.material.opacity = (1 - k) * 0.7;
-      if (f.life <= 0) { world.scene.remove(f.m); f.m.material.dispose(); fx.splice(i, 1); }
-      continue;
-    }
-    f.m.position.addScaledVector(f.v, dt); f.v.y -= dt * 8;
-    f.m.scale.setScalar(Math.max(0.01, f.life * 2.2 * f.size));
-    if (f.life <= 0) { world.scene.remove(f.m); fx.splice(i, 1); }
+    if (t.life <= 0) { world.fx.removeZone(t); list.splice(i, 1); }
   }
 }

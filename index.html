@@ -6,6 +6,7 @@
 <title>Çayır Muhafızı</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="/style.css">
+<script type="importmap">{ "imports": { "three": "/vendor/three.module.js" } }</script>
 </head>
 <body>
 <div id="meadow-game">
@@ -15,24 +16,26 @@
         <div class="title"><strong>ÇAYIR MUHAFIZI</strong></div>
         <div class="stats">
           <span id="mg-health" title="Kahramanın canı">♥ 140</span>
-          <span id="mg-level" title="Kahraman seviyesi (her 3 öldürmede artar)">★ 1</span>
+          <span id="mg-level" title="Kahraman seviyesi ve exp">★ 1</span>
           <span id="mg-gold" title="Altın: asker ve işçi basar">◉ 30</span>
-          <span id="mg-wood" title="Envanter: odun (bina kurar) ve yiyecek (askerle birlikte altın + yiyecek)">🪵 40 🌾 20</span>
-          <span id="mg-workers" title="İşçilerin: toplam / sınır · madenci · oduncu · çiftçi (kademeleriyle)">👷 0/100 · ⛏ 0 🪓 0 🌾 0</span>
-          <span id="mg-army" title="Askerin: sahadaki toplam / sınır · piyade · okçu · süvari · mancınık (sınır oyuncu sayısına göre; sınır dolsa da emir sıraya alınır, ⏳ sırada bekleyen, yer açılınca çıkar)">⚔ 0/200 · 🛡 0 🏹 0 🐎 0 🪨 0</span>
-          <span id="mg-towers" title="Ayakta kulelerin (en fazla 10) ve binaların (en fazla 10)">🏰 1/10 🏠 1/10</span>
+          <span id="mg-wood" title="Odun (bina kurar) ve yiyecek (askerle birlikte altın + yiyecek)">🪵 40 🌾 20</span>
+          <span id="mg-workers" title="İşçilerin: toplam / sınır · madenci · oduncu · çiftçi">👷 0/100 · ⛏ 0 🪓 0 🌾 0</span>
+          <span id="mg-army" title="Askerin: sahadaki toplam / sınır · piyade · okçu · süvari · mancınık · ⏳ sırada bekleyen">⚔ 0/200 · 🛡 0 🏹 0 🐎 0 🪨 0</span>
+          <span id="mg-towers" title="Ayakta kulelerin ve binaların">🏰 1/10 🏠 1/10</span>
           <span id="mg-banner-own" title="Sancağının canı">⚑ 10000</span>
-          <span id="mg-allies" title="Müttefik botlar ve askerleri" hidden>🤝 0</span>
+          <span id="mg-allies" title="Müttefikler ve askerleri" hidden>🤝 0</span>
         </div>
       </div>
       <div class="side theirs">
         <div class="stats">
-          <span id="mg-enemy-towers" title="Rakip takımın ayakta kule sayısı: kuleler durdukça sancakları can kaybetmez">🏰 1/10</span>
+          <span id="mg-enemy-towers" title="Rakip takımın ayakta kule sayısı">🏰 1/10</span>
           <span id="mg-banner-enemy" title="Düşman sancakları">⚑ 10000</span>
         </div>
         <div class="title"><strong>RAKİP</strong></div>
       </div>
     </header>
+    <div id="mg-score" class="score" hidden><div class="score-head" title="Canlı skor sıralaması (tıkla: katla)">Skor</div><ol class="score-list"></ol></div>
+    <div id="mg-net" class="netstrip" hidden>Yeniden bağlanıyor…</div>
     <div id="mg-floats" aria-hidden="true"></div>
     <div id="mg-dragbox" hidden></div>
     <div class="vignette"></div>
@@ -41,41 +44,111 @@
     <div id="mg-charge" hidden aria-hidden="true"><i></i></div>
     <div id="mg-respawn" hidden role="status"><div class="title">Kahraman düştü</div><div class="num">5</div><div class="sub">saniye sonra sancakta doğarsın</div></div>
 
-    <div id="mg-select" class="overlay" hidden>
-      <div class="card">
-        <h2>Savaşa hazırlan</h2>
-        <p class="muted">Kılıçlı bir kahramanla başlarsın. Sancağını seçip <b>Geliştir</b> ile istediğin asker türüne dönüş (seviye korunur). Takım seçersen yanına ve karşına botlar gelir: her botun kendi üssü, kasası, ordusu ve kahramanı vardır; sen yalnızca kendi askerini yönetirsin, düşmanlık takıma göredir.</p>
-        <fieldset class="difficulty">
-          <legend>Zorluk</legend>
-          <label><input type="radio" name="difficulty" value="easy"> Kolay <small>rakip 0.5x altın, seni birebir taklit eder</small></label>
-          <label><input type="radio" name="difficulty" value="normal" checked> Normal <small>rakip 1x altın, senden biraz fazlasını hedefler</small></label>
-          <label><input type="radio" name="difficulty" value="hard"> Zor <small>rakip 2x altın, senden çok fazlasını hedefler</small></label>
-        </fieldset>
-        <fieldset class="difficulty teams">
-          <legend>Takımlar</legend>
-          <label><input type="radio" name="teams" value="1" checked> 1v1 <small>sen ve rakip bot · 240×240 arena</small></label>
-          <label><input type="radio" name="teams" value="2"> 2v2 <small>yanında 1, karşında 2 bot</small></label>
-          <label><input type="radio" name="teams" value="3"> 3v3 <small>yanında 2, karşında 3 bot</small></label>
-          <label><input type="radio" name="teams" value="4"> 4v4 <small>yanında 3, karşında 4 bot</small></label>
-          <label><input type="radio" name="teams" value="5"> 5v5 <small>yanında 4, karşında 5 bot · en büyük arena</small></label>
-        </fieldset>
-        <div class="row">
-          <button type="button" id="sel-start" class="primary">Savaşı başlat</button>
-          <button type="button" id="sel-cancel" hidden>Vazgeç</button>
+    <!-- Giriş: ad ve üç düğme. -->
+    <div id="mg-home" class="overlay" hidden>
+      <div class="card home">
+        <h1>ÇAYIR MUHAFIZI</h1>
+        <label class="field"><span>Adın</span><input id="home-nick" type="text" maxlength="16" autocomplete="off" spellcheck="false"></label>
+        <div class="menu">
+          <button type="button" id="home-solo" class="primary">Tek başına</button>
+          <button type="button" id="home-create">Oda kur</button>
+          <button type="button" id="home-join">Koda katıl</button>
         </div>
-        <p class="muted keys"><b>Kahraman modu:</b> WASD hareket · Shift koş · Boşluk zıpla · <b>Sol tık: tıkladığın yöne vuruş + setine özel etki</b> (Kılıçlı çevresine 360°, Mızraklı önüne koridor, Okçu yelpaze; atlılarda geniş kesik / hücum / koşarken atış) / yapı seç · <b>Sol tık basılı tut</b>: şarjlı vuruş (kılıç ve mızrak peş peşe 3 şok dalgası, yay peş peşe 5 yaylım) · Sağ tık: ileri atılma (seviyeyle uzar) + silahına göre alan etkisi (kılıç fırtınası, kazık alanı, ok yağmuru; atlıda çevreyi merkeze çeken vakum) · Maden, ağaç, tarlaya vur: kaynak düşer<br>
-        <b>Ordu:</b> Asker sınırı dolsa da üretim düğmeleri açıktır: emir sıraya girer, sahada yer açılınca sıradaki çıkar (HUD'da ⏳) · <b>Orta tık</b>: imleç bir düşmanın (asker, kahraman, bina, kule) üstündeyse bütün ordu <b>o hedefe saldırır</b>, boş yerdeyse oraya toplanma alanı diker ve boştaki ordu oraya yürür · Görüşüne düşman giren asker yürüyüşü bırakıp savaşır · Asker ucuz ve hızlı basılır · Üretim düğmesinde Shift 5, Ctrl 10 birim · Aynı türden ikinci bina üretimi paralelleştirir<br>
-        <b>Yapılar:</b> Sol tık kendi yapını seçer · <b>Çift tık</b> aynı türdeki bütün binaları seçer, üretim hepsine dağılır<br>
-        <b>Kamera:</b> <b>V</b> izometrik ↔ omuz üstü (üçüncü şahıs): fare bakışı döndürür, WASD kameraya göre, sol tık ekran ortasındaki artıya doğru vurur · orta tık artının yerine toplanma alanı · <b>Tab</b> fareyi serbest bırakır (imleçle seç, dik, vur), tekrar basınca kaldığı açıdan kilitler<br>
-        Kısayol yok: üretim, inşa ve kahraman geliştirme soldaki düğmelerden (geliştirme için kahraman sancağa yakın olmalı) · Esc vazgeç / duraklat</p>
+        <div class="row joinrow" id="home-joinrow" hidden>
+          <input id="home-code" type="text" maxlength="6" placeholder="ODA-KODU" autocomplete="off" spellcheck="false">
+          <button type="button" id="home-join-go" class="primary">Katıl</button>
+        </div>
+        <div class="foot"><button type="button" class="link" data-help>Kısayollar</button><span id="home-status" class="status"></span></div>
       </div>
     </div>
 
-    <div id="mg-end" class="overlay" hidden>
+    <!-- Kurulum: kaça kaç ve zorluk (tek başına ve oda kurma için aynı ekran). -->
+    <div id="mg-setup" class="overlay" hidden>
       <div class="card">
-        <h2 id="end-title">Bitti</h2>
-        <p id="end-text"></p>
-        <div class="row"><button type="button" id="end-new" class="primary">Yeni oyun</button></div>
+        <h2 id="setup-title">Savaşa hazırlan</h2>
+        <fieldset class="difficulty teams">
+          <legend>Kaça kaç</legend>
+          <label><input type="radio" name="teams" value="1" checked> 1v1</label>
+          <label><input type="radio" name="teams" value="2"> 2v2</label>
+          <label><input type="radio" name="teams" value="3"> 3v3</label>
+          <label><input type="radio" name="teams" value="4"> 4v4</label>
+          <label><input type="radio" name="teams" value="5"> 5v5</label>
+        </fieldset>
+        <fieldset class="difficulty">
+          <legend>Zorluk</legend>
+          <label><input type="radio" name="difficulty" value="easy"> Kolay</label>
+          <label><input type="radio" name="difficulty" value="normal" checked> Normal</label>
+          <label><input type="radio" name="difficulty" value="hard"> Zor</label>
+        </fieldset>
+        <div class="row">
+          <button type="button" id="setup-start" class="primary">Savaşı başlat</button>
+          <button type="button" id="setup-back">Geri</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lobi: oda kodu, koltuklar, ayarlar. -->
+    <div id="mg-lobby" class="overlay" hidden>
+      <div class="card lobby">
+        <div class="codebox"><span class="lbl">Oda</span><b id="lobby-code">----</b><button type="button" id="lobby-copy" title="Katılma linkini kopyala">Linki kopyala</button></div>
+        <div class="teams">
+          <div class="team blue"><h3>Mavi takım</h3><ol id="lobby-blue" class="seats"></ol></div>
+          <div class="team red"><h3>Kırmızı takım</h3><ol id="lobby-red" class="seats"></ol></div>
+        </div>
+        <div class="row settings">
+          <label>Kaça kaç <select id="lobby-teams"><option value="1">1v1</option><option value="2">2v2</option><option value="3">3v3</option><option value="4">4v4</option><option value="5">5v5</option></select></label>
+          <label>Zorluk <select id="lobby-diff"><option value="easy">Kolay</option><option value="normal" selected>Normal</option><option value="hard">Zor</option></select></label>
+        </div>
+        <div class="row">
+          <button type="button" id="lobby-start" class="primary">Başlat</button>
+          <button type="button" id="lobby-leave">Ayrıl</button>
+          <span id="lobby-status" class="status"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bitiş: karne. -->
+    <div id="mg-end" class="overlay" hidden><div class="card report" id="end-card"></div></div>
+
+    <!-- Kısayollar. -->
+    <div id="mg-help" class="overlay" hidden>
+      <div class="card help">
+        <h2>Kısayollar</h2>
+        <div class="cols">
+          <section><h3>Kahraman</h3><table id="help-hero"></table></section>
+          <section><h3>Ordu</h3><table>
+            <tr><th>Orta tık</th><td>boş yere: toplanma alanı, bütün ordu oraya yürür</td></tr>
+            <tr><th>Orta tık düşmana</th><td>bütün ordu o hedefe saldırır</td></tr>
+            <tr><th>Shift / Ctrl + üretim</th><td>5 / 10 birim birden sıraya</td></tr>
+            <tr><th>Sınır doluyken</th><td>emir sıraya girer, yer açılınca çıkar</td></tr>
+          </table></section>
+          <section><h3>Yapılar</h3><table>
+            <tr><th>Sol tık</th><td>kendi yapını seç</td></tr>
+            <tr><th>Çift tık</th><td>aynı türün hepsini seç</td></tr>
+            <tr><th>Soldaki düğmeler</th><td>bina dik (kahramanın 14 birim yakınına), yık</td></tr>
+            <tr><th>Sancak → Geliştir</th><td>kahraman türü değiştir (sancağa yakınken)</td></tr>
+          </table></section>
+          <section><h3>Kamera ve genel</h3><table>
+            <tr><th>V</th><td>izometrik ↔ omuz üstü</td></tr>
+            <tr><th>Tab</th><td>omuz üstünde fareyi serbest bırak / kilitle</td></tr>
+            <tr><th>F1</th><td>bu pencere</td></tr>
+            <tr><th>Esc</th><td>menü / vazgeç</td></tr>
+          </table></section>
+        </div>
+        <div class="row"><button type="button" class="primary" data-close-help>Kapat</button></div>
+      </div>
+    </div>
+
+    <!-- Esc menüsü. -->
+    <div id="mg-menu" class="overlay" hidden>
+      <div class="card menu-card">
+        <h2>Menü</h2>
+        <div class="menu">
+          <button type="button" id="menu-resume" class="primary">Devam</button>
+          <button type="button" data-help>Kısayollar</button>
+          <button type="button" id="menu-sound">Ses: açık</button>
+          <button type="button" id="menu-leave">Oyundan çık</button>
+        </div>
       </div>
     </div>
   </div>
@@ -86,9 +159,9 @@
     <div class="mini">
       <canvas id="mg-minimap" aria-label="Minimap"></canvas>
       <div class="minibtns">
-        <button type="button" id="mg-pause" title="Duraklat (Esc)">Duraklat</button>
-        <button type="button" id="mg-new" title="Karakter seçip yeni oyuna başla">Yeni oyun</button>
+        <button type="button" id="mg-menu-btn" title="Menü (Esc)">Menü</button>
         <button type="button" id="mg-cam" title="Kamera: izometrik ↔ omuz üstü (V)">🎥 Omuz üstü</button>
+        <button type="button" id="mg-help-btn" title="Kısayollar (F1)">?</button>
         <button type="button" id="mg-full" title="Tam ekran">⛶</button>
       </div>
     </div>

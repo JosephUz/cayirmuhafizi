@@ -15,6 +15,8 @@ export const TEAMS = {
   names: ['Aslan', 'Kartal', 'Kurt', 'Şahin', 'Boğa', 'Pars', 'Doğan', 'Çakır', 'Tuğrul', 'Alp'],
   colors: ['#8fe08f', '#ff9a3c', '#c48bff', '#5fe0d8', '#ff6fa8', '#f0f0f0', '#a0c4ff', '#d7b26d', '#b6ff5c', '#ffb3b3'],
   humanColor: '#ffd12e',
+  /** Çevrim içi oyunda mavi takımdaki insanlar sırayla bu renkleri alır (ilk kuran altın); botlar kalan renklerden. */
+  humanColors: ['#ffd12e', '#ff9a3c', '#8fe08f', '#5fe0d8', '#c48bff'],
 };
 /**
  * Yürünebilir alanın **en büyük** yarı boyu (5v5 arenası); oyun içi gerçek sınır world.half'tır (bkz. TEAMS.half:
@@ -713,4 +715,18 @@ export const LEVEL = {
   gatherEvery: 10,
   /** Sağ tık hortumunun yarıçapı her dashEvery seviyede dashPerStep kadar büyür (sv 10: +%10, sv 20: +%20…). */
   dashEvery: 10, dashPerStep: 0.1,
+};
+
+/**
+ * Karne ve skor (bkz. stats.js). Ortak birim **değer** = birimin / yapının altın + odun + yiyecek bedeli.
+ *  - Askerî: yok edilen birim değeri + yıkılan yapı değeri − kaybedilen değer x lossPenalty.
+ *  - Ekonomi: toplanan kaynak ile basılan birim değerinin küçüğü (+ toplananın küçük bir payı): toplayıp harcamayana tam puan yok.
+ *  - İnşa: kurulan yapı değeri − kaybedilen yapı değeri x lossPenalty.
+ *  - Kahraman: seviye x levelPoints + kahraman öldürmesi x heroKillPoints − ölüm x deathPenalty.
+ * Alanlar ağırlıklarıyla toplanır. Zaman çizelgesi sampleEvery saniyede bir örnek alır (bitiş ekranındaki grafik).
+ */
+export const SCORE = {
+  heroValue: 120, bannerValue: 400,
+  weights: { military: 1, economy: 0.5, build: 0.6, lossPenalty: 0.5, gatherBonus: 0.1, levelPoints: 25, heroKillPoints: 30, deathPenalty: 15 },
+  sampleEvery: 10,
 };

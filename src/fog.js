@@ -1,22 +1,26 @@
-import * as T from '/vendor/three.module.js';
+import * as T from 'three';
 import { BUILDINGS, FOG, HALF, VISION } from './config.js';
 
 /**
- * Savaş sisi. Harita bir hücre ızgarasına bölünür; mavi tarafın her birimi ve yapısı kendi
- * görüş yarıçapındaki hücreleri "görünür" yapar, görülen hücreler kalıcı olarak "keşfedilmiş" olur.
- * Karartma, sahnenin üstünde yüksekte duran ve kamera açısına göre kaydırılmış bir düzlemle çizilir;
- * böylece zemindeki her nokta, üstündeki sis hücresiyle hizalı kalır.
+ * Savaş sisi. Harita bir hücre ızgarasına bölünür; mavi tarafın her birimi ve yapısı kendi görüş yarıçapındaki hücreleri
+ * "görünür" yapar, görülen hücreler kalıcı olarak "keşfedilmiş" olur. Hesap sunucuda da istemcide de aynıdır (aynı
+ * mavi birimlerden); karartma yalnızca istemcide, sahne verildiğinde (world.scene) yüksekte duran ve kamera açısına göre
+ * kaydırılmış bir düzlemle çizilir.
  */
 export function createFog(world) {
   const cell = VISION.cell, margin = 20, W = HALF * 2 + margin * 2, N = Math.round(W / cell);
-  const explored = new Uint8Array(N * N), visible = new Uint8Array(N * N), data = new Uint8Array(N * N * 4);
-  const tex = new T.DataTexture(data, N, N, T.RGBAFormat);
-  tex.magFilter = T.LinearFilter; tex.minFilter = T.LinearFilter; tex.needsUpdate = true;
-  // Kamera bakışı (24, 29, 24) yönünde: h yükseklikteki düzlem zemine göre d kadar kayar.
-  const h = 10, d = (24 / 29) * h;
-  const plane = new T.Mesh(new T.PlaneGeometry(W, W), new T.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false }));
-  plane.rotation.x = -Math.PI / 2; plane.position.set(d, h, d); plane.renderOrder = 100; plane.frustumCulled = false;
-  world.scene.add(plane);
+  const explored = new Uint8Array(N * N), visible = new Uint8Array(N * N);
+  let data = null, tex = null, plane = null;
+  if (world.scene) {
+    data = new Uint8Array(N * N * 4);
+    tex = new T.DataTexture(data, N, N, T.RGBAFormat);
+    tex.magFilter = T.LinearFilter; tex.minFilter = T.LinearFilter; tex.needsUpdate = true;
+    // Kamera bakışı (24, 29, 24) yönünde: h yükseklikteki düzlem zemine göre d kadar kayar.
+    const h = 10, d = (24 / 29) * h;
+    plane = new T.Mesh(new T.PlaneGeometry(W, W), new T.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false }));
+    plane.rotation.x = -Math.PI / 2; plane.position.set(d, h, d); plane.renderOrder = 100; plane.frustumCulled = false;
+    world.scene.add(plane);
+  }
 
   const ci = x => Math.floor((x + W / 2) / cell), cj = z => Math.floor((W / 2 - z) / cell);
   const inGrid = (i, j) => i >= 0 && j >= 0 && i < N && j < N;
@@ -40,8 +44,8 @@ export function createFog(world) {
     enabled: true,
     /** Her yeniden hesaplamada artar: minimap sis katmanını yalnızca bu değişince yeniden çizer. */
     version: 0,
-    /** Omuz üstü kamerada karartma düzlemi kapanır: görünürlük 3B görüş mesafesiyle (sahne pusu) işler, ızgara minimap için sürer. */
-    setPerspective(on) { plane.visible = !on; },
+    /** Omuz üstü kamerada karartma düzlemi kapanır: görünürlük 3B görüş mesafesiyle işler, ızgara minimap için sürer. */
+    setPerspective(on) { if (plane) plane.visible = !on; },
     /** Görüşü yeniden hesaplar; aralık dolmadıysa false döner. */
     update(dt, force = false) {
       timer += dt;
@@ -71,14 +75,19 @@ export function createFog(world) {
           if (Math.hypot(r.pos.x - s.pos.x, r.pos.z - s.pos.z) <= BUILDINGS[r.kind].vision + s.radius) { s.seenByRed = true; break; }
         }
       }
-      const ea = Math.round(255 * FOG.exploredAlpha);
-      for (let k = 0; k < N * N; k++) {
-        if (visible[k]) explored[k] = 1;
-        const o = k * 4;
-        data[o] = 8; data[o + 1] = 12; data[o + 2] = 10;
-        data[o + 3] = visible[k] ? 0 : explored[k] ? ea : 255;
+      // Görünen rakip yapı bilinir olur (sis dokusunu beklemeden: bkz. ai.js knownTo da aynı işi yapar).
+      for (const s of world.structures) if (!s.seen && s.alive && fog.isVisible(s.pos.x, s.pos.z)) s.seen = true;
+      for (let k = 0; k < N * N; k++) if (visible[k]) explored[k] = 1;
+      if (data) {
+        const ea = Math.round(255 * FOG.exploredAlpha);
+        for (let k = 0; k < N * N; k++) {
+          const o = k * 4;
+          data[o] = 8; data[o + 1] = 12; data[o + 2] = 10;
+          data[o + 3] = visible[k] ? 0 : explored[k] ? ea : 255;
+        }
+        tex.needsUpdate = true;
       }
-      tex.needsUpdate = true; fog.version++;
+      fog.version++;
       return true;
     },
     isVisible(x, z) { const k = idx(x, z); return k >= 0 && visible[k] === 1; },

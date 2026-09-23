@@ -1,4 +1,4 @@
-import * as T from '/vendor/three.module.js';
+import * as T from 'three';
 
 const mats = {};
 /** Renge göre paylaşılan malzeme. Yanıp sönmesi gereken parçalar için ownMat kullan. */

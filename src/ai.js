@@ -73,7 +73,7 @@ export function updateUnit(world, e, dt) {
 }
 
 /** Askerin bağlı olduğu nokta: senin ordunun toplanma bayrağı, yoksa doğduğu / son durduğu yer. */
-const rallyAnchor = (world, e) => (e.owner === world.me && world.rally) || e.brain.home;
+const rallyAnchor = (world, e) => (e.owner && e.owner.rally) || e.brain.home;
 
 /**
  * Senin askerin: **görüşü savaşa girme mesafesidir**. Görüşüne (e.vision: asker 10, mancınık 36) giren her düşmanla savaşır:
@@ -270,7 +270,7 @@ const knownTo = (e, st, d = Infinity) => {
   if (e.faction !== 'blue') return st.seenByRed;
   if (st.seen) return true;
   if (d > (e.vision || VISION.soldier) + st.radius) return false;
-  st.seen = true; st.g.visible = true;
+  st.seen = true;
   return true;
 };
 

@@ -1,25 +1,30 @@
 import { DIFFICULTY, ECONOMY, LIMITS, TEAMS } from './config.js';
 
 /**
- * Oyuncular. Bir oyunda 2 x takım büyüklüğü oyuncu vardır: insan (mavi takım, 0. yuva) ve botlar. Her oyuncunun
- * kendi kasası (eco), sancağı, üssü, kule yerleri ve kahramanı vardır; botlarda ayrıca karar durumu (ai) tutulur.
+ * Oyuncular. Bir oyunda 2 x takım büyüklüğü oyuncu vardır: insanlar (mavi takımın ilk yuvaları) ve botlar. Her oyuncunun
+ * kendi kasası (eco), sancağı, üssü, kule yerleri, kahramanı ve karnesi (st) vardır; botlarda ayrıca karar durumu (ai),
+ * insanlarda girdi (input) ve toplanma bayrağı (rally) tutulur.
  * Birimler ve yapılar sahibini `owner` ile, takımını `faction` ile bilir: **düşmanlık takıma, komuta ve kasa sahibe** bağlıdır.
- * Senin askerlerini yalnızca sen yönetirsin; takım arkadaşı bot kendi askerine kendi emrini verir.
+ * Her insan yalnızca kendi askerini yönetir; takım arkadaşı (insan ya da bot) kendi askerine kendi emrini verir.
+ * humans: [{ name, color? }] — mavi takımın 0..n-1 yuvalarına oturur (en az 1, en çok teamSize).
  */
-export function createPlayers(teamSize) {
+export function createPlayers(teamSize, humans = [{ name: 'Sen' }]) {
   const players = [];
-  let color = 0;
+  let color = 0, humanColor = 0;
+  const usedColors = new Set(humans.map(h => h.color).filter(Boolean));
   for (const faction of ['blue', 'red']) {
     for (let slot = 0; slot < teamSize; slot++) {
-      const human = faction === 'blue' && slot === 0;
-      const name = human ? 'Sen' : TEAMS.names[(players.length - 1) % TEAMS.names.length];
-      // Mesaj başlığı: 1v1'de eskisi gibi "Rakip", takım oyununda "Rakip Aslan" / "Müttefik Kurt".
-      const title = human ? 'Sen' : teamSize === 1 ? 'Rakip' : `${faction === 'blue' ? 'Müttefik' : 'Rakip'} ${name}`;
+      const h = faction === 'blue' && slot < humans.length ? humans[slot] : null;
+      const human = Boolean(h);
+      let c;
+      if (human) c = h.color || TEAMS.humanColors[humanColor++ % TEAMS.humanColors.length];
+      else { do { c = TEAMS.colors[color++ % TEAMS.colors.length]; } while (usedColors.has(c) && color < TEAMS.colors.length * 2); }
+      const name = human ? (h.name || 'Sen') : TEAMS.names[(players.length - humans.length + 10) % TEAMS.names.length];
       players.push({
-        id: players.length, faction, slot, human, name, title,
-        color: human ? TEAMS.humanColor : TEAMS.colors[color++ % TEAMS.colors.length],
+        id: players.length, faction, slot, human, name,
+        color: c, netId: human ? h.netId ?? null : null,
         eco: createEconomy(human), ai: human ? null : createBotAi(players.length),
-        hero: null, banner: null, base: null, towerSpots: [],
+        hero: null, banner: null, base: null, towerSpots: [], input: null, rally: null, st: null, eliminated: false,
       });
     }
   }
@@ -29,7 +34,7 @@ export function createPlayers(teamSize) {
 /** Kasa: altın + odun + yiyecek; basılan birim sayısı; kahraman çalışması (insan için). */
 export function createEconomy(human) {
   const eco = { ...ECONOMY.start, soldiersSpawned: 0, work: { spot: null, timer: 0 } };
-  // Deneme ayarı (bkz. ECONOMY.playerTestGold): yalnızca insan oyuncu bol altınla başlar, botlar normal başlar.
+  // Deneme ayarı (bkz. ECONOMY.playerTestGold): yalnızca insan oyuncular bol altınla başlar, botlar normal başlar.
   if (human && ECONOMY.playerTestGold != null) eco.gold = ECONOMY.playerTestGold;
   return eco;
 }
@@ -65,11 +70,10 @@ export function nearestEnemyPlayer(world, faction, pos) {
   return best;
 }
 
-/** Kaynak çarpanı: zorluk yalnızca **rakip takımın** botlarına işler; müttefik botlar ve sen 1x toplarsınız. */
+/** Kaynak çarpanı: zorluk yalnızca **rakip takımın** botlarına işler; müttefik botlar ve insanlar 1x toplar. */
 export function resourceMult(world, p) { return p.faction === 'red' ? DIFFICULTY[world.difficulty].resourceMult : 1; }
 
 /** Oyuncu başı nüfus sınırları: asker sınırı oyuncu sayısıyla bölünür ki haritadaki toplam armyTotal'ı aşmasın. */
 export function limitsFor(playerCount) {
   return { army: Math.min(LIMITS.army, Math.round(LIMITS.armyTotal / playerCount)), workers: Math.min(LIMITS.workers, Math.round(LIMITS.workersTotal / playerCount)), towers: LIMITS.towers, buildings: LIMITS.buildings };
 }
-

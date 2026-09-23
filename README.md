@@ -1,9 +1,10 @@
 # Çayır Muhafızı
 
-Three.js ile yerel tarayıcıda çalışan, **Age of Empires 2 + DOTA** esintili, tam ekran izometrik kır savaşı.
+Three.js ile tarayıcıda çalışan, **Age of Empires 2 + DOTA** esintili, tam ekran izometrik kır savaşı.
 `demo`daki dövüş hissi (iki hızlı fizik, koni içi vuruş, prosedürel animasyon) bu sahnenin üstüne
 taşındı; üstüne Age of tarzı alt bant, üretim kuyruğu, savaş sisi,
-2B minimap, yapı inşası, ordu emirleri, birim üstünlükleri, rakip kahraman ve **takım oyunu** (1v1 … 5v5, botlarla) eklendi.
+2B minimap, yapı inşası, ordu emirleri, birim üstünlükleri, rakip kahraman, **takım oyunu** (1v1 … 5v5, botlarla),
+**çevrim içi co-op** (oda koduyla en çok 5 insan, botlara karşı; sunucu otoriter) ve maç sonu **karne** eklendi.
 
 ## Başlatma
 
@@ -11,6 +12,55 @@ taşındı; üstüne Age of tarzı alt bant, üretim kuyruğu, savaş sisi,
 Alternatif: bu klasörde `npm install` ve `npm start`, ardından http://127.0.0.1:5173.
 Node.js gerekir. İlk kurulumdan sonra internet bağlantısı gerekmez.
 Port değiştirmek için PowerShell'de `$env:PORT=5174; npm start`.
+
+**Arkadaşlarla (co-op)**: aynı sunucu odaları da yürütür. Aynı ağdaki arkadaşlar için sunucuyu dışa aç:
+`$env:HOST='0.0.0.0'; npm start` ve arkadaşlara `http://<senin-ip>:5173` ver. İnternetten oynamak için
+[Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) ile
+`cloudflared tunnel --url http://127.0.0.1:5173` (ya da kalıcı bir tünelle kendi alan adın); WebSocket tünelden geçer,
+sayfa https ile açılınca istemci kendiliğinden wss kullanır. Aynı tarayıcıda iki sekme iki ayrı oyuncudur (kimlik sekmeye özeldir).
+
+## Ekranlar
+
+Hesap yok. **Giriş**: ad (tarayıcıda hatırlanır) ve üç düğme: **Tek başına** (kurulum ekranı, sonra oyun), **Oda kur**
+(kurulum ekranı, sonra lobi ve oda kodu) ve **Koda katıl**. `?oda=KOD` linkiyle gelen ad ekranından lobiye düşer.
+**Kurulum**: kaça kaç (1v1 … 5v5) ve zorluk. **Lobi**: oda kodu, "Linki kopyala", mavi takımın koltukları (boş koltuklara
+bot oturur), kırmızı takım tamamen bot; kaça kaç ve zorluğu **yalnızca kuran** değiştirir ve **Başlat**'a basar, kimse
+"hazır" basmaz; 1v1 seçilirse kuran tek başına botlarla oynar. **Bitiş**: karne (bkz. Karne ve skor). **Kısayollar**
+penceresi (F1, sağ alttaki ? ve giriş ekranındaki bağlantı) bütün tuşları ve kahramanın o anki yetenek setini yazar.
+**Esc** oyun içinde menüyü açar (Devam, Kısayollar, Ses, Oyundan çık); tek başına oyunda menü oyunu durdurur, co-op'ta
+durdurmaz (başkasının oyununu durduramazsın). Ekranlarda anlatım cümlesi yoktur: her şey kısayol penceresindedir.
+
+## Çevrim içi co-op
+
+Sunucu **otoriterdir**: her oda kendi dünyasını (`src/world.js`) saniyede 20 adım koşturur; istemciler yalnızca girdi ve
+komut yollar, olay ve durum paketi alır. Aynı simülasyon kodu tek başına oyunda tarayıcıda, co-op'ta sunucuda koşar;
+görseller `world.fx` kancalarından geçer (tarayıcıda mesh, sunucuda olay).
+
+- **Girdi** saniyede 20 kez: dünya uzayında hareket yönü (kamera moduna göre istemci çözer), nişan noktası, tuş bayrakları.
+  **Komutlar** (asker bas, iptal, bina dik, yık, toplanma alanı / saldırı hedefi, kahraman türü) anında gider, sunucuda
+  yeniden denetlenir; istemci ücret ve yer denetimini yerelde yapar ki geri bildirim anında olsun.
+- **Durum paketi** (ikili, 10 Hz): yalnızca **değişen** birimler (konum, yön, can, bayraklar, seviye), bütün yapılar
+  (can, inşa, sıra), oklar ve bölgeler. Birimler 100 ms geriden ara değerle çizilir. Doğuş / silinme / efekt olayları JSON.
+  5v5'te ölçülen: adım 0.8 ms, paket ortalama 1.8 KB, istemci başına ~17 KB/s.
+- **Sis** her istemcide kendi takımının birimlerinden yerelde hesaplanır (sunucu da oyun kuralları için hesaplar).
+- **Kopma**: kimlik sekmeye özel bir token'dır; sayfa yenilenince ya da bağlantı kopunca aynı koltuğa geri dönülür
+  (üstte "Yeniden bağlanıyor" şeridi). 120 saniyede dönmeyenin kahramanını **bot devralır**; hiç insan kalmazsa oda kapanır.
+  Odayı kuranın oyun içinde ayrıcalığı yoktur; kuran koparsa maç sürer.
+- **Yenilgi kuralı co-op'ta**: sancağı düşen insan **elenir** (kahramanı bir daha doğmaz, ordusu yenilenmez, izlemeye devam
+  eder); mavi takımdaki **bütün insanların** sancağı düşünce yenilgi. Zafer kuralı aynıdır (rakip sancaklarının hepsi).
+- Kapsam dışı (bilerek): hesap, kalıcı istatistik, yabancılarla eşleştirme, PvP, izleyici. Yapı bunları engellemez.
+
+## Karne ve skor
+
+Her oyuncu (insan ve bot) için maç boyunca sayılır: toplanan kaynak (tür tür), harcanan değer, basılan / kaybedilen /
+öldürülen birimler (tür tür), verilen / alınan hasar, kurulan / yıkılan / kaybedilen yapılar, kahraman seviyesi, exp,
+öldürme, ölüm, asker sınırının dolu kaldığı süre. Ortak birim **değer** = birimin ya da yapının altın + odun + yiyecek bedeli.
+**Skor** dört alandan toplanır (`config.js` → `SCORE`): **Askerî** (yok edilen birim + yıkılan yapı değeri, eksi kaybın
+yarısı), **Ekonomi** (toplanan ile basılan değerin küçüğü; toplayıp harcamayana tam puan yok), **İnşa** (kurulan yapı değeri,
+yıkılanlar yarım), **Kahraman** (seviye x 25 + kahraman öldürmesi x 30 − ölüm x 15). Oyun içinde sağ üstte **canlı sıralama**
+(tıkla: katla). Bitişte dört sekme: **Özet** (sonuç, süre, alan şampiyonları), **Sıralama** (sütuna tıkla sırala, takım
+toplamları), **Zaman çizelgesi** (10 saniyede bir örnek: skor / asker / kaynak / seviye / yapı eğrileri, oyuncu başına), **Ordu**
+(tür başına basılan, kaybedilen, öldürülen; hasar). **Sonucu kopyala** sıralamayı metin olarak panoya alır (Discord'a yapıştır).
 
 ## Kahraman
 
@@ -98,10 +148,11 @@ geçirir, tekrar basınca izometriğe döner. Omuz üstünde:
   hesaplanmaya devam eder (minimap ve izometriğe dönüş için); askerlerin savaş kuralları değişmez. Zıplamada kamera yarı yarıya yükselir.
 - Alt banttaki düğmeler tık sonrası odağı bırakır: Space zıplar, düğmeyi yeniden tetiklemez.
 
-## Kısayol yok
+## Tuşlar
 
-Üretim, inşa, emirler ve kahraman geliştirme **yalnızca alt banttaki düğmelerle** yapılır; komut ızgarasında
-kısayol harfi yoktur. Klavyede yalnızca hareket (WASD / ok tuşları), Shift (koşu), Boşluk (zıplama) ve Esc (açık modu kapat / duraklat) vardır.
+Üretim, inşa ve kahraman geliştirme **alt banttaki düğmelerle** yapılır; komut ızgarasında kısayol harfi yoktur. Klavyede
+hareket (WASD / ok tuşları), Shift (koşu), Boşluk (zıplama), V (kamera), Tab (omuz üstünde fare kilidi), F1 (kısayollar) ve
+Esc (menü / vazgeç) vardır. Bütün liste oyun içindeki **Kısayollar** penceresindedir.
 
 ## Tek mod: kahraman
 
@@ -152,8 +203,8 @@ başladığı noktadan 16 birimden fazla uzaklaşırsa hedefi bırakıp yoluna d
   ve altında **sancağının durumu** (can çubuğu, kaç kulenin koruduğu) bir arada görünür.
   Yapı: can, üretim sırası (ilk emirde ilerleme, tıklayınca iptal + para iadesi).
   Birim: can ve vuruş / menzil / hız. Çoklu seçim: tür sayıları.
-- **Sağ**: tamamen 2B baklava minimap (zemin, ağaçlar, sis, yapılar, birimler, kamera çerçevesi). Sol tık kamera, sağ tık yürüme emri.
-  Altında duraklat / yeni oyun / tam ekran düğmeleri.
+- **Sağ**: tamamen 2B baklava minimap (zemin, ağaçlar, sis, yapılar, birimler, kamera çerçevesi).
+  Altında Menü (Esc) / kamera (V) / Kısayollar (F1) / tam ekran düğmeleri.
 
 ## Üretim kuyruğu
 
@@ -367,8 +418,9 @@ ordusu, sınırları ve kahramanı vardır.
   çizgi üzerinde 46 birim arayla dizilir; çapadaki üs (senin ve rakip takımın 0. yuvası) üç hattın başıdır, öbür üslerden
   haritanın ortasına birer yol çıkar; her üs sancağının 14 birim önünde **tek kuleyle** başlar; takımın üslerini
   bir **takım yolu** bağlar. Ağaç, çalı ve haydut sayısı alanla ölçeklenir; kamplar yine iki boş köşede.
-- **Zafer** rakip takımın **bütün** sancakları yıkılınca (aradaki her sancak yalnızca ses verir); **yenilgi senin**
-  sancağın düşünce (müttefikler ayakta olsa da). Sancağı düşen botun kahramanı bir daha doğmaz, ordusu yenilenmez.
+- **Zafer** rakip takımın **bütün** sancakları yıkılınca (aradaki her sancak yalnızca ses verir); **yenilgi** mavi takımdaki
+  **insanların hepsinin** sancağı düşünce (tek başına oyunda: senin sancağın; müttefik botlar ayakta olsa da). Sancağı düşen
+  oyuncunun (insan ya da bot) kahramanı bir daha doğmaz, ordusu yenilenmez.
 
 ## Rakip ve zorluk
 
@@ -425,26 +477,41 @@ Büyük takım oyunlarında yüzlerce birim aynı anda sahadadır; oyun şu yoll
 
 ## Dosyalar
 
+Simülasyon ile görünüm ayrıdır: `src/world.js` ve ona bağlı modüller render'sız (Node'da da) koşar; görsel her şey
+`world.fx` kancalarından geçer (`src/fx.js`). Tarayıcıda `src/view/` bu kancaları mesh'e çevirir, sunucuda
+`src/net/netfx.js` olaya çevirir.
+
 | Dosya | Sorumluluk |
 | --- | --- |
-| `index.html`, `style.css` | Tam ekran düzen: sahne, üst HUD, Age of alt bandı, seçim ekranı |
-| `game.js` | Giriş; `src/main.js`'i yükler |
-| `src/config.js` | Tüm ayar sayıları (birimler, yapılar, maliyetler, üstünlük matrisi, görüş, sis, kamera) |
-| `src/main.js` | Sahne, izometrik + omuz üstü kamera (V), sabit adımlı döngü, sis / görünürlük, kuleler, ganimet, yaşam döngüsü |
-| `src/environment.js` | Arena yerleşimi (takım büyüklüğüne göre üsler, hatlar, kule yerleri), kaynak düğümleri; ağaç, çalı, yol ve tarla parçaları InstancedMesh; her oyunda yeniden kurulur |
-| `src/players.js` | Oyuncular (sen + botlar): takım, sahip, kasa, bot durumu, sınırlar, en yakın rakip sancak / oyuncu |
-| `src/structures.js` | Yapılar: görünüm, kurma, yerleştirme denetimi, inşa, yıkım, toplanma bayrağı |
+| `index.html`, `style.css` | Tam ekran düzen: sahne, üst HUD, canlı skor, Age of alt bandı, ekranlar (giriş, kurulum, lobi, bitiş, kısayollar, menü) |
+| `game.js` | Giriş; `src/main.js`'i yükler (import map: `three` → `/vendor/three.module.js`) |
+| `src/config.js` | Tüm ayar sayıları (birimler, yapılar, maliyetler, üstünlük matrisi, görüş, sis, kamera, skor) |
+| `src/world.js` | **Simülasyon**: dünya, oyun kurulumu (insanlar + botlar), sabit adım, kurallar (ölüm, yıkım, exp, zafer), komutlar (oyuncu adına) |
+| `src/hero.js` | Kahraman kontrolü, simülasyon tarafı: çözülmüş girdiyi uygular (yerel ya da ağdan) |
+| `src/stats.js` | Karne: sayaçlar, değer, skor, zaman çizelgesi, bitiş raporu |
+| `src/fx.js` | Görsel kanca arayüzü (boş uygulama ve tamamlayıcı) |
+| `src/main.js` | **İstemci**: sahne, kameralar (V), arayüz ve ekranlar, iki kip (yerel simülasyon / çevrim içi kopya), görünüm eşitleme, çizim döngüsü |
+| `src/view/` | Görünümler: sahne fx (`scenefx.js`), yapı (`structview.js`), eşya / ok / bayrak (`itemview.js`), bölgeler (`zones.js`), parçacıklar (`effects.js`) |
+| `src/net/protocol.js` | Ağ sözlüğü: mesaj ve olay adları, hızlar, oda kodu |
+| `src/net/snapshot.js` | İkili durum paketi (kodla / çöz; yalnızca değişen birimler) |
+| `src/net/netfx.js` | Sunucu fx'i: görsel istekleri olaya çevirir; tam durum olayları |
+| `src/net/client.js` | Çevrim içi istemci: bağlantı, lobi, dünya kopyası, olaylar, ara değer, girdi gönderimi, geri bağlanma |
+| `src/screens.js`, `src/report.js` | Ekran akışı (giriş / kurulum / lobi / menü / kısayollar) ve bitiş karnesi (sekmeler, grafik, kopyala) |
+| `src/environment.js` | Arena verisi (tohumlu: sunucu ve istemci aynı araziyi kurar) ve dekor görünümü (InstancedMesh) |
+| `src/players.js` | Oyuncular (insanlar + botlar): takım, sahip, kasa, bot durumu, sınırlar |
+| `src/structures.js` | Yapılar (veri): kurma, yerleştirme denetimi, inşa, yıkım |
 | `src/production.js` | Üretim kuyruğu: sıraya alma, iptal, ilerleme, çıkış |
-| `src/fog.js` | Savaş sisi ızgarası ve karartma düzlemi |
-| `src/minimap.js` | 2B baklava minimap ve tıklamaları |
-| `src/characters.js` | Donanıma göre stat ve kutu rig, prosedürel animasyon, seçim halkası |
-| `src/physics.js` | `vel` + `push` entegrasyonu, çarpışmalar (havada yok), engeller, sınır |
-| `src/combat.js` | Saldırı zamanlaması, koni vuruşu, üstünlük çarpanı, kalkan, takipli oklar, kaynak düğümü vuruşu |
+| `src/fog.js` | Savaş sisi ızgarası (sunucu + istemci) ve karartma düzlemi (istemci) |
+| `src/minimap.js` | 2B baklava minimap |
+| `src/characters.js` | Donanıma göre stat, kutu rig, prosedürel animasyon; `addEntity` |
+| `src/physics.js` | `vel` + `push` entegrasyonu, çarpışmalar, engeller, sınır |
+| `src/combat.js` | Saldırı zamanlaması, vuruş çözümü, hasar (karne), oklar, çemberler, hortumlar (veri) |
+| `src/abilities.js` | Kahraman yetenek setleri: yaylım, şarj, atılma alanları (veri) |
 | `src/ai.js` | Asker beyni (emirli / bekleyen / bot otonom), toplayıcı beyni (bot kahramanları ve işçiler) |
-| `src/economy.js` | Çalışma yerleri, ürünler, kasalar, ganimet, bina kurma, bot ekonomisi / saldırı / savunma (her bot için) |
-| `src/input.js` | Klavye / fare: hareket, nişan, seçim, fare kilidi ve omuz üstü kamera (updateTpsCamera) |
-| `src/ui.js` | HUD, alt bant (komut ızgarası, bilgi kartı), seçim ekranı, ses. **Metin mesaj barı yoktur**: geri bildirim ses, dünya halkaları, HUD ve düğme durumlarıdır |
-| `server.mjs` | Yalnızca yerel bilgisayara hizmet veren statik sunucu |
+| `src/economy.js` | Çalışma yerleri, eşyalar (veri), kasalar, ganimet, bina kurma, bot ekonomisi / saldırı / savunma |
+| `src/input.js` | Klavye / fare (istemci): ham girdi, nişan, seçim, fare kilidi, omuz üstü kamera, girdi çözümü |
+| `src/ui.js` | HUD, canlı skor, alt bant (komut ızgarası, bilgi kartı), ses. **Metin mesaj barı yoktur** |
+| `server.mjs`, `server/rooms.mjs` | Tek süreç: statik dosyalar + WebSocket odaları (lobi, otoriter simülasyon, durum paketi, geri bağlanma, bot devralma) |
 
-Oyun dünyası tarayıcı konsolunda `__meadow` olarak erişilebilir; `__meadow.simulate(30)` oyunu
-30 saniye ileri sarar (hata ayıklama için). Kayıt sistemi yoktur; sayfa yenilenince oyun sıfırlanır.
+Oyun dünyası tarayıcı konsolunda `__meadow` olarak erişilebilir; tek başına oyunda `__meadow.simulate(30)` oyunu
+30 saniye ileri sarar (hata ayıklama için). Sunucuda `/health` oda ve bağlantı sayısını verir. Kayıt sistemi yoktur.
