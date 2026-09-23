@@ -37,6 +37,11 @@ export const PHYSICS = {
 
 export const GRAVITY = 22;
 export const JUMP_SPEED = 7.8;
+/**
+ * Havada ikinci zıplama: yere değmeden bir kez daha zıplanır ve kahraman **daha yükseğe** çıkar (yeni hız,
+ * kalan yükselmenin üstüne biner). count kaç ek zıplama, speedMult ikinci zıplamanın gücü.
+ */
+export const JUMP_AIR = { count: 1, speedMult: 1 };
 export const SPRINT_MULT = 1.65;
 
 export const BLOCK = {

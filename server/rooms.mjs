@@ -1,7 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { createWorld, setupGame, step, cmdBuild, cmdCancel, cmdConvert, cmdDemolish, cmdEnqueue, cmdRally } from '../src/world.js';
 import { createHeroInput, mergeHeroInput } from '../src/hero.js';
-import { createBotAi } from '../src/players.js';
 import { scoreOf } from '../src/stats.js';
 import { encodeSnapshot } from '../src/net/snapshot.js';
 import { createNetFx, fullStateEvents } from '../src/net/netfx.js';
@@ -11,7 +10,9 @@ import { TEAMS } from '../src/config.js';
 /**
  * Odalar: kur / katıl / lobi / başlat / oyun / bitiş. Sunucu otoriterdir: her oda kendi dünyasını saniyede 20 adım koşturur,
  * her 2 adımda bir durum paketi ve biriken olayları yayar. Hesap yok: bağlantı `token` ile tanınır, kopan oyuncu aynı
- * token'la NET.reconnectHold saniye içinde koltuğuna geri döner; dönmezse kahramanını bot devralır.
+ * token'la koltuğuna geri döner. **Bot devralmaz**: ayrılanın kahramanı durur, askerleri ve binaları sahada kalır
+ * (savaşır, ölür, yıkılır) ama yeni emir almaz; oyuncu dönerse bıraktığı yerden devam eder. Oda ancak bağlı kimse
+ * kalmayınca kapanır.
  */
 export function createRooms({ log = console.log } = {}) {
   const rooms = new Map();   // code -> room
@@ -28,31 +29,53 @@ export function createRooms({ log = console.log } = {}) {
   }
   const broadcastLobby = room => { for (const c of room.seats) send(c, lobbyMsg(room)); };
 
-  function leaveRoom(conn, { keepSeat = false } = {}) {
+  function leaveRoom(conn, { keepSeat = false, hard = false } = {}) {
     const room = conn.room; if (!room) return;
     if (room.state === 'playing' && keepSeat) return; // kopma: koltuk tutulur
+    /**
+      * Oyun sürerken "Oyundan çık": koltuk ve ülke sahada kalır, oyuncu yalnızca **elini çeker** (conn.left).
+      * Bağlantı açık kalır (ana ekrana döner), oyun verisi ona gönderilmez. Aynı odaya aynı kodla dönerse
+      * (JOIN) ya da sayfayı yenileyip token'ıyla gelirse kaldığı yerden devam eder.
+      */
+    if (room.state === 'playing' && conn.player && !hard) {
+      abandon(room, conn.player);
+      conn.left = true;
+      closeIfEmpty(room);
+      return;
+    }
+    // hard: yeni oda kurdu / başka odaya geçti; koltuğunu bütünüyle bırakır, ülkesi sahipsiz kalır.
+    if (room.state === 'playing' && conn.player) abandon(room, conn.player);
     const i = room.seats.indexOf(conn);
     if (i >= 0) room.seats.splice(i, 1);
     conn.room = null; conn.player = null;
     if (!room.seats.length) { stopRoom(room); rooms.delete(room.code); log(`oda kapandı ${room.code}`); return; }
     if (room.hostId === conn.id) room.hostId = room.seats[0].id;
     if (room.state === 'lobby') { room.settings.teamSize = Math.max(room.settings.teamSize, room.seats.length); broadcastLobby(room); }
-    else if (room.state === 'playing' && conn.player) botTakeover(room, conn.player);
+  }
+  /** Bağlı kimse kalmadıysa oda kapanır: dünya bellekte yaşar, izleyeni olmayan odayı tutmanın anlamı yok. */
+  function closeIfEmpty(room) {
+    if (room.seats.some(c => c.ws && !c.left)) return false;
+    stopRoom(room); rooms.delete(room.code); log(`bağlı kimse kalmadı, oda kapandı ${room.code}`);
+    return true;
   }
 
   function stopRoom(room) { if (room.timer) { clearInterval(room.timer); room.timer = null; } }
 
-  /** Kopan insanın kahramanını bot devralır: oyuncu bota döner, kahraman toplayıcı beynine geçer. */
-  function botTakeover(room, p) {
-    if (!p.human) return;
-    p.human = false; p.ai = createBotAi(p.id); p.input = null; p.conn = null;
-    const world = room.world;
-    world.humans = world.players.filter(q => q.human);
+  /**
+    * Ayrılan / kopan oyuncu: **bot devralmaz**. Kahraman durur (girdi sıfırlanır, şarj bozulur), askerleri ve
+    * binaları sahada kalır; düşman gelirse savaşırlar, ölürler, binaları yıkılabilir, sıradaki üretim çıkar.
+    * Yeni emir gelmez, çünkü ne insan girdisi ne de bot beyni vardır. Oyuncu dönünce aynı koltukta devam eder.
+    */
+  function abandon(room, p) {
+    if (!p.human || p.away) return;
+    p.away = true;
+    p.input = createHeroInput();
     const e = p.hero;
-    if (e) { e.isPlayer = false; e.isHero = true; e.work = { spot: null, item: null }; e.brain = { mode: 'gather', timer: 0, target: null, retarget: 0 }; e.moveDir.set(0, 0, 0); e.charging = false; }
-    log(`bot devraldı: ${p.name} (${room.code})`);
-    if (!world.humans.length) { log(`insan kalmadı, oda kapanıyor ${room.code}`); stopRoom(room); rooms.delete(room.code); }
+    if (e) { e.moveDir.set(0, 0, 0); e.charging = false; e.blocking = false; e.sprinting = false; }
+    log(`ayrıldı (ülkesi sahada kaldı): ${p.name} (${room.code})`);
   }
+  /** Oyuncu geri döndü: komuta yeniden açılır. */
+  function rejoinPlayer(p) { if (p) p.away = false; }
 
   function startGame(room) {
     const humans = room.seats.map(c => ({ name: c.nick, netId: c.id }));
@@ -89,7 +112,7 @@ export function createRooms({ log = console.log } = {}) {
   }
 
   function playersMsg(world) {
-    return { t: S2C.PLAYERS, time: world.time, list: world.players.map(p => ({ g: p.eco.gold, w: p.eco.wood, f: p.eco.food, sp: p.eco.soldiersSpawned, att: Boolean(p.ai && p.ai.attacking), elim: Boolean(p.eliminated), sc: scoreOf(p).total, hu: p.human, on: p.human ? Boolean(p.conn && p.conn.ws) : true })) };
+    return { t: S2C.PLAYERS, time: world.time, list: world.players.map(p => ({ g: p.eco.gold, w: p.eco.wood, f: p.eco.food, sp: p.eco.soldiersSpawned, att: Boolean(p.ai && p.ai.attacking), elim: Boolean(p.eliminated), sc: scoreOf(p).total, hu: p.human, on: p.human ? Boolean(p.conn && p.conn.ws && !p.away) : true })) };
   }
 
   function tick(room) {
@@ -102,10 +125,11 @@ export function createRooms({ log = console.log } = {}) {
       if (room.tickNo % NET.snapshotEvery === 0) flush(room);
     }
     if (room.acc >= NET.tick) room.acc = 0; // geride kaldıysa (makine takıldı) sürükleme yok
-    // Kopan insanlar: bekleme dolunca bot devralır.
-    for (const p of room.world.humans) {
-      if (p.conn && !p.conn.ws && now - p.conn.lostAt > NET.reconnectHold * 1000) botTakeover(room, p);
+    // Kopan insanlar: bot devralmaz, yalnızca komutası kesilir (bkz. abandon). Bağlı kimse kalmazsa oda kapanır.
+    for (const c of room.seats) {
+      if (!c.ws && c.player && !c.player.away) abandon(room, c.player);
     }
+    closeIfEmpty(room);
   }
 
   function flush(room) {
@@ -113,7 +137,7 @@ export function createRooms({ log = console.log } = {}) {
     const snap = encodeSnapshot(world);
     const pl = playersMsg(world);
     for (const c of room.seats) {
-      if (!c.ws) continue;
+      if (!c.ws || c.left) continue;
       const own = c.player ? room.playerEvents.get(c.player.id) : null;
       const list = own && own.length ? events.concat(own) : events;
       if (list.length) send(c, { t: S2C.EVENTS, list });
@@ -156,7 +180,8 @@ export function createRooms({ log = console.log } = {}) {
           // Geri bağlanma: eski bağlantının kimliği ve koltuğu devralınır.
           conn.id = old.id; conn.token = old.token; conn.room = old.room; conn.player = old.player;
           const r = old.room, i = r.seats.indexOf(old); if (i >= 0) r.seats[i] = conn;
-          if (conn.player) conn.player.conn = conn;
+          conn.left = false;
+          if (conn.player) { conn.player.conn = conn; rejoinPlayer(conn.player); }
           byToken.set(conn.token, conn); conns.delete(old);
           send(conn, { t: S2C.WELCOME, id: conn.id, token: conn.token, nick: conn.nick });
           if (r.state === 'playing') sendStart(r, conn); else if (r.state === 'ended') { send(conn, lobbyMsg(r)); send(conn, { t: S2C.END, report: r.report }); } else broadcastLobby(r);
@@ -169,7 +194,7 @@ export function createRooms({ log = console.log } = {}) {
         return;
       }
       case C2S.CREATE: {
-        if (room) leaveRoom(conn);
+        if (room) leaveRoom(conn, { hard: true });
         let code = roomCode(); while (rooms.has(code)) code = roomCode();
         const r = { code, hostId: conn.id, seats: [conn], state: 'lobby', settings: sanitize(msg), world: null, events: [], playerEvents: new Map(), timer: null, report: null, created: Date.now() };
         rooms.set(code, r); conn.room = r;
@@ -180,9 +205,18 @@ export function createRooms({ log = console.log } = {}) {
         const code = String(msg.code || '').toUpperCase().trim();
         const r = rooms.get(code);
         if (!r) return error(conn, 'Böyle bir oda yok');
+        // Bu odadan ayrılmış (ya da kopmuş) oyuncu: koltuğu hâlâ onun, kaldığı yerden devam eder.
+        if (r.seats.includes(conn) && conn.player) {
+          conn.left = false; rejoinPlayer(conn.player);
+          if (r.state === 'playing') sendStart(r, conn);
+          else if (r.state === 'ended') { send(conn, lobbyMsg(r)); send(conn, { t: S2C.END, report: r.report }); }
+          else broadcastLobby(r);
+          log(`geri döndü ${conn.nick} (${r.code})`);
+          return;
+        }
         if (r.state !== 'lobby') return error(conn, 'Oyun başlamış');
         if (r.seats.length >= TEAMS.sizes[TEAMS.sizes.length - 1]) return error(conn, 'Oda dolu');
-        if (room) leaveRoom(conn);
+        if (room) leaveRoom(conn, { hard: true });
         r.seats.push(conn); conn.room = r;
         if (r.settings.teamSize < r.seats.length) r.settings.teamSize = r.seats.length;
         broadcastLobby(r); log(`katıldı ${conn.nick} -> ${code}`);
@@ -198,8 +232,9 @@ export function createRooms({ log = console.log } = {}) {
         startGame(room); return;
       }
       case C2S.LEAVE: { if (room) leaveRoom(conn); return; }
-      case C2S.INPUT: { if (room && room.state === 'playing' && conn.player && conn.player.input) mergeHeroInput(conn.player.input, msg); return; }
-      case C2S.CMD: { if (room && room.state === 'playing') handleCmd(room, conn, msg); return; }
+      // Elini çekmiş (ayrılmış) bağlantı komuta edemez: ülkesi sahada durur ama emir almaz.
+      case C2S.INPUT: { if (room && !conn.left && room.state === 'playing' && conn.player && conn.player.input) mergeHeroInput(conn.player.input, msg); return; }
+      case C2S.CMD: { if (room && !conn.left && room.state === 'playing') handleCmd(room, conn, msg); return; }
       case C2S.PING: { send(conn, { t: S2C.PONG, at: msg.at }); return; }
       default: return;
     }
@@ -214,7 +249,7 @@ export function createRooms({ log = console.log } = {}) {
   let nextId = 1;
   return {
     attach(ws) {
-      const conn = { id: nextId++, token: null, nick: '', ws, room: null, player: null, lostAt: 0 };
+      const conn = { id: nextId++, token: null, nick: '', ws, room: null, player: null, lostAt: 0, left: false };
       conns.add(conn);
       ws.on('message', (data, isBinary) => { try { onMessage(conn, data, isBinary); } catch (err) { log('mesaj hatası', err); } });
       ws.on('close', () => {

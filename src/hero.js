@@ -2,7 +2,7 @@ import { dampAngle, yawFromDir } from './builders.js';
 import { startAttack } from './combat.js';
 import { heroCharged, heroDash } from './abilities.js';
 import { dashDistance } from './characters.js';
-import { CHARGE, JUMP_SPEED, PHYSICS } from './config.js';
+import { CHARGE, JUMP_AIR, JUMP_SPEED, PHYSICS } from './config.js';
 import { applyImpulse } from './physics.js';
 
 /**
@@ -58,7 +58,18 @@ export function applyHeroInput(world, player, dt) {
       world.fx.flash(player, 'dodge');
     }
   }
-  if (inp.jq) { inp.jq = false; if (p.jumpY === 0 && p.vy === 0 && p.stun <= 0) p.vy = JUMP_SPEED; }
+  if (inp.jq) {
+    inp.jq = false;
+    if (p.stun <= 0) {
+      if (p.jumpY === 0 && p.vy === 0) { p.vy = JUMP_SPEED; p.airJumps = 0; }
+      else if ((p.airJumps || 0) < JUMP_AIR.count) {
+        // Havada ikinci zıplama: yeni hız verilir, yani yükseliş sıfırdan başlar ve tepe noktası yukarı taşınır.
+        p.airJumps = (p.airJumps || 0) + 1;
+        p.vy = JUMP_SPEED * JUMP_AIR.speedMult;
+        world.fx.burst(p.pos.x, 0.4 + p.jumpY, p.pos.z, '#dff0ff', 8, 0.09);
+      }
+    }
+  }
 
   // Şarjlı vuruş: sol tık CHARGE.delay sn'den uzun basılı kalırsa şarj dolar; bırakınca silaha özgü güçlü vuruş.
   if (inp.ah && inp.heldAt < 0) inp.heldAt = world.time;

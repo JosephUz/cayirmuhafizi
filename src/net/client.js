@@ -24,8 +24,8 @@ export function createNetClient(world, hooks) {
    * Kendi kahramanının yerel tahmini: girdi anında uygulanır, sunucudan gelen konum farkı (resid) her karede
    * yumuşakça kapatılır. Yetki yine sunucudadır; burada yalnızca **çizilen** konum üretilir.
    */
-  const pred = { on: false, x: 0, z: 0, vx: 0, vz: 0, residX: 0, residZ: 0, lastT: 0 };
-  const predReset = () => { pred.on = false; pred.vx = pred.vz = pred.residX = pred.residZ = 0; pred.lastT = 0; };
+  const pred = { vx: 0, vz: 0, offX: 0, offZ: 0 };
+  const predReset = () => { pred.vx = pred.vz = pred.offX = pred.offZ = 0; };
   const me = () => world.me;
   // Kimlik ve oda **sekmeye** özeldir (sessionStorage): aynı tarayıcıda iki sekme iki ayrı oyuncudur, sayfa yenilemesi
   // aynı koltuğa geri döner. Ad ise kalıcıdır (localStorage, bkz. screens.js).
@@ -190,15 +190,6 @@ export function createNetClient(world, hooks) {
     const measured = T0 - lastSnapWall / 1000;
     if (!clockReady || Math.abs(measured - clockOffset) > NET.clockJump) { clockOffset = measured; clockReady = true; }
     else clockOffset += (measured - clockOffset) * NET.clockSmooth;
-    // Kendi kahramanın: sunucunun son sözü ile tahminimiz arasındaki fark (yumuşak kapatılır, bkz. update).
-    if (pred.on && world.player && world.player.alive) {
-      const r = snap.entities.find(x => x.id === world.player.id);
-      if (r) {
-        const ex = r.x - pred.x, ez = r.z - pred.z;
-        if (Math.hypot(ex, ez) > NET.predictSnap) { pred.x = r.x; pred.z = r.z; pred.residX = pred.residZ = 0; }
-        else { pred.residX = ex; pred.residZ = ez; }
-      }
-    }
     for (const r of snap.entities) {
       const e = byE.get(r.id); if (!e) continue;
       const n = e.net;
@@ -265,7 +256,7 @@ export function createNetClient(world, hooks) {
       if (e.hitFlash > 0) e.hitFlash -= dt;
       if (e.working) e.workTimer += dt;
     }
-    predictSelf(dt);
+    leadSelf(dt);
     for (const a of world.arrows) {
       const n = a.net; if (!n) continue;
       const span = n.t1 - n.t0, k = span > 1e-4 ? Math.max(0, Math.min(1.5, (renderTime - n.t0) / span)) : 1;
@@ -287,15 +278,15 @@ export function createNetClient(world, hooks) {
   }
 
   /**
-   * Kendi kahramanının çizilen konumu: girdiyi **yerelde** uygular (physics.integrate ile aynı ivme modeli) ve
-   * sunucudan gelen farkı saniyede NET.predictCorrect katıyla kapatır. Böylece tuşa basınca anında yürür, paket
-   * gelince de sıçramaz. Ölüyken, atılmada ve büyük farkta sunucunun dediği geçerlidir.
+   * **İleri kayma**: kendi kahramanın ara değer yüzünden interpDelay kadar geriden çizilir; bu gecikmeyi kapatmak
+   * için çizim konumuna, yerel girdiden üretilmiş yumuşak bir kayma eklenir. Kayma paketlerle **hiç konuşmaz**,
+   * bu yüzden paket başına düzeltme zonklaması olmaz: ara değer kadar pürüzsüz, girdiye ise anında cevap verir.
+   * Yürürken kayma hız x interpDelay'e oturur (gecikme kapanır), tuş bırakılınca yumuşakça sıfırlanır.
+   * Duvara dayanınca sunucu durur ama kayma sürdüğü için kahraman en çok NET.leadMax kadar içeri taşmış görünür.
    */
-  function predictSelf(dt) {
+  function leadSelf(dt) {
     const e = world.player;
-    if (!NET.predict || !e || !e.net || !e.alive || dt <= 0) { if (e) predArm(e); return; }
-    if (!pred.on) { predArm(e); return; }
-    // Girdi: kare başında çözülmüş yerel hareket (main.js resolveHeroInput -> pending).
+    if (!NET.predict || !e || !e.net || !e.alive || dt <= 0) { predReset(); return; }
     let dx = pending.mv[0], dz = pending.mv[1];
     const len = Math.hypot(dx, dz);
     if (len > 1e-6) { dx /= len; dz /= len; } else { dx = dz = 0; }
@@ -303,24 +294,15 @@ export function createNetClient(world, hooks) {
     const control = e.attackTimer > 0 ? (st.attackControl != null ? st.attackControl : st.weapon.ranged ? 0.35 : 0.22) : 1;
     const mult = (pending.sp && len > 1e-6 ? SPRINT_MULT : 1) * (e.charging ? CHARGE.speedMult : 1);
     const target = st.speed * control * mult;
-    const k = Math.exp(-st.accel * dt);
-    pred.vx = dx * target + (pred.vx - dx * target) * k;
-    pred.vz = dz * target + (pred.vz - dz * target) * k;
-    pred.x += pred.vx * dt; pred.z += pred.vz * dt;
-    // Sunucu farkını yumuşakça kapat.
-    const step = Math.min(1, dt * NET.predictCorrect);
-    pred.x += pred.residX * step; pred.z += pred.residZ * step;
-    pred.residX -= pred.residX * step; pred.residZ -= pred.residZ * step;
-    const px = e.pos.x, pz = e.pos.z;
-    e.pos.x = pred.x; e.pos.z = pred.z;
-    e.vel.x = (e.pos.x - px) / dt; e.vel.z = (e.pos.z - pz) / dt;
-  }
-  /** Tahmini sunucunun son konumuna kur (ilk kare, ölüm, yeniden doğuş, büyük sapma). */
-  function predArm(e) {
-    pred.on = Boolean(NET.predict && e && e.net && e.alive);
-    pred.x = e ? e.pos.x : 0; pred.z = e ? e.pos.z : 0;
-    pred.vx = e ? e.vel.x : 0; pred.vz = e ? e.vel.z : 0;
-    pred.residX = pred.residZ = 0;
+    const kv = Math.exp(-st.accel * dt);
+    pred.vx = dx * target + (pred.vx - dx * target) * kv;
+    pred.vz = dz * target + (pred.vz - dz * target) * kv;
+    let wantX = pred.vx * NET.interpDelay, wantZ = pred.vz * NET.interpDelay;
+    const w = Math.hypot(wantX, wantZ);
+    if (w > NET.leadMax) { wantX = wantX / w * NET.leadMax; wantZ = wantZ / w * NET.leadMax; }
+    const k = 1 - Math.exp(-dt / NET.leadSmooth);
+    pred.offX += (wantX - pred.offX) * k; pred.offZ += (wantZ - pred.offZ) * k;
+    e.pos.x += pred.offX; e.pos.z += pred.offZ;
   }
 
   const client = {

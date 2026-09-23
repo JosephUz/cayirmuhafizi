@@ -38,8 +38,11 @@ export const NET = {
   tick: 0.05, snapshotEvery: 2,
   /** İstemci girdi gönderim aralığı (sn) ve görüntüde geriden izleme (ara değer) süresi (sn). */
   inputEvery: 0.05, interpDelay: 0.1,
-  /** Kopan oyuncunun koltuğu bu kadar tutulur (sn); sonra kahramanını bot devralır. */
-  reconnectHold: 120,
+  /**
+   * Kopan oyuncunun koltuğu **süresiz** tutulur: bot devralmaz, ülkesi sahada kalır (savaşır, yıkılır) ama emir
+   * almaz; dönünce kaldığı yerden devam eder. Oda ancak bağlı kimse kalmayınca kapanır.
+   */
+  seatHold: Infinity,
   /** Cloudflare / vekil boşta bağlantıyı kapatmasın: bu aralıkta ping. */
   keepAlive: 20,
   /**
@@ -57,7 +60,13 @@ export const NET = {
    *   yaklaşık hız / bu sayı kadardır (3.8 / 12 = 0.3 birim), yani lastik etkisi yoktur.
    * - predictSnap: bu kadar birimlik fark (atılma, savrulma, ışınlanma) yumuşatılmaz, doğrudan atlanır.
    */
-  predict: true, predictCorrect: 12, predictSnap: 2.5,
+  predict: true,
+  /**
+   * İleri kaymanın yumuşatma süresi (sn) ve en çok kaç birim öne alınabileceği. Kayma **yalnızca yerel girdiden**
+   * üretilir ve paketle hiç konuşmaz; bu yüzden pakete bağlı zonklama olmaz. Duvara dayanınca kahraman en çok
+   * leadMax kadar içeri taşmış görünür, tuşu bırakınca kayma sıfıra iner.
+   */
+  leadSmooth: 0.09, leadMax: 0.55,
 };
 export const DIFFICULTIES = ['easy', 'normal', 'hard'];
 export const roomCode = () => {

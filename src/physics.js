@@ -21,7 +21,7 @@ export function integrate(entities, dt) {
     if (e.jumpY > 0 || e.vy !== 0) {
       e.vy -= GRAVITY * dt;
       e.jumpY += e.vy * dt;
-      if (e.jumpY <= 0) { e.jumpY = 0; e.vy = 0; }
+      if (e.jumpY <= 0) { e.jumpY = 0; e.vy = 0; e.airJumps = 0; }
     }
     if (e.dodgeTimer > 0) e.dodgeTimer -= dt;
     if (e.dodgeCd > 0) e.dodgeCd -= dt;

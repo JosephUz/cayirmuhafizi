@@ -58,23 +58,26 @@ görseller `world.fx` kancalarından geçer (tarayıcıda mesh, sunucuda olay).
   5v5'te ölçülen: adım 0.8 ms, paket ortalama 1.8 KB, istemci başına ~17 KB/s.
 - **Akıcılık**: çizim saati paket varışına değil, yumuşatılmış bir sunucu saati farkına bakar (`NET.clockSmooth`);
   paket geç gelince birimler donup sıçramaz.
-- **Kendi kahramanın beklemez (yerel tahmin)**: başkaları 100 ms geriden ara değerle çizilir, senin kahramanın
-  **yerelde tahmin edilir**: girdi aynı karede uygulanır (`physics.integrate` ile birebir aynı ivme modeli) ve
-  sunucudan gelen gerçek konum farkı saniyede `NET.predictCorrect` katıyla yumuşakça kapanır. Atılma, savrulma gibi
-  `NET.predictSnap` birimden büyük farklar yumuşatılmadan uygulanır. Yetki yine sunucudadır.
-  Node'da gerçek istemci kodu 60 Hz koşturularak ölçülen (yerel sunucu, 2v2):
+- **Kendi kahramanın beklemez (ileri kayma)**: başkaları 100 ms geriden ara değerle çizilir. Senin kahramanının
+  çizim konumuna, **yalnızca yerel girdiden** üretilmiş yumuşak bir kayma eklenir (`NET.leadSmooth`, `NET.leadMax`):
+  yürürken kayma hız x interpDelay'e oturur, yani ara değerin gecikmesini kapatır; tuşu bırakınca sıfırlanır.
+  Kayma paketlerle **hiç konuşmaz**, bu yüzden paket başına düzeltme zonklaması yoktur. Sunucu yine tek yetkilidir;
+  duvara dayanınca kahraman en çok `leadMax` kadar içeri taşmış görünür.
+  Node'da gerçek istemci kodu 60 Hz koşturulup dönüşümlü A/B ile ölçülen (yerel sunucu, 1v1, 10 tur):
 
-  | Ölçü | Tahmin açık | Tahmin kapalı |
+  | Ölçü | İleri kayma açık | Kapalı (düz ara değer) |
   | --- | --- | --- |
-  | Tuştan harekete tepki (ortanca) | 0 ms | 101 ms |
-  | Kare adımı değişim katsayısı (düşük = düzgün) | 0.15 | 0.25 |
-  | Donuk kare | yok | yok |
+  | Tuştan harekete tepki (ortanca) | 0 ms | 92 ms |
+  | Hız dalgalanması (ortanca, düşük = düzgün) | 0.010 | 0.015 |
+  | Hız dalgalanması (en kötü tur) | 0.075 | 0.354 |
 
-  `NET.predict` false yapılırsa herkes gibi ara değerle çizilir.
+  `NET.predict` false yapılırsa kayma kapanır ve herkes gibi düz ara değerle çizilir.
 - **Sis** her istemcide kendi takımının birimlerinden yerelde hesaplanır (sunucu da oyun kuralları için hesaplar).
-- **Kopma**: kimlik sekmeye özel bir token'dır; sayfa yenilenince ya da bağlantı kopunca aynı koltuğa geri dönülür
-  (üstte "Yeniden bağlanıyor" şeridi). 120 saniyede dönmeyenin kahramanını **bot devralır**; hiç insan kalmazsa oda kapanır.
-  Odayı kuranın oyun içinde ayrıcalığı yoktur; kuran koparsa maç sürer.
+- **Kopma ve ayrılma**: kimlik sekmeye özel bir token'dır; sayfa yenilenince ya da bağlantı kopunca aynı koltuğa geri
+  dönülür (üstte "Yeniden bağlanıyor" şeridi). **Bot devralmaz ve koltuk süresiz tutulur**: ayrılanın kahramanı durur,
+  askerleri ve binaları sahada kalır (düşman gelirse savaşırlar, ölürler, binaları yıkılır, sıradaki üretim çıkar) ama
+  **yeni emir almazlar**. Oyuncu aynı kodla dönerse bıraktığı yerden devam eder; skor tablosunda o sırada çevrim dışı
+  görünür. Oda ancak bağlı kimse kalmayınca kapanır. Odayı kuranın oyun içinde ayrıcalığı yoktur; kuran koparsa maç sürer.
 - **Yenilgi kuralı co-op'ta**: sancağı düşen insan **elenir** (kahramanı bir daha doğmaz, ordusu yenilenmez, izlemeye devam
   eder); mavi takımdaki **bütün insanların** sancağı düşünce yenilgi. Zafer kuralı aynıdır (rakip sancaklarının hepsi).
 - Kapsam dışı (bilerek): hesap, kalıcı istatistik, yabancılarla eşleştirme, PvP, izleyici. Yapı bunları engellemez.
@@ -205,7 +208,7 @@ yönetilmez; **orta tıkla** dikilen tek **toplanma alanı** bütün ordu için 
 | --- | --- |
 | `WASD` / yön tuşları | Hareket (ekrana göre) |
 | `Shift` | Koşu |
-| `Boşluk` | Zıplama; havadayken hiçbir şeye takılmazsın, yakın vuruşlar ıskalar, oklar altından geçer |
+| `Boşluk` | Zıplama; havadayken hiçbir şeye takılmazsın, yakın vuruşlar ıskalar, oklar altından geçer. **Havadayken bir kez daha basarsan ikinci zıplama**: yere değmeden daha yükseğe çıkarsın (tepe 1.3 yerine ~2.5 birim). Yere değince hak yenilenir |
 | Sol tık | Kendi yapına gelirse **seçer** (çift tık: o türdeki tüm binalar); inşa modunda yapıyı **diker**; yoksa **tıkladığın yöne vuruş**. Kahraman kendiliğinden vurmaz: her vuruş bir sol tıktır ve nişan tıklandığı noktada kilitlenir |
 | Sol tık | **Vuruş + set etkisi**: silahın kendi vuruşunun (yakın dövüşte yay, okçuda ok) üstüne kahramanın **yetenek setine** özel ek etki (bkz. Kahraman yetenek setleri). Kahraman kendiliğinden vurmaz: her vuruş bir sol tıktır |
 | Sağ tık | **İleri atılma + set etkisi**: imlece doğru fırlarsın. **Atılma mesafesi** başlangıçta **4.8 birim**, **seviye başına +0.12** (en çok 12); atılırken 0.5 sn vurulmazsın (kalkanlı setlerde 0.9 sn). Atılmaya silahına göre durduğun yerde 2 sn süren alan etkisi eşlik eder: kılıç fırtınası, kazık alanı ya da ok yağmuru; atlı setlerde alan açılırken **vakum** çevredeki düşmanları merkeze çeker. İki kullanım arası **1.4 sn** |
