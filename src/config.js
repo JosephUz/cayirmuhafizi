@@ -463,15 +463,26 @@ export const HERO_UPGRADE = {
    * Tür değiştirme bedeli **tür tür sabittir** (formül yok): yaya türler ucuz, kalkan belirgin pahalı, **atlılar çok
    * pahalı** — kahramanı ata bindirmek oyunun geç aşamasıdır ve uzun bir ekonomi kurmayı gerektirir. Kılıçlı
    * başlangıç türüdür, en ucuzu odur (ona geri dönmek kolay olsun diye).
+   * Tablodaki sayılar **tek başına oyunun** (işçi sınırı LIMITS.workers) bedelidir; kalabalık oyunda işçi sınırıyla
+   * birlikte düşer (bkz. heroConvertCost): kasan küçüldüğü kadar hedef de yaklaşır.
    */
   convertCost: {
-    sword: 2500, spear: 5000, bow: 10000, swordshield: 10000, spearshield: 20000,
-    horsesword: 100000, horsespear: 100000, horsebow: 100000,
-    horseswordshield: 150000, horsespearshield: 150000,
+    sword: 750, spear: 1500, bow: 3000, swordshield: 3000, spearshield: 6000,
+    horsesword: 30000, horsespear: 30000, horsebow: 30000,
+    horseswordshield: 45000, horsespearshield: 45000,
   },
 };
-/** Kahramanın o türe dönüşme bedeli (altın); tabloda olmayan tür (mancınık / işçi) menüde çıkmaz. */
-export const heroConvertCost = t => HERO_UPGRADE.convertCost[t.key] ?? HERO_UPGRADE.convertCost.sword;
+/**
+ * Kahramanın o türe dönüşme bedeli (altın); tabloda olmayan tür (mancınık / işçi) menüde çıkmaz.
+ * Bedel **işçi sınırıyla oranlanır** (limits.workers / LIMITS.workers): oyuncu sayısı arttıkça herkesin işçi sınırı
+ * düşer, kazanç da düşer; bedel aynı oranda ucuzlar ki atlı olmak her kadroda aynı uzaklıkta kalsın.
+ * 1v1'de tam bedel, 5v5'te işçi sınırı 100 yerine 30 olduğu için bedelin %30'u (atlı 30.000 → 9.000).
+ */
+export const heroConvertCost = (t, limits = null) => {
+  const base = HERO_UPGRADE.convertCost[t.key] ?? HERO_UPGRADE.convertCost.sword;
+  const scale = limits && limits.workers ? limits.workers / LIMITS.workers : 1;
+  return Math.round((base * scale) / 50) * 50;
+};
 
 export const ENEMY = {
   aggro: 16,

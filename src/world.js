@@ -271,7 +271,7 @@ export function convertError(world, player, key) {
   if (!b || !b.alive) return 'Sancak yıkık';
   if (Math.hypot(p.pos.x - b.pos.x, p.pos.z - b.pos.z) > HERO_UPGRADE.range) return 'Kahraman sancağa yaklaşmalı';
   if (p.loadout.weapon === t.weapon && p.loadout.shield === t.shield && p.loadout.horse === t.horse) return `Zaten ${t.label}sın`;
-  if (player.eco.gold < heroConvertCost(t)) return `Yetersiz altın: ${t.label} ${heroConvertCost(t)} altın`;
+  if (player.eco.gold < heroConvertCost(t, world.limits)) return `Yetersiz altın: ${t.label} ${heroConvertCost(t, world.limits).toLocaleString('tr-TR')} altın`;
   return null;
 }
 /** Sancakta altınla başka bir asker türüne dönüşme: donanım ve görünüm değişir, seviye korunur. */
@@ -279,7 +279,7 @@ export function cmdConvert(world, player, key) {
   const err = convertError(world, player, key);
   if (err) return err;
   const p = player.hero, t = SOLDIER_TYPES.find(x => x.key === key);
-  const cost = heroConvertCost(t);
+  const cost = heroConvertCost(t, world.limits);
   player.eco.gold -= cost; if (player.st) player.st.spent += cost; world.fx.flash(player, 'gold');
   const ratio = p.hp / p.stats.maxHp;
   p.loadout = { weapon: t.weapon, shield: t.shield, horse: t.horse };

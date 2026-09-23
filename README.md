@@ -99,9 +99,21 @@ sancağı seç, **Geliştir** düğmesiyle menüyü aç (kahraman sancağa 12 bi
   durdukça saniyede **9 can** kazanır ve tepesinden **yeşil can baloncukları** çıkıp yükselerek söner; alandan çıkınca durur. **Başka hiçbir yol canı doldurmaz**: yiyecek
   yalnızca envantere girer, seviye atlamak azami canı artırır ama mevcut canı doldurmaz. Yeniden doğan kahraman dolu başlar.
   Aynı kural rakip kahraman için kendi sancağında geçerlidir.
-- **Türe dönüş**: 10 asker türünden birine dönüş, bedeli **tür tür sabittir** (`config.js` → `HERO_UPGRADE.convertCost`):
-  kılıçlı **2.500**, mızraklı **5.000**, okçu ve kılıç kalkan **10.000**, mızrak kalkan **20.000**, atlı kılıç / mızrak / okçu
-  **100.000**, kalkanlı atlılar **150.000** altın. Atlı olmak oyunun geç aşamasıdır: uzun süre işçi, maden ve ganimet biriktirmeyi gerektirir.
+- **Türe dönüş**: 10 asker türünden birine dönüş, bedeli tür tür sabittir (`config.js` → `HERO_UPGRADE.convertCost`) ama
+  **kadroya göre oranlanır**: bedel **işçi sınırıyla** birlikte iner (`limits.workers / 100`), çünkü kalabalık oyunda herkesin
+  işçi sınırı ve kazancı düşer. Tek başına oyunda tam bedel, 5v5'te işçi sınırı 30 olduğu için bedelin **%30'u** geçerlidir.
+  Alt banttaki düğme o oyundaki gerçek bedeli yazar.
+
+  | Tür | 1v1 | 2v2 | 3v3 | 4v4 | 5v5 |
+  | --- | --- | --- | --- | --- | --- |
+  | Kılıçlı | 750 | 550 | 400 | 300 | 250 |
+  | Mızraklı | 1.500 | 1.150 | 750 | 550 | 450 |
+  | Okçu, Kılıç Kalkan | 3.000 | 2.250 | 1.500 | 1.150 | 900 |
+  | Mızrak Kalkan | 6.000 | 4.500 | 3.000 | 2.300 | 1.800 |
+  | Atlı kılıç / mızrak / okçu | 30.000 | 22.500 | 15.000 | 11.400 | 9.000 |
+  | Kalkanlı atlılar | 45.000 | 33.750 | 22.500 | 17.100 | 13.500 |
+
+  Atlı olmak yine oyunun geç aşamasıdır: uzun süre işçi, maden ve ganimet biriktirmeyi gerektirir.
   **Seviyen ve exp'in korunur**
   (yeni türün taban canına seviyelerinin can artışı eklenir). Donanım (silah, kalkan, at) ve
   görünüm değişir, **seviye 1'e döner**. Yetenek seti silah x at ile değişir (bkz. Kahraman yetenek setleri); kalkan can (+30), üstünlük
@@ -286,7 +298,9 @@ Aynı sınırlar rakip için de geçerlidir (rakip sınır dolunca yeni işçi b
 
 Yapılar yalnızca odun ister: Kışla 60, Okçuluk 80, Ahır 100, Kuşatma 150, Kule **1000** (**2000 can**; askerlerin kuleye hasarı 0.4x, kahraman yapılara vuramaz).
 Kule oku **hedefi takip eder ve mutlaka vurur** (kaçış, zıplama, vurulmazlık savuşturamaz); **askeri, işçiyi ve kahramanı tek atışta
-öldürür**. Menzilde asker varsa **önce askere**, kahramana en son atar. Kuleleri mancınık, ordu (0.4x) ya da kahraman yıkar; kahraman kule menziline (**27**) girmemeli. Başlangıçta her oyuncuda
+öldürür**. Menzilde asker varsa **önce askere**, kahramana en son atar.
+**Ok menzil çemberini aşmaz**: yerde çizili çember kulenin gerçek erişimidir; hedef çemberden çıkarsa takipli ok sınırda yere
+düşer. Çemberin dışında kalan hiçbir şey kuleden zarar görmez, yani menzili gözle ölçebilirsin. Kuleleri mancınık, ordu (0.4x) ya da kahraman yıkar; kahraman kule menziline (**27**) girmemeli. Başlangıçta her oyuncuda
 sancak, kışla ve sancağın 14 birim önünde **tek kule** vardır (çemberin içinde, merkeze giden yolun üstünde); diğerleri sancak menüsünden seçilip yeşil / kırmızı hayaletle kahramanın 14 birim çevresine dikilir.
 
 **Menzil tavanı**: mancınık dışında hiçbir birim **kule menzilinin üçte birinden** (27 / 3 = **9**) uzağa vuramaz —

@@ -315,6 +315,11 @@ export function fireArrow(world, e, dir, target = null, dmgMult = 1, side = 0, o
     id: world.ids.arrow++, pos, yaw: Math.atan2(dir.x, dir.z), vel: dir.clone().multiplyScalar(speed), speed, target, faction: e.faction, sure, siege: Boolean(w.siege), homing: Boolean(target), scale: opts.scale || 1,
     damage: w.damage * damageMult(e) * dmgMult, knock: w.knockback, life: (heroReach(e).range || 14) * (opts.rangeMult || 1) / speed + (target ? 1.2 : 0.2), source: e,
     pierce: Boolean(opts.pierce), pierced: opts.pierce ? new Set() : null, view: null,
+    /**
+     * Kule oku **çemberin dışına çıkamaz**: ok kuleden bu uzaklığı aşınca yere düşer. Böylece ekranda görünen menzil
+     * çemberi kulenin gerçek erişimidir — menzilden kaçan birimi takipli ok artık haritanın öbür ucuna kadar kovalamaz.
+     */
+    origin: sure ? { x: e.pos.x, z: e.pos.z } : null, maxRange: sure ? w.range : 0,
   };
   world.arrows.push(a);
   world.fx.addArrow(a);
@@ -348,7 +353,9 @@ export function updateArrows(world, dt) {
     }
     a.pos.addScaledVector(a.vel, dt);
     a.life -= dt;
-    let hit = a.life <= 0;
+    // Menzil çemberini aşan kule oku düşer (hedefin gövdesi çembere değiyorsa vuruşa izin verilir: towerTarget da öyle seçer).
+    const out = a.maxRange > 0 && Math.hypot(a.pos.x - a.origin.x, a.pos.z - a.origin.z) > a.maxRange + (a.target ? a.target.radius : 0);
+    let hit = out || a.life <= 0;
     if (!hit && a.sure) {
       const t = a.target, p = a.pos;
       if (Math.hypot(p.x - t.pos.x, p.z - t.pos.z) <= t.radius + 0.3 + a.speed * dt * 0.5) {

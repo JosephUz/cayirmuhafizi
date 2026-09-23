@@ -97,7 +97,7 @@ export function createUI(root, world, actions) {
       const p = world.player;
       for (const t of SOLDIER_TYPES.filter(x => !x.worker && !x.siege)) {
         const same = p.loadout.weapon === t.weapon && p.loadout.shield === t.shield && p.loadout.horse === t.horse;
-        const cc = heroConvertCost(t);
+        const cc = heroConvertCost(t, world.limits);
         out.push({ icon: t.icon, label: t.label, cost: cc, data: { herotype: t.key }, active: same, title: same ? `Şu anki türün: ${t.label}` : `${t.label} ol (${cc.toLocaleString('tr-TR')} altın). Seviyen ve exp'in korunur.` });
       }
       out.push({ icon: '↩', label: 'Geri', data: { heromenu: 1 }, title: 'Sancak menüsüne dön' });
@@ -139,7 +139,7 @@ export function createUI(root, world, actions) {
       el.disabled = b || capped || eco.gold < spec.cost || eco.wood < spec.wood;
     }
     const hn = heroNearBanner();
-    for (const el of els.cmd.querySelectorAll('button[data-herotype]')) { const t = typeOf(el.dataset.herotype); el.disabled = b || !hn || eco.gold < heroConvertCost(t); }
+    for (const el of els.cmd.querySelectorAll('button[data-herotype]')) { const t = typeOf(el.dataset.herotype); el.disabled = b || !hn || eco.gold < heroConvertCost(t, world.limits); }
   }
 
   // ---- Bilgi kartı (yalnızca sayılar; tuş anlatımı kısayol penceresinde)
