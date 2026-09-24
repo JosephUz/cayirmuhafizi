@@ -43,7 +43,7 @@ Kök alan adı kullanılacaksa Cloudflare DNS sayfasındaki eski A / CNAME kayd�
 ## Ekranlar
 
 Hesap yok. **Giriş**: ad (tarayıcıda hatırlanır) ve üç düğme: **Tek başına** (kurulum ekranı, sonra oyun), **Oda kur**
-(kurulum ekranı, sonra lobi ve oda kodu) ve **Koda katıl**. `?oda=KOD` linkiyle gelen ad ekranından lobiye düşer.
+(kurulum ekranı, sonra lobi ve oda kodu) ve **Odaya katıl** (tıklayınca oda kodu satırı açılır). `?oda=KOD` linkiyle gelen ad ekranından lobiye düşer.
 **Kurulum**: kaça kaç (1v1 … 5v5) ve zorluk. **Lobi**: oda kodu, "Linki kopyala", iki takımın koltukları (boş koltuklara
 bot oturur). Gelen oyuncu önce seçili büyüklükteki **boş koltuğa** oturur (önce mavi, sonra kırmızı; 1v1 odaya gelen
 kırmızıya geçer, oda 1v1 kalır); iki takım da doluysa oda bir büyür. **Karşı takımdaki bir bot koltuğuna tıklayan oraya

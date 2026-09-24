@@ -141,8 +141,9 @@ html,body{margin:0;height:100%;background:#19231d;overflow:hidden}
 #meadow-game input[type=text]:focus{outline:2px solid #ffdf86;outline-offset:1px}
 #meadow-game .menu{display:flex;flex-direction:column;gap:8px}
 #meadow-game .menu button{padding:12px 16px;font-size:16px}
-#meadow-game .joinrow{margin-top:10px}
-#meadow-game .joinrow input{flex:1;text-transform:uppercase;letter-spacing:.2em;text-align:center}
+#meadow-game .joinrow{margin-top:10px;align-items:stretch}
+#meadow-game .joinrow input{flex:1;min-width:0;padding:12px 14px;border-radius:8px;text-transform:uppercase;letter-spacing:.15em;text-align:left}
+#meadow-game .joinrow button{padding:0 18px;border-radius:8px}
 #meadow-game .foot{margin-top:14px;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#b8c5aa}
 #meadow-game button.link{background:none;border:none;color:#b8c5aa;text-decoration:underline;padding:0;font-size:12px}
 #meadow-game .status{font-size:12px;color:#ffd97a;min-height:1em}
