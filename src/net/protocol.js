@@ -8,6 +8,7 @@ export const C2S = {
   JOIN: 'join',        // { code }
   SETTINGS: 'settings',// { teamSize, difficulty } — yalnızca kuran
   TEAM: 'team',        // { team: 'blue'|'red' } — lobide takım değiştir (iki takımda insan varsa PvP)
+  MOVE: 'move',        // { id, team } ya da { id, with } — yalnızca kuran: oyuncuyu boş koltuğa taşı ya da iki oyuncuyu değiştir
   START: 'start',      // yalnızca kuran
   LEAVE: 'leave',
   INPUT: 'in',         // çözülmüş kahraman girdisi (bkz. input.js resolveHeroInput)

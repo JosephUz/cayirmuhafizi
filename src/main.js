@@ -176,6 +176,7 @@ export async function start(root) {
     joinRoom(nick, code) { world.net = net; pendingRoom = { create: false, code }; if (net.connected) { pendingRoom = null; net.join(code); } else net.connect(nick); },
     lobbySettings(s) { net.settings(s); },
     lobbyTeam(team) { net.team(team); },
+    lobbyMove(m) { net.move(m); },
     startRoom() { net.start(); },
     leaveRoom() { net.leave(); },
     leaveGame() { leaveGame(); },

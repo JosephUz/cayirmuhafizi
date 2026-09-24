@@ -59,7 +59,8 @@ export function createScreens(root, world, app) {
 
   /**
    * Lobi: iki takımın koltukları. Oyuncular seçtikleri takımın ilk koltuklarına oturur, kalanı bot doldurur. Öbür
-   * takımdaki bir bot koltuğuna tıklayan oraya geçer: iki takımda da insan varsa oyun PvP olur.
+   * takımdaki bir bot koltuğuna tıklayan oraya geçer: iki takımda da insan varsa oyun PvP olur. Kuran oyuncuları
+   * sürükleyip bırakır: öbür takımdaki bir oyuncunun üstüne bırakırsa yer değiştirirler, boş koltuğa bırakırsa geçer.
    */
   function renderLobby(lobby) {
     const isHost = lobby.hostId === app.netId();
@@ -68,27 +69,49 @@ export function createScreens(root, world, app) {
     const me = lobby.seats.find(s => s.id === app.netId());
     // Renk sırası oyunla aynı: insanlar lobi sırasıyla TEAMS.humanColors'tan alır (bkz. players.js createPlayers).
     const colorOf = s => TEAMS.humanColors[lobby.seats.indexOf(s) % TEAMS.humanColors.length];
-    const human = s => `<li class="${s.online ? '' : 'off'}${s.id === app.netId() ? ' me' : ''}"><i class="dot" style="background:${colorOf(s)}"></i>${escapeHtml(s.nick)}${s.id === lobby.hostId ? ' <small>kuran</small>' : ''}${s.online ? '' : ' <small>koptu</small>'}</li>`;
+    const human = s => `<li class="${s.online ? '' : 'off'}${s.id === app.netId() ? ' me' : ''}" data-id="${s.id}"${isHost ? ' draggable="true"' : ''}><i class="dot" style="background:${colorOf(s)}"></i>${escapeHtml(s.nick)}${s.id === lobby.hostId ? ' <small>kuran</small>' : ''}${s.online ? '' : ' <small>koptu</small>'}</li>`;
     const list = team => {
       const people = lobby.seats.filter(s => (s.team || 'blue') === team);
       const canJoin = me && (me.team || 'blue') !== team;
       const bot = () => canJoin
-        ? `<li class="bot join" data-team="${team}" title="Bu takıma geç"><i class="dot ${team === 'red' ? 'red' : 'bot'}"></i>Bot <small>buraya geç</small></li>`
-        : `<li class="bot"><i class="dot ${team === 'red' ? 'red' : 'bot'}"></i>Bot</li>`;
+        ? `<li class="bot join" data-team="${team}" data-slot="bot" title="Bu takıma geç"><i class="dot ${team === 'red' ? 'red' : 'bot'}"></i>Bot <small>buraya geç</small></li>`
+        : `<li class="bot" data-team="${team}" data-slot="bot"><i class="dot ${team === 'red' ? 'red' : 'bot'}"></i>Bot</li>`;
       return Array.from({ length: n }, (_, i) => (people[i] ? human(people[i]) : bot())).join('');
     };
     els.blue.innerHTML = list('blue');
     els.red.innerHTML = list('red');
     for (const li of els.lobby.querySelectorAll('li.join')) li.onclick = () => app.lobbyTeam(li.dataset.team);
+    if (isHost) wireDrag(lobby);
     const blues = lobby.seats.filter(s => (s.team || 'blue') === 'blue').length, reds = lobby.seats.length - blues;
     const pvp = blues > 0 && reds > 0;
-    els.lobbyMode.textContent = pvp ? 'PvP: iki takımda da oyuncu var, zorluk yalnızca insansız takımı etkiler (burada yok).' : 'Co-op: bütün oyuncular aynı takımda. Karşı takıma geçmek için oradaki bir bot koltuğuna tıkla.';
+    els.lobbyMode.textContent = (pvp ? 'PvP: iki takımda da oyuncu var, zorluk yalnızca insansız takımı etkiler (burada yok).' : 'Co-op: bütün oyuncular aynı takımda. Karşı takıma geçmek için oradaki bir bot koltuğuna tıkla.')
+      + (isHost ? ' Kuran olarak oyuncuları sürükleyip bırakabilirsin (oyuncunun üstüne bırakırsan yer değiştirirler).' : '');
     els.lobbyTeams.value = String(n); els.lobbyDiff.value = lobby.settings.difficulty;
     els.lobbyTeams.disabled = !isHost; els.lobbyDiff.disabled = !isHost || pvp;
     for (const o of els.lobbyTeams.options) o.disabled = Number(o.value) < Math.max(blues, reds);
     els.lobbyStart.hidden = !isHost;
     els.lobbyStatus.textContent = isHost ? '' : 'Kuranın başlatması bekleniyor';
     show(els.lobby);
+  }
+
+  /** Kuranın sürükle-bırakı: oyuncu satırı -> öbür takımdaki oyuncu (değiş) ya da bot koltuğu (geç). */
+  function wireDrag(lobby) {
+    const teamOf = id => (lobby.seats.find(s => s.id === id) || {}).team || 'blue';
+    let dragId = null;
+    for (const li of els.lobby.querySelectorAll('.seats li')) {
+      if (li.dataset.id) {
+        li.ondragstart = e => { dragId = Number(li.dataset.id); li.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', li.dataset.id); };
+        li.ondragend = () => { dragId = null; li.classList.remove('dragging'); for (const x of els.lobby.querySelectorAll('.drop')) x.classList.remove('drop'); };
+      }
+      const target = () => {
+        if (dragId == null) return null;
+        if (li.dataset.id) { const id = Number(li.dataset.id); return id !== dragId && teamOf(id) !== teamOf(dragId) ? { id: dragId, with: id } : null; }
+        return li.dataset.team && li.dataset.team !== teamOf(dragId) ? { id: dragId, team: li.dataset.team } : null;
+      };
+      li.ondragover = e => { if (target()) { e.preventDefault(); li.classList.add('drop'); } };
+      li.ondragleave = () => li.classList.remove('drop');
+      li.ondrop = e => { e.preventDefault(); li.classList.remove('drop'); const t = target(); if (t) app.lobbyMove(t); };
+    }
   }
 
   // ---- Kısayollar

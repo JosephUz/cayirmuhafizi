@@ -32,8 +32,16 @@ export function createRooms({ log = console.log } = {}) {
   const teamCount = (room, team) => room.seats.filter(c => c.team === team).length;
   /** Takım büyüklüğü en kalabalık takımın insan sayısından küçük olamaz. */
   const minTeamSize = room => Math.max(1, teamCount(room, 'blue'), teamCount(room, 'red'));
-  /** Yeni gelen: mavide yer varsa maviye (co-op varsayılan), yoksa kırmızıya. */
-  const pickTeam = room => (teamCount(room, 'blue') < MAX_TEAM ? 'blue' : 'red');
+  /**
+   * Yeni gelen: önce seçili büyüklükteki **boş koltuk** dolar (önce mavi, sonra kırmızı: 1v1 odaya gelen kırmızıya
+   * oturur, oda 1v1 kalır). İki takım da doluysa az kalabalık olana oturur ve takım büyüklüğü bir artar.
+   */
+  function pickTeam(room) {
+    const n = room.settings.teamSize, b = teamCount(room, 'blue'), r = teamCount(room, 'red');
+    if (b < n) return 'blue';
+    if (r < n) return 'red';
+    return b <= r ? 'blue' : 'red';
+  }
   const broadcastLobby = room => { for (const c of room.seats) send(c, lobbyMsg(room)); };
 
   function leaveRoom(conn, { keepSeat = false, hard = false } = {}) {
@@ -238,13 +246,27 @@ export function createRooms({ log = console.log } = {}) {
         room.settings = s; broadcastLobby(room); return;
       }
       case C2S.TEAM: {
-        // Lobide takım değiştir: hedef takım dolu değilse (MAX_TEAM). Takım büyüklüğü gerekirse büyür.
+        // Lobide kendi takımını değiştir: hedef takımda boş (bot) koltuk olmalı. Dolu takıma kuran yer değiştirerek geçirir.
         if (!room || room.state !== 'lobby') return;
         const team = msg.team === 'red' ? 'red' : 'blue';
         if (conn.team === team) return;
-        if (teamCount(room, team) >= MAX_TEAM) return error(conn, 'Takım dolu');
+        if (teamCount(room, team) >= room.settings.teamSize) return error(conn, 'Takım dolu: kuran seni biriyle yer değiştirebilir');
         conn.team = team;
-        room.settings.teamSize = Math.max(room.settings.teamSize, minTeamSize(room));
+        broadcastLobby(room); return;
+      }
+      case C2S.MOVE: {
+        // Kuran oyuncuları sürükleyip bırakır: başka takımdaki oyuncunun üstüne bırakırsa ikisi yer değiştirir
+        // (takımlar doluyken, örneğin 5v5'te, tek geçiş yolu budur), boş (bot) koltuğa bırakırsa oraya geçer.
+        if (!room || room.hostId !== conn.id || room.state !== 'lobby') return;
+        const who = room.seats.find(c => c.id === msg.id); if (!who) return;
+        const other = msg.with != null ? room.seats.find(c => c.id === msg.with) : null;
+        if (other) { if (other.team === who.team) return; [who.team, other.team] = [other.team, who.team]; }
+        else {
+          const team = msg.team === 'red' ? 'red' : 'blue';
+          if (who.team === team) return;
+          if (teamCount(room, team) >= room.settings.teamSize) return error(conn, 'Takım dolu: bir oyuncunun üstüne bırakıp yer değiştir');
+          who.team = team;
+        }
         broadcastLobby(room); return;
       }
       case C2S.START: {

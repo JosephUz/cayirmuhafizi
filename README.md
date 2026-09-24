@@ -39,7 +39,9 @@ Kök alan adı kullanılacaksa Cloudflare DNS sayfasındaki eski A / CNAME kayd�
 Hesap yok. **Giriş**: ad (tarayıcıda hatırlanır) ve üç düğme: **Tek başına** (kurulum ekranı, sonra oyun), **Oda kur**
 (kurulum ekranı, sonra lobi ve oda kodu) ve **Koda katıl**. `?oda=KOD` linkiyle gelen ad ekranından lobiye düşer.
 **Kurulum**: kaça kaç (1v1 … 5v5) ve zorluk. **Lobi**: oda kodu, "Linki kopyala", iki takımın koltukları (boş koltuklara
-bot oturur). Gelen oyuncu maviye oturur; **karşı takımdaki bir bot koltuğuna tıklayan oraya geçer** (bkz. PvP). Kaça kaç ve zorluğu **yalnızca kuran** değiştirir ve **Başlat**'a basar, kimse
+bot oturur). Gelen oyuncu önce seçili büyüklükteki **boş koltuğa** oturur (önce mavi, sonra kırmızı; 1v1 odaya gelen
+kırmızıya geçer, oda 1v1 kalır); iki takım da doluysa oda bir büyür. **Karşı takımdaki bir bot koltuğuna tıklayan oraya
+geçer**; kuran oyuncuları **sürükleyip bırakır** (bkz. PvP). Kaça kaç ve zorluğu **yalnızca kuran** değiştirir ve **Başlat**'a basar, kimse
 "hazır" basmaz; 1v1 seçilirse kuran tek başına botlarla oynar. **Bitiş**: karne (bkz. Karne ve skor). **Kısayollar**
 penceresi (F1, sağ alttaki ? ve giriş ekranındaki bağlantı) bütün tuşları ve kahramanın o anki yetenek setini yazar.
 **Esc** oyun içinde menüyü açar (Devam, Kısayollar, Ses, Oyundan çık); tek başına oyunda menü oyunu durdurur, co-op'ta
@@ -86,7 +88,9 @@ görseller `world.fx` kancalarından geçer (tarayıcıda mesh, sunucuda olay).
 ## PvP (insanlar iki takımda)
 
 Co-op ile aynı oda ve aynı sunucu; tek fark insanların **iki takıma** dağılması. Lobide karşı takımdaki bir bot koltuğuna
-tıklayan o takıma geçer (`C2S.TEAM`), takım başı en çok 5 insan; kalan koltukları iki tarafta da botlar doldurur
+tıklayan o takıma geçer (`C2S.TEAM`, yalnızca boş koltuk varsa). **Kuran sürükle-bırakla** düzenler (`C2S.MOVE`):
+öbür takımdaki bir oyuncunun üstüne bırakırsa ikisi yer değiştirir (takımlar doluyken, örneğin 5v5'te, tek yol budur),
+bot koltuğuna bırakırsa oyuncu oraya geçer. Takım başı en çok 5 insan; kalan koltukları iki tarafta da botlar doldurur
 (1v1 saf PvP, 2v2'de insan + bot karşısında insan + bot gibi karışık maçlar olur). Kaça kaç en kalabalık takımın insan
 sayısından küçük seçilemez.
 

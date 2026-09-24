@@ -315,6 +315,7 @@ export function createNetClient(world, hooks) {
     join(code) { send({ t: C2S.JOIN, code }); },
     settings(s) { send({ t: C2S.SETTINGS, ...s }); },
     team(team) { send({ t: C2S.TEAM, team }); },
+    move(m) { send({ t: C2S.MOVE, ...m }); },
     start() { send({ t: C2S.START }); },
     leave() { send({ t: C2S.LEAVE }); client.lobby = null; world.replicated = false; remember(null); },
     /** Sayfa yenilendiyse ya da yeniden açıldıysa: son odanın kodu (geri bağlanma için). */
