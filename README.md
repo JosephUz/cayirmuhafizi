@@ -574,8 +574,11 @@ Büyük takım oyunlarında yüzlerce birim aynı anda sahadadır; oyun şu yoll
 - **Simülasyon**: birim çarpışmaları uzaysal ızgarayla (4 birimlik hücre) çözülür; engel ızgarası yalnızca yapı kurulup yıkılınca
   yeniden kurulur; askerin hedef araması önce uzaklık süzgecinden geçer, rakip kule menzili denetimi yalnızca en yakın adaylar
   için yapılır; bot askerinin boşta planı (mancınığa eşlik, yapı, keşif) 0.3 sn'de bir, toplayıcıların düşman taraması 0.1 sn'de bir yenilenir.
-- **Dekor**: yol parçaları, tarla sapları, ağaçlar ve çalılar InstancedMesh; serbest ağaç sayısı azaltıldı (1v1 arenasında ~500),
-  dekor evler ve koyunlar kaldırıldı; dekor matrisleri bir kez hesaplanır.
+- **Dekor**: yol parçaları, tarla sapları, ağaçlar, çalılar ve çim yamaları InstancedMesh; serbest ağaç sayısı azaltıldı (1v1 arenasında ~500),
+  dekor evler ve koyunlar kaldırıldı; dekor matrisleri bir kez hesaplanır (5v5'te bütün süslerin konum verisi ~370 KB, oyun boyunca büyümez).
+  Süsler **48x48 birimlik karelere** bölünür (`environment.js chunked`): tek parça olsaydı sınır küresi bütün haritayı
+  kaplar, ekran ve gölge kamerası dışındaki süsler de her karede çizilirdi. Ölçüm (5v5, izometrik, Yüksek kalite, gölge dahil):
+  üçgen **~230 binden ~30 bine**, çizim çağrısı 109 → 173.
 - **HUD** 0.12 sn'de bir yenilenir; minimap sis katmanı yalnızca sis yeniden hesaplanınca çizilir; ganimet 5 sn'de kaybolur.
 
 ## Dosyalar

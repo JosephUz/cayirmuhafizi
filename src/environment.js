@@ -155,18 +155,20 @@ export function computeEnvironment(layout, seed = 814) {
   };
 }
 
-/** Arena görünümü: computeEnvironment verisinden sahne mesh'leri. Dekor sabittir; matrisler bir kez hesaplanır (kamp ateşi hariç). */
+/**
+ * Arena görünümü: computeEnvironment verisinden sahne mesh'leri. Dekor sabittir; matrisler bir kez hesaplanır (kamp ateşi hariç).
+ * Tekrarlanan süsler (yama, yol taşı, ağaç, çalı, başak) **kare kare** InstancedMesh'e bölünür (bkz. chunked): tek parça
+ * olsaydı sınır küresi bütün haritayı kaplar, ekran dışı eleme hiç işlemez ve her karede bütün harita çizilirdi.
+ */
 export function buildEnvironmentView(scene, env) {
   const root = new T.Group(); scene.add(root);
   const { half, decor: D } = env;
   const G = half * 2 + 10;
   box(root, '#a1ae62', 0, -0.22, 0, G, 0.4, G);
+  const flat = new T.Quaternion().setFromEuler(new T.Euler(-Math.PI / 2, 0, 0)), v = new T.Vector3(), s = new T.Vector3();
+  const patchGeo = new T.CircleGeometry(1, 7);
   D.patches.forEach((list, i) => {
-    const im = new T.InstancedMesh(new T.CircleGeometry(1, 7), mat(i ? '#a7b369' : '#9dab60'), list.length);
-    im.receiveShadow = true;
-    const m = new T.Matrix4(), q = new T.Quaternion().setFromEuler(new T.Euler(-Math.PI / 2, 0, 0));
-    list.forEach((p, k) => im.setMatrixAt(k, m.compose(new T.Vector3(p.x, -0.012, p.z), q, new T.Vector3(p.s, p.s, 1))));
-    root.add(im);
+    chunked(root, patchGeo, mat(i ? '#a7b369' : '#9dab60'), list, (p, m) => m.compose(v.set(p.x, -0.012, p.z), flat, s.set(p.s, p.s, 1)), false);
   });
   instanced(root, boxGeo, '#c5b07a', D.laneSegs, false);
   for (const f of D.farms) box(root, '#806747', f.x, 0.01, f.z, 7.5, 0.07, 6.5);
@@ -197,12 +199,9 @@ export function buildEnvironmentView(scene, env) {
   buildTrees(root, D.trees);
   instanced(root, boxGeo, '#b9a65b', D.stalks, true);
   instanced(root, ballGeo, '#ddc779', D.heads, true);
+  const bushGeo = new T.IcosahedronGeometry(1, 0), q = new T.Quaternion(), e = new T.Euler();
   D.bushes.forEach((list, i) => {
-    const im = new T.InstancedMesh(new T.IcosahedronGeometry(1, 0), mat(i ? '#84916a' : '#78825e'), list.length);
-    im.castShadow = true; im.receiveShadow = true;
-    const m = new T.Matrix4(), q = new T.Quaternion();
-    list.forEach((p, k) => im.setMatrixAt(k, m.compose(new T.Vector3(p.x, 0.15, p.z), q.setFromEuler(new T.Euler(0, p.rot, 0)), new T.Vector3(0.24, 0.18, 0.3))));
-    root.add(im);
+    chunked(root, bushGeo, mat(i ? '#84916a' : '#78825e'), list, (p, m) => m.compose(v.set(p.x, 0.15, p.z), q.setFromEuler(e.set(0, p.rot, 0)), s.set(0.24, 0.18, 0.3)), true);
   });
   root.updateMatrixWorld(true);
   root.traverse(o => { if (o !== root && !o.userData.dynamic) o.matrixAutoUpdate = false; });
@@ -216,7 +215,7 @@ export function buildEnvironmentView(scene, env) {
   return { root, fires, dispose };
 }
 
-/** Tüm ağaçlar dört InstancedMesh: gövde + üç yaprak kümesi. */
+/** Ağaçlar: gövde + üç yaprak kümesi, her parça kare kare InstancedMesh (kare başına 4 çizim). */
 function buildTrees(parent, trees) {
   const parts = [
     [new T.BoxGeometry(1, 1, 1), '#705238', [0, 1, 0], [0.35, 2, 0.35]],
@@ -224,27 +223,41 @@ function buildTrees(parent, trees) {
     [new T.IcosahedronGeometry(1, 0), '#547d4e', [-0.48, 2.35, 0.35], [0.86, 1, 0.9]],
     [new T.IcosahedronGeometry(1, 0), '#69874f', [0.35, 3.1, 0.1], [0.75, 0.9, 0.75]],
   ];
-  const m = new T.Matrix4(), q = new T.Quaternion(), pos = new T.Vector3(), scl = new T.Vector3();
+  const q = new T.Quaternion(), pos = new T.Vector3(), scl = new T.Vector3();
   for (const [geo, color, p, s] of parts) {
-    const im = new T.InstancedMesh(geo, mat(color), trees.length);
-    im.castShadow = true; im.receiveShadow = true;
-    trees.forEach((t, k) => {
-      pos.set(t.x + p[0] * t.s, p[1] * t.s, t.z + p[2] * t.s); scl.set(s[0] * t.s, s[1] * t.s, s[2] * t.s);
-      im.setMatrixAt(k, m.compose(pos, q, scl));
-    });
-    parent.add(im);
+    chunked(parent, geo, mat(color), trees, (t, m) => m.compose(pos.set(t.x + p[0] * t.s, p[1] * t.s, t.z + p[2] * t.s), q, scl.set(s[0] * t.s, s[1] * t.s, s[2] * t.s)), true);
   }
+}
+
+/**
+ * Süs listesini ENV_CHUNK x ENV_CHUNK karelere bölüp her kareye ayrı InstancedMesh kurar (aynı geometri ve malzeme).
+ * Her parçanın sınır küresi yalnızca kendi karesini sarar: ekran (ve gölge kamerası) dışındaki kareler çizilmez.
+ * place(p, m) örneğin matrisini m'ye yazar ve döndürür.
+ */
+const ENV_CHUNK = 48;
+function chunked(parent, geo, material, list, place, castShadow) {
+  const cells = new Map();
+  for (const p of list) {
+    const k = Math.floor(p.x / ENV_CHUNK) * 1000 + Math.floor(p.z / ENV_CHUNK);
+    let c = cells.get(k); if (!c) cells.set(k, (c = []));
+    c.push(p);
+  }
+  const m = new T.Matrix4(), out = [];
+  for (const items of cells.values()) {
+    const im = new T.InstancedMesh(geo, material, items.length);
+    im.castShadow = castShadow; im.receiveShadow = true;
+    items.forEach((p, k) => im.setMatrixAt(k, place(p, m)));
+    im.computeBoundingSphere();
+    parent.add(im); out.push(im);
+  }
+  return out;
 }
 
 /** Aynı geometri ve renkteki sabit parçaları tek InstancedMesh'e toplar: {x, y, z, rot, sx, sy, sz}. */
 function instanced(parent, geo, color, list, castShadow) {
   if (!list.length) return null;
-  const im = new T.InstancedMesh(geo, mat(color), list.length);
-  im.castShadow = castShadow; im.receiveShadow = true;
-  const m = new T.Matrix4(), q = new T.Quaternion(), e = new T.Euler(), pos = new T.Vector3(), scl = new T.Vector3();
-  list.forEach((p, k) => im.setMatrixAt(k, m.compose(pos.set(p.x, p.y, p.z), q.setFromEuler(e.set(0, p.rot, 0)), scl.set(p.sx, p.sy, p.sz))));
-  parent.add(im);
-  return im;
+  const q = new T.Quaternion(), e = new T.Euler(), pos = new T.Vector3(), scl = new T.Vector3();
+  return chunked(parent, geo, mat(color), list, (p, m) => m.compose(pos.set(p.x, p.y, p.z), q.setFromEuler(e.set(0, p.rot, 0)), scl.set(p.sx, p.sy, p.sz)), castShadow);
 }
 
 function fence(parent, x, z, length, axis) {
