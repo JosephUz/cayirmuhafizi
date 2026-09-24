@@ -109,13 +109,16 @@ export function nearestEnemyTower(world, e, range) {
   return best;
 }
 
-/** Kule hedefi: menzildeki en yakın asker / işçi; hiç yoksa kahraman. Zıplayan hedefe kule de atış yapmaz. */
+/**
+ * Kule hedefi: menzildeki en yakın asker / işçi; hiç yoksa kahraman. Zıplayan hedefe kule de atış yapmaz.
+ * Menzil **haritadaki halkadır**: hedefin merkezi halkanın içinde olmalı (gövde payı yok), dışarıdaki birime ok atılmaz.
+ */
 export function towerTarget(world, sh, range) {
   let best = null, bd = Infinity, hero = null, hd = Infinity;
   for (const t of world.entities) {
     if (!t.alive || t.faction === sh.faction || t.jumpY > COMBAT.jumpDodgeHeight) continue;
     const d = Math.hypot(t.pos.x - sh.pos.x, t.pos.z - sh.pos.z);
-    if (d > range + t.radius) continue;
+    if (d > range) continue;
     if (t.isPlayer || t.isHero) { if (d < hd) { hd = d; hero = t; } }
     else if (d < bd) { bd = d; best = t; }
   }
@@ -357,12 +360,14 @@ export function updateArrows(world, dt) {
     }
     a.pos.addScaledVector(a.vel, dt);
     a.life -= dt;
-    // Menzil çemberini aşan kule oku düşer (hedefin gövdesi çembere değiyorsa vuruşa izin verilir: towerTarget da öyle seçer).
-    const out = a.maxRange > 0 && Math.hypot(a.pos.x - a.origin.x, a.pos.z - a.origin.z) > a.maxRange + (a.target ? a.target.radius : 0);
+    // Kule oku halkanın dışına çıkamaz: halkayı aşınca hasar vermeden kaybolur.
+    const out = a.maxRange > 0 && Math.hypot(a.pos.x - a.origin.x, a.pos.z - a.origin.z) > a.maxRange;
     let hit = out || a.life <= 0;
     if (!hit && a.sure) {
       const t = a.target, p = a.pos;
-      if (Math.hypot(p.x - t.pos.x, p.z - t.pos.z) <= t.radius + 0.3 + a.speed * dt * 0.5) {
+      // Hedef bu arada halkadan çıktıysa vuruş yok: ok halkanın kenarına kadar gidip kaybolur.
+      const inside = Math.hypot(t.pos.x - a.origin.x, t.pos.z - a.origin.z) <= a.maxRange;
+      if (inside && Math.hypot(p.x - t.pos.x, p.z - t.pos.z) <= t.radius + 0.3 + a.speed * dt * 0.5) {
         const len = Math.hypot(a.vel.x, a.vel.z) || 1;
         damageEntity(world, t, hitDamage(a.source, t, a.damage), a.vel.x / len, a.vel.z / len, a.knock, a.source);
         hit = true;
@@ -371,6 +376,8 @@ export function updateArrows(world, dt) {
       const p = a.pos;
       for (const t of world.entities) {
         if (!t.alive || t.faction === a.faction || t.dodgeTimer > 0 || t.invuln > 0) continue;
+        // Hedefini kaybetmiş kule oku da halkanın dışındaki birime değmez.
+        if (a.maxRange > 0 && Math.hypot(t.pos.x - a.origin.x, t.pos.z - a.origin.z) > a.maxRange) continue;
         const dx = p.x - t.pos.x, dz = p.z - t.pos.z, rr = t.radius + 0.25;
         if (dx * dx + dz * dz > rr * rr) continue;
         if (t.jumpY > COMBAT.jumpDodgeHeight) continue;

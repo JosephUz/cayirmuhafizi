@@ -19,7 +19,7 @@ export function itemAddEvent(it) {
   return [EV.ITEM_ADD, it.id, it.kind, it.owner ? it.owner.id : -1, r2(it.pos.x), r2(it.pos.z), f ? r2(f.fx) : r2(it.pos.x), f ? r2(f.fz) : r2(it.pos.z), f ? r2(f.tx) : r2(it.pos.x), f ? r2(f.tz) : r2(it.pos.z), f ? f.dur : 0, r2(it.ttl), r2(it.amount || 0)];
 }
 export function arrowAddEvent(a) {
-  return [EV.ARROW_ADD, a.id, r2(a.pos.x), r2(a.pos.y), r2(a.pos.z), r2(a.yaw), a.siege ? 1 : 0, a.homing ? 1 : 0, a.scale || 1];
+  return [EV.ARROW_ADD, a.id, r2(a.pos.x), r2(a.pos.y), r2(a.pos.z), r2(a.yaw), a.siege ? 1 : 0, a.homing ? 1 : 0, a.scale || 1, a.maxRange > 0 ? r2(a.origin.x) : 0, a.maxRange > 0 ? r2(a.origin.z) : 0, a.maxRange || 0];
 }
 export function zoneAddEvent(z) {
   const owner = z.owner || (z.kind === 'spin' ? z.source : null);

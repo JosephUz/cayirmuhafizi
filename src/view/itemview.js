@@ -68,6 +68,8 @@ export function detachArrowView(a) {
 export function syncArrowView(a) {
   const v = a.view; if (!v) return;
   v.g.position.copy(a.pos); v.g.rotation.y = a.yaw;
+  // Kule oku halkanın dışında hiç çizilmez (çevrim içinde paket gecikince ileri kestirim taşırsa bile).
+  if (a.maxRange > 0) v.g.visible = Math.hypot(a.pos.x - a.origin.x, a.pos.z - a.origin.z) <= a.maxRange;
 }
 
 /** Toplanma bayrağı: direk + flama + halka; rengi hedefe göre. */

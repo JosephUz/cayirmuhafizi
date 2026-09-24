@@ -114,7 +114,7 @@ export function createNetClient(world, hooks) {
         case EV.STRUCT_DEL: { const s = byS.get(ev[1]); if (!s) break; byS.delete(ev[1]); world.fx.removeStructure(s); dropObstacle(s); const i = world.structures.indexOf(s); if (i >= 0) world.structures.splice(i, 1); if (world.sel && world.sel.structure === s) world.sel.structure = null; break; }
         case EV.ITEM_ADD: addItem(ev); break;
         case EV.ITEM_DEL: { const it = byI.get(ev[1]); if (!it) break; byI.delete(ev[1]); world.fx.removeItem(it); const i = world.items.indexOf(it); if (i >= 0) world.items.splice(i, 1); break; }
-        case EV.ARROW_ADD: { const a = { id: ev[1], pos: new T.Vector3(ev[2], ev[3], ev[4]), yaw: ev[5], siege: Boolean(ev[6]), homing: Boolean(ev[7]), scale: ev[8] || 1, view: null, net: null }; byA.set(a.id, a); world.arrows.push(a); world.fx.addArrow(a); break; }
+        case EV.ARROW_ADD: { const a = { id: ev[1], pos: new T.Vector3(ev[2], ev[3], ev[4]), yaw: ev[5], siege: Boolean(ev[6]), homing: Boolean(ev[7]), scale: ev[8] || 1, view: null, net: null, origin: ev[11] > 0 ? { x: ev[9], z: ev[10] } : null, maxRange: ev[11] || 0 }; byA.set(a.id, a); world.arrows.push(a); world.fx.addArrow(a); break; }
         case EV.ARROW_DEL: { const a = byA.get(ev[1]); if (!a) break; byA.delete(ev[1]); world.fx.removeArrow(a); const i = world.arrows.indexOf(a); if (i >= 0) world.arrows.splice(i, 1); break; }
         case EV.ZONE_ADD: addZone(ev); break;
         case EV.ZONE_DEL: { const z = byZ.get(ev[1]); if (!z) break; byZ.delete(ev[1]); world.fx.removeZone(z); for (const list of [world.spins, world.tornadoes, world.zones]) { const i = list.indexOf(z); if (i >= 0) list.splice(i, 1); } break; }
