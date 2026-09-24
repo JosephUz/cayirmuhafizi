@@ -209,6 +209,7 @@ html,body{margin:0;height:100%;background:#19231d;overflow:hidden}
 #meadow-game .report .army th.ico{font-size:17px;text-align:center;cursor:help;padding:5px 4px}
 #meadow-game .report .army td:not(:first-child):not(:nth-child(2)):not(:last-child){text-align:center;padding:5px 4px;min-width:28px}
 #meadow-game .report tr.me td{background:#5a533033}
+#meadow-game .report tbody tr:hover td:not([rowspan]){background:#3d4d38;color:#fffbe8}
 #meadow-game .report tr.red td:nth-child(2){color:#ff9f8c}
 #meadow-game .report tfoot td{color:#b8c5aa;border-top:1px solid #718361}
 #meadow-game .report .chartbar{display:flex;gap:14px;margin-bottom:6px;font-size:12px}
