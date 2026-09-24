@@ -63,7 +63,7 @@ export function updateUnit(world, e, dt) {
     b.target = hit || findTarget(world, e, anchor);
     b.fightAt = hit ? { x: e.pos.x, z: e.pos.z } : null;
   }
-  const target = b.target && b.target.alive && (!b.fightAt || withinChase(e, b.target)) ? b.target : null;
+  const target = b.target && b.target.alive && (!b.fightAt || withinChase(e, b.target, world)) ? b.target : null;
   if (target) { e.aim.copy(target.pos); engage(world, e, target.pos, target.radius, dt); return; }
   // Mancınık: dövüşecek birim yoksa menzilindeki bilinen kuleyi yerinden döver.
   if (e.isSiege) { const tw = nearestEnemyTower(world, e, e.stats.weapon.range + 2); if (tw) { e.aim.copy(tw.pos); engage(world, e, tw.pos, tw.radius, dt); return; } }
@@ -89,7 +89,7 @@ function updateAggressive(world, e, dt) {
   if (b.retarget <= 0) {
     b.retarget = 0.3;
     // Eldeki hedef tutma mesafesindeyse (görüşün holdMult katı) bırakılmaz; yoksa görüşteki en yakın düşman birimi seçilir.
-    const cur = b.target && b.target.alive && distXZ(e.pos, b.target.pos) <= V * ARMY.holdMult + b.target.radius ? b.target : null;
+    const cur = b.target && b.target.alive && (pursuing(world, e, b.target) || distXZ(e.pos, b.target.pos) <= V * ARMY.holdMult + b.target.radius) ? b.target : null;
     let best = retaliator(world, e) || cur, bd = Infinity;
     if (!best) for (const t of world.entities) {
       if (!t.alive || t.faction === e.faction) continue;
@@ -101,7 +101,7 @@ function updateAggressive(world, e, dt) {
     // Birim yoksa görüşündeki rakip yapı (kule, bina, sancak); her adımda değil hedef aramayla birlikte seçilir.
     b.structTarget = best ? null : nearestStructure(world, e, e.pos, V);
   }
-  const target = b.target && b.target.alive && distXZ(e.pos, b.target.pos) <= V * ARMY.holdMult + b.target.radius ? b.target : null;
+  const target = b.target && b.target.alive && (pursuing(world, e, b.target) || distXZ(e.pos, b.target.pos) <= V * ARMY.holdMult + b.target.radius) ? b.target : null;
   if (target) { e.aim.copy(target.pos); engage(world, e, target.pos, target.radius, dt); return; }
   const s = b.structTarget && b.structTarget.alive ? b.structTarget : null;
   if (s) { e.aim.copy(s.pos); engage(world, e, s.pos, s.radius, dt); return; }
@@ -308,16 +308,26 @@ function nearestStructure(world, e, anchor = null, radius = Infinity) {
  * Uzaktan vuran okçu / mancınık da böylece karşılık görür. Bot askeri rakip kule menzilindekinin peşine düşmez.
  */
 function retaliator(world, e) {
-  const t = e.lastHitBy;
+  return freshFoe(world, e, e.lastHitBy, e.lastHitAt) || freshFoe(world, e, e.alarmBy, e.alarmAt);
+}
+/** Taze saldıran: hâlâ canlı, düşman, ARMY.retaliate saniye içinde, ARMY.retaliateRange içinde. */
+function freshFoe(world, e, t, at) {
   if (!t || !t.alive || t.faction === e.faction) return null;
-  if (world.time - (e.lastHitAt || -99) > ARMY.retaliate) return null;
+  if (world.time - (at ?? -99) > ARMY.retaliate) return null;
   if (distXZ(e.pos, t.pos) > ARMY.retaliateRange) return null;
   if (botSoldier(e) && inEnemyTowerRange(world, e.faction, t.pos)) return null;
   return t;
 }
+/** Bu hedef askerin kendisine ya da arkadaşına / kulesine vuran mı? Öyleyse kovalama sınırı retaliateRange olur. */
+const pursuing = (world, e, t) => Boolean(t && (t === e.lastHitBy || t === e.alarmBy) && freshFoe(world, e, t, t === e.lastHitBy ? e.lastHitAt : e.alarmAt));
 
-/** Dövüşe başlanan noktadan ARMY.chase kadar uzaklaşılınca hedef bırakılır (peşinden haritada sürüklenme yok). */
-function withinChase(e, t) {
+/**
+ * Dövüşe başlanan noktadan ARMY.chase kadar uzaklaşılınca hedef bırakılır (peşinden haritada sürüklenme yok).
+ * Saldırana karşılık verirken (kendisine ya da alarmla) sınır retaliateRange'dir: uzaktan vuran okçuya /
+ * mancınığa yürümek için.
+ */
+function withinChase(e, t, world) {
+  if (world && pursuing(world, e, t)) return true;
   const f = e.brain.fightAt;
   if (f && distXZ(e.pos, f) > ARMY.chase) return false;
   return distXZ(e.pos, t.pos) <= ARMY.chase + 6;
@@ -329,7 +339,7 @@ function withinChase(e, t) {
  */
 function enrouteTarget(world, e) {
   const b = e.brain;
-  if (b.target && !(b.target.alive && b.target.faction !== e.faction && withinChase(e, b.target))) { b.target = null; b.fightAt = null; }
+  if (b.target && !(b.target.alive && b.target.faction !== e.faction && withinChase(e, b.target, world))) { b.target = null; b.fightAt = null; }
   if (!b.target && b.retarget <= 0) {
     b.retarget = 0.3;
     let best = retaliator(world, e), bd = ARMY.sight;

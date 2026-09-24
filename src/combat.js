@@ -4,6 +4,7 @@ import { heroVolley } from './abilities.js';
 import { dashMult, isEvading, levelReachMult, reachOf, chargeMult } from './characters.js';
 import { applyImpulse } from './physics.js';
 import { bannerShielded } from './structures.js';
+import { towerAlarm, unitAlarm } from './alarm.js';
 import { statDamage, statStructDamage } from './stats.js';
 
 /**
@@ -220,7 +221,7 @@ export function damageEntity(world, target, amount, nx, nz, knockback, source) {
   else if (!target.isPlayer && target.loadout.shield && frontal) mult = SHIELD.passiveFrontMult;
 
   // Kim vurdu: yürüyüşteki asker karşılık vermek için bunu okur (bkz. ai.js retaliator).
-  if (source && source !== target && source.faction !== target.faction) { target.lastHitBy = source; target.lastHitAt = world.time; }
+  if (source && source !== target && source.faction !== target.faction) { target.lastHitBy = source; target.lastHitAt = world.time; unitAlarm(world, target, alarmSource(source)); }
   const dealt = Math.min(target.hp, amount * mult);
   target.hp -= amount * mult;
   statDamage(target, source, dealt);
@@ -238,12 +239,15 @@ export function damageEntity(world, target, amount, nx, nz, knockback, source) {
   return blocked;
 }
 
+/** Alarmın hedefi bir birim olmalı: kule atıcısı (shooter) vurduysa kovalanacak şey birim değildir, alarm yayılmaz. */
+const alarmSource = src => (src && !src.isTower && src.pos && src.stats ? src : null);
+
 export function damageStructure(world, s, amount, source) {
   if (!s.alive) return;
   // Kahraman yapılara türünün asker hasarıyla vurur; seviye başına artar.
   if (isHeroUnit(source)) amount *= 1 + LEVEL.structureDamagePerLevel * ((source.level || 1) - 1);
   // Kim vurdu: botun kulesi / sancağı vurulunca ordusunu ve kahramanını savunmaya çağırır (bkz. economy.js updateBots).
-  if (source && source.faction !== s.faction) { s.lastHitBy = source; s.lastHitAt = world.time; }
+  if (source && source.faction !== s.faction) { s.lastHitBy = source; s.lastHitAt = world.time; towerAlarm(world, s, alarmSource(source)); }
   // İnsanın sancağı / kulesi vuruldu: sahibine uyarı (ekran kenarı kızarır, haritada kırmızı halka çıkar).
   if (s.owner && s.owner.human && (s.kind === 'banner' || s.kind === 'tower') && world.onOwnStructureHit) world.onOwnStructureHit(s, source);
   // Kuleler ayaktayken sancağın canı azalmaz: vuruş iner, kalkana çarpar ve hasar vermez.

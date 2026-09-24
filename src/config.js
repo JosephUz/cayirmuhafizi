@@ -372,7 +372,18 @@ export const ARMY = {
    * verir (uzaktan vuran okçu / mancınık da sayılır). Dövüşe başladığı noktadan `chase` birimden fazla uzaklaşırsa
    * hedefi bırakıp işine döner: kaçan düşmanın peşinde haritada sürüklenmez.
    */
-  sight: 12, retaliate: 5, retaliateRange: 22, chase: 16,
+  sight: 12, retaliate: 5,
+  /**
+   * retaliateRange: kendisine (ya da alarmla arkadaşına / kulesine) vurana bu uzaklığa kadar gidilir. Mancınık
+   * menzilinin (36) üstündedir: uzaktan dövülen asker yerinde beklemez, saldırana yürür.
+   */
+  retaliateRange: 40, chase: 16,
+  /**
+   * Alarm (bkz. alarm.js): asker vurulunca radius içindeki, kule vurulunca kule menzilindeki aynı takım askerleri
+   * saldırana döner. every: bir kurbanın / kulenin alarm yayma aralığı (sn). keep: taze alarmı olan asker bu süre
+   * hedef değiştirmez.
+   */
+  alarm: { radius: 14, every: 0.4, keep: 1.5 },
 };
 
 /**

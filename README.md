@@ -232,12 +232,21 @@ emirle yürür. Rakibin askerleri kendiliğinden hatlardan ilerler.
 
 **Görüş = savaş (senin askerin)**: askerin savaşa girme mesafesi **görüşüdür** (asker ve okçu 10 birim, mancınık silah
 menzili olan 36; görüş hiçbir zaman silah menzilinin altında kalmaz). Görüşüne giren **her** düşmanla — asker, kahraman, işçi,
-haydut, **bina, kule, sancak** — savaşır ve bu sırada bayrağa gitmeye uğraşmaz. Öncelik: kendisine vuran (22 birime kadar,
-uzaktan atan okçu / mancınık dahil) → en yakın düşman birimi → kule → bina → sancak. Hedefi görüşünün **1.5 katına**
+haydut, **bina, kule, sancak** — savaşır ve bu sırada bayrağa gitmeye uğraşmaz. Öncelik: kendisine vuran ya da alarmla gelen saldıran (40 birime kadar,
+uzaktan atan okçu / mancınık dahil; bkz. Alarm) → en yakın düşman birimi → kule → bina → sancak. Hedefi görüşünün **1.5 katına**
 kadar kovalar; daha uzağa kaçarsa bırakır ve bayrağına döner (`ARMY.holdMult`). Hedef düşünce yeni hedef arar, yoksa bayrağa yürür.
 
 **Bot askeri** emirle yürür: yolda 12 birim çevresinde düşman görürse durup saldırır, kendisine vuran olursa ona döner, dövüşe
-başladığı noktadan 16 birimden fazla uzaklaşırsa hedefi bırakıp yoluna devam eder.
+başladığı noktadan 16 birimden fazla uzaklaşırsa hedefi bırakıp yoluna devam eder (saldırana karşılık verirken sınır 40 birimdir).
+
+**Alarm (senin ve botların askeri için aynı kural)**: boş bekleyen asker yok (`src/alarm.js`, `ARMY.alarm`).
+- **Asker vurulursa** 14 birim çevresindeki aynı takımdan askerler saldırana döner.
+- **Kule vurulursa** kulenin menzilinde (27) duran bütün askerler saldırana döner; kule menzili dışından döven mancınık
+  (menzil 36) dahil.
+- Saldıran 5 saniye hatırlanır ve 40 birime kadar kovalanır; müttefik askerleri de yardıma koşar. Bot askeri rakip kule
+  menzilindeki saldıranın peşine yine düşmez. Kule oku alarm yaymaz.
+- Ölçüm: grubun kenarındaki asker 16 birim ötedeki okçudan ok yerken alarm kapalıyken 4 arkadaşının hiçbiri kıpırdamıyor,
+  açıkken 4'ü de okçuya yürüyüp vuruyor; kule dövülünce menzilindeki 6 asker 0.6 saniyede harekete geçiyor.
 
 ## Alt bant (Age of tarzı)
 
