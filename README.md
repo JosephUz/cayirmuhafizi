@@ -1,13 +1,19 @@
 # Çayır Muhafızı
 
 Three.js ile tarayıcıda çalışan, **Age of Empires 2 + DOTA** esintili, tam ekran izometrik kır savaşı.
-`demo`daki dövüş hissi (iki hızlı fizik, koni içi vuruş, prosedürel animasyon) bu sahnenin üstüne
-taşındı; üstüne Age of tarzı alt bant, üretim kuyruğu, savaş sisi,
-2B minimap, yapı inşası, ordu emirleri, birim üstünlükleri, rakip kahraman, **takım oyunu** (1v1 … 5v5, botlarla),
-**çevrim içi co-op ve PvP** (oda koduyla takım başı en çok 5 insan; boş koltuklarda bot; sunucu otoriter) ve maç sonu
-**karne** eklendi.
+Dövüş hissi (iki hızlı fizik, koni içi vuruş, prosedürel animasyon) üstüne Age of tarzı alt bant, üretim kuyruğu,
+savaş sisi, 2B minimap, yapı inşası, ordu emirleri, birim üstünlükleri, rakip kahraman, **takım oyunu** (1v1 … 5v5,
+botlarla), **çevrim içi co-op ve PvP** (oda koduyla takım başı en çok 5 insan; boş koltuklarda bot; sunucu otoriter)
+ve maç sonu **karne**.
+
+**Oyna**: https://cayirmuhafizi.josephuz.com · **Kaynak**: https://github.com/JosephUz/cayirmuhafizi
 
 ## Başlatma
+
+```
+git clone https://github.com/JosephUz/cayirmuhafizi.git
+cd cayirmuhafizi
+```
 
 `Baslat.cmd` dosyasına çift tıklayın. Oyun tarayıcıda açılır; alt bandın sağındaki ⛶ ile tarayıcı tam ekranı.
 Alternatif: bu klasörde `npm install` ve `npm start`, ardından http://127.0.0.1:5173.
@@ -29,7 +35,7 @@ geçmelidir. Cloudflare'ın **Browser Cache TTL** ayarı (varsayılan 4 saat) bu
 `cf-cache-status: BYPASS` döner. Yine de eski bir kopya takılı kalırsa **Ctrl+Shift+R** (Mac'te Cmd+Shift+R) ya da
 Cloudflare panelinde Caching > Purge Everything. `/health` yanıtındaki `surum` alanı ayakta olan yapının damgasıdır.
 
-Kalıcı Cloudflare Tunnel için `.env` dosyasına `TUNNEL_TOKEN=...` yaz ve `docker compose --profile tunnel up -d`:
+Kalıcı Cloudflare Tunnel için `.env.example` dosyasını `.env` olarak kopyalayıp `TUNNEL_TOKEN=...` yaz ve `docker compose --profile tunnel up -d`:
 `cloudflared` konteyneri oyunu sağlıklı görünce tünele bağlanır (Zero Trust panelinde tünelin hedefi `http://game:5173`).
 Tünel rotası Zero Trust → Networks → Tunnels → tünel → **Published application routes**: alan adı, Path boş, Service `http://game:5173`.
 Kök alan adı kullanılacaksa Cloudflare DNS sayfasındaki eski A / CNAME kaydı önce silinir; rota kaydedilince CNAME kendiliğinden oluşur.
