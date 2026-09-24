@@ -1,6 +1,7 @@
 # Yerel Docker kurulumu: `docker compose up -d --build`, ardından http://localhost:5173
 # Ekip testinde aynı ağdaki arkadaşlar http://<senin-ip>:5173 ile girer.
 # Cloudflare Tunnel için `--profile tunnel` ve TUNNEL_TOKEN ortam değişkeni (bkz. README).
+name: cayirmuhafizi
 services:
   game:
     build: .
