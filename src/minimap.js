@@ -1,4 +1,5 @@
 import { ALERT } from './config.js';
+import { knownBy } from './structures.js';
 
 /**
  * Tamamen 2B minimap (Age of tarzı baklava): dünya (x, z) -> ekran (x - z, x + z) / 2.
@@ -75,7 +76,7 @@ export function createMinimap(canvas, world, hooks) {
     drawFog();
     for (const st of world.structures) {
       if (!st.alive) continue;
-      if (st.faction !== 'blue' && !st.seen) continue;
+      if (!knownBy(st, world.side)) continue;
       const r = st.kind === 'banner' ? 4 : st.kind === 'tower' ? 2.5 : 3;
       dot(st.pos.x, st.pos.z, st.faction === 'blue' ? '#5fc7ff' : st.faction === 'beast' ? (st.alive ? '#8fd15a' : '#6b5335') : '#ff5a4a', r);
       // Sancak: sahibinin rengiyle çerçevelenir (kendi sancağın altın, müttefik / rakip kendi renginde).
@@ -83,10 +84,15 @@ export function createMinimap(canvas, world, hooks) {
     }
     for (const e of world.entities) {
       if (!e.alive) continue;
-      if (e.faction !== 'blue' && !fog.isVisible(e.pos.x, e.pos.z)) continue;
-      if (e.isPlayer) dot(e.pos.x, e.pos.z, '#ffd12e', 2.5);
-      else if (e.isHero) dot(e.pos.x, e.pos.z, e.owner ? e.owner.color : '#ff9a3c', 2.5);
-      else dot(e.pos.x, e.pos.z, e.faction === 'blue' ? (e.isWorker ? '#a8ddff' : e.owner === world.me ? '#4aa8ff' : '#7fc2e8') : e.isBeast ? '#8fd15a' : '#ff3b2f', e.isWorker ? 1.2 : 1.6);
+      if (e.faction !== world.side && !fog.isVisible(e.pos.x, e.pos.z)) continue;
+      // Kahramanlar: seninki altın, ötekiler sahibinin renginde. Askerler takım renginde (senin askerin daha parlak).
+      if (e.isPlayer || e.isHero) dot(e.pos.x, e.pos.z, e.owner === world.me ? '#ffd12e' : e.owner ? e.owner.color : '#ff9a3c', 2.5);
+      else if (e.isBeast) dot(e.pos.x, e.pos.z, '#8fd15a', 1.6);
+      else {
+        const own = e.faction === world.side, blue = e.faction === 'blue';
+        const col = own && e.isWorker ? (blue ? '#a8ddff' : '#ffc2b3') : e.owner === world.me ? (blue ? '#4aa8ff' : '#ff7a4a') : blue ? (own ? '#7fc2e8' : '#3b8cff') : '#ff3b2f';
+        dot(e.pos.x, e.pos.z, col, e.isWorker ? 1.2 : 1.6);
+      }
     }
     // Saldırı uyarıları: vurulan sancak / kule yerinde genişleyip sönen kırmızı halkalar.
     if (world.alerts) for (let i = world.alerts.length - 1; i >= 0; i--) {

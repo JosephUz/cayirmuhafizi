@@ -178,7 +178,7 @@ export function applyUnitShadows(e, on) {
   });
 }
 
-export function buildView(scene, e) {
+export function buildView(scene, e, side = 'blue') {
   const { weapon, shield, horse } = e.loadout;
   const blue = e.faction === 'blue', beast = e.faction === 'beast';
   const tunic = beast ? COLORS.beast : e.isWorker ? (blue ? '#5b7f9a' : '#9a6a5b') : blue ? (e.isPlayer ? COLORS.bluePlayer : COLORS.blue) : weapon === 'bow' ? COLORS.redBow : COLORS.red;
@@ -189,7 +189,7 @@ export function buildView(scene, e) {
   g.add(body); body.position.y = horse ? 0.78 : 0;
   box(body, tunicMat, 0, 1, 0, 0.62, 0.72, 0.36);
   // Kahraman kafası takım rengini söyler: senin takımınınki sarı, rakip takımınki kırmızı (müttefik bot kahramanı da sarı).
-  const headColor = e.faction === 'red' ? HERO.enemyHeadColor : HERO.headColor;
+  const headColor = e.faction !== side ? HERO.enemyHeadColor : HERO.headColor;
   box(body, e.isPlayer || e.isHero ? headColor : '#e1b48a', 0, 1.64, 0, 0.57, 0.57, 0.52);
   box(body, e.isPlayer || e.isHero ? headColor : beast ? COLORS.beastHead : e.isWorker ? '#d8c27a' : blue ? '#433e36' : '#818b83', 0, 1.95, 0, 0.62, 0.15, 0.57);
   if (e.isWorker) { mesh(body, new T.CylinderGeometry(0.55, 0.6, 0.06, 10), '#d8c27a', 0, 1.94, 0); box(body, '#8a6a44', 0, 0.62, -0.28, 0.5, 0.45, 0.22); }

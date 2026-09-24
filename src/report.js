@@ -23,7 +23,7 @@ function armyOrder(keys) {
 
 export function renderReport(card, report, world, actions) {
   const me = world.me ? report.players.find(p => p.id === world.me.id) : null;
-  const win = report.outcome.result === 'victory';
+  const win = resultFor(report, me) === 'victory';
   const sorted = [...report.players].sort((a, b) => b.score.total - a.score.total);
   const rank = me ? sorted.indexOf(me) + 1 : 0;
   const CH = { military: 'En çok yok eden', economy: 'En çok toplayan', build: 'En çok kuran', hero: 'En yüksek kahraman', deaths: 'En çok ölen' };
@@ -95,7 +95,7 @@ export function renderReport(card, report, world, actions) {
     card.querySelectorAll('[data-act]').forEach(b => {
       b.onclick = () => {
         const a = b.dataset.act;
-        if (a === 'copy') { copyText(report, sorted).then(() => { const s = card.querySelector('#end-status'); if (s) s.textContent = 'Kopyalandı'; }); return; }
+        if (a === 'copy') { copyText(report, sorted, me).then(() => { const s = card.querySelector('#end-status'); if (s) s.textContent = 'Kopyalandı'; }); return; }
         if (actions[a]) actions[a]();
       };
     });
@@ -104,8 +104,15 @@ export function renderReport(card, report, world, actions) {
   render();
 }
 
-function copyText(report, sorted) {
-  const lines = [`Çayır Muhafızı · ${report.outcome.result === 'victory' ? 'Zafer' : 'Yenilgi'} · ${mmss(report.time)} · ${report.teamSize}v${report.teamSize}`];
+/** Sonuç izleyenin takımına göre: kazanan takımdaysan zafer (eski karnelerde winner yok, mavinin gözünden result). */
+function resultFor(report, me) {
+  const o = report.outcome;
+  if (!o.winner || !me) return o.result;
+  return me.faction === o.winner ? 'victory' : 'defeat';
+}
+
+function copyText(report, sorted, me) {
+  const lines = [`Çayır Muhafızı · ${resultFor(report, me) === 'victory' ? 'Zafer' : 'Yenilgi'} · ${mmss(report.time)} · ${report.teamSize}v${report.teamSize}`];
   lines.push('#  Oyuncu           Askerî  Ekonomi  İnşa  Kahraman  Toplam');
   sorted.forEach((p, i) => lines.push(`${String(i + 1).padEnd(3)}${(p.name + (p.human ? '' : ' (bot)')).padEnd(17)}${String(fmt(p.score.military)).padStart(6)}  ${String(fmt(p.score.economy)).padStart(7)}  ${String(fmt(p.score.build)).padStart(4)}  ${String(fmt(p.score.hero)).padStart(8)}  ${String(fmt(p.score.total)).padStart(6)}`));
   const text = lines.join('\n');

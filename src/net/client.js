@@ -92,6 +92,8 @@ export function createNetClient(world, hooks) {
     });
     world.obstacleVersion++;
     world.me = players.find(p => p.id === msg.you) || players[0];
+    // İzlenen takım: sis, bilinen yapılar, renkler ve sayımlar senin takımının gözünden (PvP'de kırmızı da olabilir).
+    world.side = world.me.faction;
     world.player = null;
     initResources(world);
     world.fog.reset();
@@ -208,7 +210,7 @@ export function createNetClient(world, hooks) {
     for (const r of snap.structures) {
       const s = byS.get(r.id); if (!s) continue;
       const wasAlive = s.alive;
-      s.hp = r.hp; s.alive = r.alive; s.ready = r.ready; s.seen = s.seen || r.seen; s.seenByRed = r.seenByRed;
+      s.hp = r.hp; s.alive = r.alive; s.ready = r.ready; s.seen = s.seen || r.seen; s.seenByRed = s.seenByRed || r.seenByRed;
       s.buildTimer = r.buildTimer; s.respawnTimer = r.respawnTimer; s.waveTimer = r.waveTimer; s.hitFlash = Math.max(s.hitFlash, r.hitFlash); s.shots = r.shots;
       s.queue = r.queue.filter(Boolean);
       const t0 = s.queue.length ? typeIndex.get(s.queue[0]) : null; s.progress = t0 ? r.progressK * t0.train : 0;
@@ -312,6 +314,7 @@ export function createNetClient(world, hooks) {
     create(settings) { send({ t: C2S.CREATE, ...settings }); },
     join(code) { send({ t: C2S.JOIN, code }); },
     settings(s) { send({ t: C2S.SETTINGS, ...s }); },
+    team(team) { send({ t: C2S.TEAM, team }); },
     start() { send({ t: C2S.START }); },
     leave() { send({ t: C2S.LEAVE }); client.lobby = null; world.replicated = false; remember(null); },
     /** Sayfa yenilendiyse ya da yeniden açıldıysa: son odanın kodu (geri bağlanma için). */

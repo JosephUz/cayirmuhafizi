@@ -1,29 +1,36 @@
 import { DIFFICULTY, ECONOMY, LIMITS, TEAMS } from './config.js';
 
 /**
- * Oyuncular. Bir oyunda 2 x takım büyüklüğü oyuncu vardır: insanlar (mavi takımın ilk yuvaları) ve botlar. Her oyuncunun
+ * Oyuncular. Bir oyunda 2 x takım büyüklüğü oyuncu vardır: insanlar (seçtikleri takımın ilk yuvaları) ve botlar. Her oyuncunun
  * kendi kasası (eco), sancağı, üssü, kule yerleri, kahramanı ve karnesi (st) vardır; botlarda ayrıca karar durumu (ai),
  * insanlarda girdi (input) ve toplanma bayrağı (rally) tutulur.
  * Birimler ve yapılar sahibini `owner` ile, takımını `faction` ile bilir: **düşmanlık takıma, komuta ve kasa sahibe** bağlıdır.
  * Her insan yalnızca kendi askerini yönetir; takım arkadaşı (insan ya da bot) kendi askerine kendi emrini verir.
- * humans: [{ name, color? }] — mavi takımın 0..n-1 yuvalarına oturur (en az 1, en çok teamSize).
+ * humans: [{ name, color?, faction? }] — kendi takımının (varsayılan mavi) 0..n-1 yuvalarına oturur; takım başı en çok
+ * teamSize. İki takımda da insan varsa oyun **PvP**'dir; insansız takımın botları zorluk çarpanını alır (bkz. resourceMult).
  */
 export function createPlayers(teamSize, humans = [{ name: 'Sen' }]) {
   const players = [];
-  let color = 0, humanColor = 0;
-  const usedColors = new Set(humans.map(h => h.color).filter(Boolean));
+  const sideOf = h => (h.faction === 'red' ? 'red' : 'blue');
+  // İnsan renkleri önce dağıtılır: bot renkleri bunlarla çakışmasın.
+  const humanColor = new Map(humans.map((h, i) => [h, h.color || TEAMS.humanColors[i % TEAMS.humanColors.length]]));
+  const usedColors = new Set(humanColor.values());
+  let color = 0, bots = 0;
   for (const faction of ['blue', 'red']) {
+    const mine = humans.filter(h => sideOf(h) === faction);
     for (let slot = 0; slot < teamSize; slot++) {
-      const h = faction === 'blue' && slot < humans.length ? humans[slot] : null;
+      const h = slot < mine.length ? mine[slot] : null;
       const human = Boolean(h);
       let c;
-      if (human) c = h.color || TEAMS.humanColors[humanColor++ % TEAMS.humanColors.length];
+      if (human) c = humanColor.get(h);
       else { do { c = TEAMS.colors[color++ % TEAMS.colors.length]; } while (usedColors.has(c) && color < TEAMS.colors.length * 2); }
-      const name = human ? (h.name || 'Sen') : TEAMS.names[(players.length - humans.length + 10) % TEAMS.names.length];
+      const name = human ? (h.name || 'Sen') : TEAMS.names[(bots++ + 10) % TEAMS.names.length];
       players.push({
         id: players.length, faction, slot, human, name,
         color: c, netId: human ? h.netId ?? null : null,
         eco: createEconomy(human), ai: human ? null : createBotAi(players.length),
+        // Takımında hiç insan yok: zorluk bu botlara işler.
+        botTeam: mine.length === 0,
         hero: null, banner: null, base: null, towerSpots: [], input: null, rally: null, st: null, eliminated: false,
       });
     }
@@ -70,8 +77,17 @@ export function nearestEnemyPlayer(world, faction, pos) {
   return best;
 }
 
-/** Kaynak çarpanı: zorluk yalnızca **rakip takımın** botlarına işler; müttefik botlar ve insanlar 1x toplar. */
-export function resourceMult(world, p) { return p.faction === 'red' ? DIFFICULTY[world.difficulty].resourceMult : 1; }
+/**
+ * Kaynak çarpanı: zorluk yalnızca **insansız takımın** botlarına işler (co-op'ta rakip takım). İnsanlar ve insanlı
+ * takımdaki botlar 1x toplar; iki takımda da insan varsa (PvP) herkes eşittir.
+ */
+export function resourceMult(world, p) { return p.botTeam ? DIFFICULTY[world.difficulty].resourceMult : 1; }
+/** Takım yenildi mi: insanlı takım insanlarının sancakları, insansız takım bütün sancakları yıkılınca yenilir. */
+export function teamDefeated(world, faction) {
+  const team = world.players.filter(p => p.faction === faction);
+  const humans = team.filter(p => p.human);
+  return !(humans.length ? humans : team).some(p => p.banner && p.banner.alive);
+}
 
 /** Oyuncu başı nüfus sınırları: asker sınırı oyuncu sayısıyla bölünür ki haritadaki toplam armyTotal'ı aşmasın. */
 export function limitsFor(playerCount) {

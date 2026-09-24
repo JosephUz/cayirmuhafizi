@@ -1,6 +1,7 @@
 import { buildView, rebuildSwing, removeView } from '../characters.js';
 import { CAMERA } from '../config.js';
 import { completeFx } from '../fx.js';
+import { markKnown } from '../structures.js';
 import { burst, healBubble, ring, strip } from './effects.js';
 import { attachArrowView, attachItemView, detachArrowView, detachItemView, rallyFlag } from './itemview.js';
 import { attachStructureView, detachStructureView } from './structview.js';
@@ -17,15 +18,15 @@ import { attachZoneView, detachZoneView } from './zones.js';
  */
 function setKillcam(world, src) {
   world.killcam = { target: src, until: world.clock + CAMERA.killcam };
-  if (src.kind) src.seen = true;
+  if (src.kind) markKnown(src, world.side);
 }
 
 export function createSceneFx(world) {
   const mine = p => p && p === world.me;
   return completeFx({
-    addEntity(e) { if (!e.view) buildView(world.scene, e); },
+    addEntity(e) { if (!e.view) buildView(world.scene, e, world.side); },
     removeEntity(e) { removeView(e); },
-    refreshEntity(e) { removeView(e); buildView(world.scene, e); rebuildSwing(e); if (e === world.player) world.loadout = e.loadout; },
+    refreshEntity(e) { removeView(e); buildView(world.scene, e, world.side); rebuildSwing(e); if (e === world.player) world.loadout = e.loadout; },
     addStructure(s) { if (!s.view) attachStructureView(world.scene, s); },
     removeStructure(s) { detachStructureView(s); },
     addItem(it) { if (!it.view) attachItemView(world.scene, it); },

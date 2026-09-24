@@ -294,7 +294,7 @@ export function updateCamps(world, dt) {
     for (const key of CAMPS.wave) spawnCampUnit(world, camp, key, camp.raidSide);
     spawnCampUnit(world, camp, 'catapult', camp.raidSide);
     world.fx.ring(camp.pos.x, camp.pos.z, '#8fd15a', 5, 0.8);
-    if (camp.raidSide === 'blue') for (const h of world.humans) world.fx.ping(h, 'tower');
+    for (const h of world.humans) if (h.faction === camp.raidSide) world.fx.ping(h, 'tower');
   }
   world.banditTimer = (world.banditTimer || BANDITS.spawnEvery) - dt;
   if (world.banditTimer <= 0) {

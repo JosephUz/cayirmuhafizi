@@ -7,6 +7,7 @@ export const C2S = {
   CREATE: 'create',    // { teamSize, difficulty } — oda kur (kuran lobinin sahibidir)
   JOIN: 'join',        // { code }
   SETTINGS: 'settings',// { teamSize, difficulty } — yalnızca kuran
+  TEAM: 'team',        // { team: 'blue'|'red' } — lobide takım değiştir (iki takımda insan varsa PvP)
   START: 'start',      // yalnızca kuran
   LEAVE: 'leave',
   INPUT: 'in',         // çözülmüş kahraman girdisi (bkz. input.js resolveHeroInput)
@@ -15,7 +16,7 @@ export const C2S = {
 };
 export const S2C = {
   WELCOME: 'welcome',  // { id, token, nick }
-  LOBBY: 'lobby',      // { code, hostId, settings, seats: [{ slot, id, nick, bot }], state }
+  LOBBY: 'lobby',      // { code, hostId, settings, seats: [{ slot, id, nick, online, team }], state }
   ERROR: 'error',      // { msg }
   START: 'start',      // { seed, teamSize, difficulty, players: [{ id, name, color, faction, slot, human }], you }
   EVENTS: 'ev',        // { list: [...] } — o tik biriken olaylar (durum paketinden önce uygulanır)

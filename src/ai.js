@@ -3,7 +3,7 @@ import { canAttack, heroReach, startAttack, nearestEnemyTower } from './combat.j
 import { ARMY, BUILD, CAMPS, ECONOMY, ENEMY, ENEMY_AI, ENEMY_HERO, POSITIONS, RALLY, TOWER, VISION, WORKER } from './config.js';
 import { produceItem, heroGather } from './economy.js';
 import { rrand } from './rng.js';
-import { bannerShielded } from './structures.js';
+import { bannerShielded, knownBy } from './structures.js';
 import { botSoldier, nearestEnemyBanner, nearestEnemyPlayer } from './players.js';
 
 /**
@@ -120,12 +120,12 @@ function updateAggressive(world, e, dt) {
 export function pickHostile(world, x, z, pad = RALLY.pickRadius) {
   let best = null, bd = pad;
   for (const t of world.entities) {
-    if (!t.alive || t.faction === 'blue' || !(t.view && t.view.g.visible)) continue;
+    if (!t.alive || t.faction === world.side || !(t.view && t.view.g.visible)) continue;
     const d = distXZ(t.pos, { x, z }) - t.radius;
     if (d < bd) { bd = d; best = t; }
   }
   for (const st of world.structures) {
-    if (!st.alive || st.faction === 'blue' || !st.seen) continue;
+    if (!st.alive || st.faction === world.side || !knownBy(st, world.side)) continue;
     const d = distXZ(st.pos, { x, z }) - st.radius;
     if (d < bd) { bd = d; best = st; }
   }

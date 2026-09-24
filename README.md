@@ -4,7 +4,8 @@ Three.js ile tarayıcıda çalışan, **Age of Empires 2 + DOTA** esintili, tam 
 `demo`daki dövüş hissi (iki hızlı fizik, koni içi vuruş, prosedürel animasyon) bu sahnenin üstüne
 taşındı; üstüne Age of tarzı alt bant, üretim kuyruğu, savaş sisi,
 2B minimap, yapı inşası, ordu emirleri, birim üstünlükleri, rakip kahraman, **takım oyunu** (1v1 … 5v5, botlarla),
-**çevrim içi co-op** (oda koduyla en çok 5 insan, botlara karşı; sunucu otoriter) ve maç sonu **karne** eklendi.
+**çevrim içi co-op ve PvP** (oda koduyla takım başı en çok 5 insan; boş koltuklarda bot; sunucu otoriter) ve maç sonu
+**karne** eklendi.
 
 ## Başlatma
 
@@ -37,8 +38,8 @@ Kök alan adı kullanılacaksa Cloudflare DNS sayfasındaki eski A / CNAME kayd�
 
 Hesap yok. **Giriş**: ad (tarayıcıda hatırlanır) ve üç düğme: **Tek başına** (kurulum ekranı, sonra oyun), **Oda kur**
 (kurulum ekranı, sonra lobi ve oda kodu) ve **Koda katıl**. `?oda=KOD` linkiyle gelen ad ekranından lobiye düşer.
-**Kurulum**: kaça kaç (1v1 … 5v5) ve zorluk. **Lobi**: oda kodu, "Linki kopyala", mavi takımın koltukları (boş koltuklara
-bot oturur), kırmızı takım tamamen bot; kaça kaç ve zorluğu **yalnızca kuran** değiştirir ve **Başlat**'a basar, kimse
+**Kurulum**: kaça kaç (1v1 … 5v5) ve zorluk. **Lobi**: oda kodu, "Linki kopyala", iki takımın koltukları (boş koltuklara
+bot oturur). Gelen oyuncu maviye oturur; **karşı takımdaki bir bot koltuğuna tıklayan oraya geçer** (bkz. PvP). Kaça kaç ve zorluğu **yalnızca kuran** değiştirir ve **Başlat**'a basar, kimse
 "hazır" basmaz; 1v1 seçilirse kuran tek başına botlarla oynar. **Bitiş**: karne (bkz. Karne ve skor). **Kısayollar**
 penceresi (F1, sağ alttaki ? ve giriş ekranındaki bağlantı) bütün tuşları ve kahramanın o anki yetenek setini yazar.
 **Esc** oyun içinde menüyü açar (Devam, Kısayollar, Ses, Oyundan çık); tek başına oyunda menü oyunu durdurur, co-op'ta
@@ -79,8 +80,26 @@ görseller `world.fx` kancalarından geçer (tarayıcıda mesh, sunucuda olay).
   **yeni emir almazlar**. Oyuncu aynı kodla dönerse bıraktığı yerden devam eder; skor tablosunda o sırada çevrim dışı
   görünür. Oda ancak bağlı kimse kalmayınca kapanır. Odayı kuranın oyun içinde ayrıcalığı yoktur; kuran koparsa maç sürer.
 - **Yenilgi kuralı co-op'ta**: sancağı düşen insan **elenir** (kahramanı bir daha doğmaz, ordusu yenilenmez, izlemeye devam
-  eder); mavi takımdaki **bütün insanların** sancağı düşünce yenilgi. Zafer kuralı aynıdır (rakip sancaklarının hepsi).
-- Kapsam dışı (bilerek): hesap, kalıcı istatistik, yabancılarla eşleştirme, PvP, izleyici. Yapı bunları engellemez.
+  eder); takımdaki **bütün insanların** sancağı düşünce yenilgi. Zafer kuralı aynıdır (rakip sancaklarının hepsi).
+- Kapsam dışı (bilerek): hesap, kalıcı istatistik, yabancılarla eşleştirme, izleyici. Yapı bunları engellemez.
+
+## PvP (insanlar iki takımda)
+
+Co-op ile aynı oda ve aynı sunucu; tek fark insanların **iki takıma** dağılması. Lobide karşı takımdaki bir bot koltuğuna
+tıklayan o takıma geçer (`C2S.TEAM`), takım başı en çok 5 insan; kalan koltukları iki tarafta da botlar doldurur
+(1v1 saf PvP, 2v2'de insan + bot karşısında insan + bot gibi karışık maçlar olur). Kaça kaç en kalabalık takımın insan
+sayısından küçük seçilemez.
+
+- **Her şey kendi takımının gözünden** (`world.side`): kırmızıda oynayan için sis kırmızı birimlerden açılır, kendi yapıları
+  baştan bilinir, mavinin yapıları görülünce bilinir (`structures.js knownBy`); minimap, HUD sayımları, kamp akını
+  uyarısı ("→ takımına"), kahraman kafası (takımın sarı, rakip kırmızı) ve orta tık (E) hedef seçimi de öyle. Gövde renkleri
+  takımın gerçek rengidir (kırmızı takım kırmızı). Kamera çevrilmez: kırmızı üs ekranın sağ üstündedir.
+- **Zafer ve yenilgi takıma göre** (`players.js teamDefeated`): insanlı takım insanlarının sancakları, insansız takım bütün
+  sancakları yıkılınca yenilir. Karne kazanan takımı (`outcome.winner`) taşır, herkese kendi takımına göre ZAFER / YENİLGİ der.
+- **Zorluk** yalnızca **insansız takımın** botlarına işler (co-op'ta rakip takım). İki takımda da insan varsa herkes 1x
+  toplar ve lobide zorluk kapanır.
+- Sonraki adım: sunucu her takıma yalnızca **gördüğünü** gönderecek (şu an bütün harita gider, sisi istemci çizer; konsoldan
+  bakan rakibi görebilir). Bu aynı zamanda paket boyunu küçültecek.
 
 ## Karne ve skor
 
@@ -454,7 +473,7 @@ düşman yapıları bir kez görülünce haritada kalır. Minimap da aynı sisi 
 
 ## Takım oyunu (1v1 … 5v5)
 
-Başlangıç ekranında **Takımlar** seçilir: 1v1 (eski oyun) ya da 2v2 … 5v5. Sen her zaman **mavi** takımdasın; kalan
+Başlangıç ekranında **Takımlar** seçilir: 1v1 (eski oyun) ya da 2v2 … 5v5. Tek başına oyunda ve co-op'ta **mavi** takımdasın (PvP'de kırmızı da olabilirsin); kalan
 yuvalar iki takımda da **botlarla** dolar (yanında n-1 müttefik, karşında n rakip bot). Düşmanlık **takıma** göredir,
 komuta ve kasa **sahibe**: her oyuncunun (sen ve her bot) kendi sancağı, üssü (tarla / maden / odunluk), kasası,
 ordusu, sınırları ve kahramanı vardır.
@@ -468,7 +487,7 @@ ordusu, sınırları ve kahramanı vardır.
   HUD'da 🤝 müttefik sayısı ve askerleri; rakip tarafta kule toplamı ve ayakta sancak sayısı (⚑ 3/3).
 - **Görüş takımın ortak malıdır**: müttefik birimin gördüğü yeri sen de görürsün. Rakip takım da yapılarını takımca hatırlar.
 - **Kaynak sahibe özeldir**: işçi yalnızca sahibinin ürününü alır, kahraman kendi ürünü + ganimeti. Zorluk çarpanı
-  yalnızca **rakip** takımın botlarına işler; müttefikler senin gibi 1x toplar.
+  yalnızca **insansız** takımın botlarına işler (co-op'ta rakip takım); müttefikler senin gibi 1x toplar.
 - **Sınırlar oyuncu başınadır**: asker sınırı min(200, 600 / oyuncu sayısı) — 1v1'de 200, 2v2'de 150, 3v3'te 100,
   5v5'te 60; işçi 100, kule 10, bina 10 her oyuncuda ayrı.
 - **Arena büyür**: yarı boy 120 + 25 × (n - 1) (1v1 240×240, 5v5 440×440). Üsler takımın köşesinde, hatta dik bir

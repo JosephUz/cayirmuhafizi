@@ -79,7 +79,7 @@ export function createUI(root, world, actions) {
     const c = { army: 0, enemies: 0, workers: 0, enemyWorkers: 0, allies: 0, allyArmy: {}, foot: 0, archer: 0, cavalry: 0, siege: 0, gold: 0, wood: 0, food: 0 };
     for (const e of world.entities) {
       if (!e.alive || e.isPlayer || e.isHero) continue;
-      if (e.faction !== 'blue') { if (e.isWorker) c.enemyWorkers += e.tier || 1; else if (!e.isBeast) c.enemies++; continue; }
+      if (e.faction !== world.side) { if (e.isWorker) c.enemyWorkers += e.tier || 1; else if (!e.isBeast) c.enemies++; continue; }
       if (e.owner !== world.me) { if (!e.isWorker) { c.allies++; c.allyArmy[e.owner.id] = (c.allyArmy[e.owner.id] || 0) + 1; } continue; }
       if (e.isWorker) { c.workers += e.tier || 1; c[e.workerKind] += e.tier || 1; continue; }
       c.army++;
@@ -276,8 +276,8 @@ export function createUI(root, world, actions) {
         if (!s || !isFinite(s.x)) { el.style.display = 'none'; continue; }
         const t = camp.alive ? camp.waveTimer : camp.respawnTimer;
         const time = `${Math.floor(Math.max(0, t) / 60)}:${String(Math.floor(Math.max(0, t) % 60)).padStart(2, '0')}`;
-        el.textContent = camp.alive ? `⛺ akın ${time} ${camp.raidSide === 'blue' ? '→ takımına' : '→ rakibe'}` : `🔥 yeniden kuruluyor ${time}`;
-        el.className = `camp-label${camp.alive ? (camp.raidSide === 'blue' ? ' danger' : '') : ' ruin'}`;
+        el.textContent = camp.alive ? `⛺ akın ${time} ${camp.raidSide === world.side ? '→ takımına' : '→ rakibe'}` : `🔥 yeniden kuruluyor ${time}`;
+        el.className = `camp-label${camp.alive ? (camp.raidSide === world.side ? ' danger' : '') : ' ruin'}`;
         el.style.display = 'block'; el.style.left = `${s.x}px`; el.style.top = `${s.y}px`;
       }
     },
@@ -392,7 +392,7 @@ export function createUI(root, world, actions) {
       if (world.sel.structure && !world.sel.structure.alive) world.sel.structure = null;
       const c = countUnits();
       const own = world.me.banner;
-      const foes = world.players.filter(q => q.faction === 'red'), allies = world.players.filter(q => q.faction === 'blue' && q !== world.me);
+      const foes = world.players.filter(q => q.faction !== world.side), allies = world.players.filter(q => q.faction === world.side && q !== world.me);
       if (p) {
         els.health.textContent = `♥ ${Math.ceil(p.hp)}/${p.stats.maxHp}`;
         els.level.textContent = `★ ${p.level} · ${Math.floor(p.xp || 0)}/${xpNeeded(p.level)} exp`;

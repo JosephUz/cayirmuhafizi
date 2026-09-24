@@ -1,6 +1,7 @@
 import * as T from 'three';
 import { CulledGroup, ball, box, makeHpBar, mesh, removeGroup, setHpBar } from '../builders.js';
 import { BUILD, COLORS, TOWER } from '../config.js';
+import { knownBy } from '../structures.js';
 
 /**
  * Yapı görünümü: mesh'ler yapı verisinden (structures.js) kurulur ve her karede **durumdan** çizilir: inşa yükselmesi,
@@ -127,10 +128,10 @@ export function detachStructureView(s) {
 }
 
 /** Her karede: durumdan görünüm. clock görsel saat (dalga), camQuat can çubuğu için. */
-export function syncStructureView(s, dt, clock, camQuat) {
+export function syncStructureView(s, dt, clock, camQuat, side = 'blue') {
   const v = s.view; if (!v) return;
   // Sisteki (görülmemiş) rakip yapısı gizlidir.
-  v.g.visible = s.faction !== 'red' || s.seen;
+  v.g.visible = knownBy(s, side);
   if (!s.alive) {
     if (s.kind === 'camp') {
       if (v.camp) v.camp.visible = false; if (v.ruin) v.ruin.visible = true; if (v.ring) v.ring.visible = false;

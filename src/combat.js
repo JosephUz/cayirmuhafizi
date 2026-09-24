@@ -3,7 +3,7 @@ import { ANTI, BLOCK, COMBAT, HERO_KNOCKBACK, HOMING_TURN, KNOCKBACK_SCALE, LEVE
 import { heroVolley } from './abilities.js';
 import { dashMult, isEvading, levelReachMult, reachOf, chargeMult } from './characters.js';
 import { applyImpulse } from './physics.js';
-import { bannerShielded } from './structures.js';
+import { bannerShielded, knownBy, markKnown } from './structures.js';
 import { towerAlarm, unitAlarm } from './alarm.js';
 import { statDamage, statStructDamage } from './stats.js';
 
@@ -102,7 +102,7 @@ export function nearestEnemyTower(world, e, range) {
   let best = null, bd = Infinity;
   for (const s of world.structures) {
     if (!s.alive || s.faction === e.faction || s.kind !== 'tower') continue;
-    if (e.faction === 'blue' ? !s.seen : !s.seenByRed) continue;
+    if (!knownBy(s, e.faction)) continue;
     const d = Math.hypot(s.pos.x - e.pos.x, s.pos.z - e.pos.z);
     if (d <= range + s.radius && d < bd) { bd = d; best = s; }
   }
@@ -254,12 +254,12 @@ export function damageStructure(world, s, amount, source) {
   if (bannerShielded(world, s)) {
     s.hitFlash = 0.18;
     world.fx.burst(s.pos.x + (Math.random() - 0.5), 1.8, s.pos.z + (Math.random() - 0.5), '#9fd6ff', 3, 0.14);
-    if (source && source.faction === 'blue' && world.time - (world.shieldMsgAt ?? -9) > 2.5) {
+    if (source && (source.faction === 'blue' || source.faction === 'red') && world.time - (world.shieldMsgAt ?? -9) > 2.5) {
       world.shieldMsgAt = world.time;
       // Sancağa vurmak kalkanı besleyen kuleleri (sahibinin kuleleri) ele verir: hepsi haritada açılır ve yerleri işaretlenir.
       const towers = world.structures.filter(t => t.alive && t.kind === 'tower' && t.owner === s.owner);
       for (const t of towers) {
-        t.seen = true;
+        markKnown(t, source.faction);
         world.fx.ring(t.pos.x, t.pos.z, '#ff8a6a', 3.2, 2.5);
         world.fx.ring(t.pos.x, t.pos.z, '#ffd12e', 1.6, 2.5);
         world.fx.burst(t.pos.x, 3.2, t.pos.z, '#ffd12e', 8, 0.12);

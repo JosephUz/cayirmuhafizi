@@ -12,7 +12,7 @@ export function createScreens(root, world, app) {
   const els = {
     home: $('#mg-home'), setup: $('#mg-setup'), lobby: $('#mg-lobby'), end: $('#mg-end'), help: $('#mg-help'), menu: $('#mg-menu'), net: $('#mg-net'),
     nick: $('#home-nick'), joinRow: $('#home-joinrow'), code: $('#home-code'), homeStatus: $('#home-status'),
-    setupTitle: $('#setup-title'), lobbyCode: $('#lobby-code'), blue: $('#lobby-blue'), red: $('#lobby-red'), lobbyTeams: $('#lobby-teams'), lobbyDiff: $('#lobby-diff'), lobbyStart: $('#lobby-start'), lobbyStatus: $('#lobby-status'),
+    setupTitle: $('#setup-title'), lobbyCode: $('#lobby-code'), blue: $('#lobby-blue'), red: $('#lobby-red'), lobbyTeams: $('#lobby-teams'), lobbyDiff: $('#lobby-diff'), lobbyStart: $('#lobby-start'), lobbyStatus: $('#lobby-status'), lobbyMode: $('#lobby-mode'),
     endCard: $('#end-card'), helpHero: $('#help-hero'), menuResume: $('#menu-resume'), menuSound: $('#menu-sound'), menuQuality: $('#menu-quality'),
   };
   const overlays = [els.home, els.setup, els.lobby, els.end, els.help, els.menu];
@@ -57,19 +57,35 @@ export function createScreens(root, world, app) {
   els.lobbyStart.onclick = () => app.startRoom();
   $('#lobby-leave').onclick = () => { app.leaveRoom(); show(els.home); };
 
+  /**
+   * Lobi: iki takımın koltukları. Oyuncular seçtikleri takımın ilk koltuklarına oturur, kalanı bot doldurur. Öbür
+   * takımdaki bir bot koltuğuna tıklayan oraya geçer: iki takımda da insan varsa oyun PvP olur.
+   */
   function renderLobby(lobby) {
     const isHost = lobby.hostId === app.netId();
     els.lobbyCode.textContent = lobby.code;
     const n = lobby.settings.teamSize;
-    const seat = (i, s) => {
-      if (s) return `<li class="${s.online ? '' : 'off'}${s.id === app.netId() ? ' me' : ''}"><i class="dot" style="background:${TEAMS.humanColors[i % TEAMS.humanColors.length]}"></i>${escapeHtml(s.nick)}${s.id === lobby.hostId ? ' <small>kuran</small>' : ''}${s.online ? '' : ' <small>koptu</small>'}</li>`;
-      return `<li class="bot"><i class="dot bot"></i>Bot</li>`;
+    const me = lobby.seats.find(s => s.id === app.netId());
+    // Renk sırası oyunla aynı: insanlar lobi sırasıyla TEAMS.humanColors'tan alır (bkz. players.js createPlayers).
+    const colorOf = s => TEAMS.humanColors[lobby.seats.indexOf(s) % TEAMS.humanColors.length];
+    const human = s => `<li class="${s.online ? '' : 'off'}${s.id === app.netId() ? ' me' : ''}"><i class="dot" style="background:${colorOf(s)}"></i>${escapeHtml(s.nick)}${s.id === lobby.hostId ? ' <small>kuran</small>' : ''}${s.online ? '' : ' <small>koptu</small>'}</li>`;
+    const list = team => {
+      const people = lobby.seats.filter(s => (s.team || 'blue') === team);
+      const canJoin = me && (me.team || 'blue') !== team;
+      const bot = () => canJoin
+        ? `<li class="bot join" data-team="${team}" title="Bu takıma geç"><i class="dot ${team === 'red' ? 'red' : 'bot'}"></i>Bot <small>buraya geç</small></li>`
+        : `<li class="bot"><i class="dot ${team === 'red' ? 'red' : 'bot'}"></i>Bot</li>`;
+      return Array.from({ length: n }, (_, i) => (people[i] ? human(people[i]) : bot())).join('');
     };
-    els.blue.innerHTML = Array.from({ length: n }, (_, i) => seat(i, lobby.seats[i])).join('');
-    els.red.innerHTML = Array.from({ length: n }, () => `<li class="bot"><i class="dot red"></i>Bot</li>`).join('');
+    els.blue.innerHTML = list('blue');
+    els.red.innerHTML = list('red');
+    for (const li of els.lobby.querySelectorAll('li.join')) li.onclick = () => app.lobbyTeam(li.dataset.team);
+    const blues = lobby.seats.filter(s => (s.team || 'blue') === 'blue').length, reds = lobby.seats.length - blues;
+    const pvp = blues > 0 && reds > 0;
+    els.lobbyMode.textContent = pvp ? 'PvP: iki takımda da oyuncu var, zorluk yalnızca insansız takımı etkiler (burada yok).' : 'Co-op: bütün oyuncular aynı takımda. Karşı takıma geçmek için oradaki bir bot koltuğuna tıkla.';
     els.lobbyTeams.value = String(n); els.lobbyDiff.value = lobby.settings.difficulty;
-    els.lobbyTeams.disabled = els.lobbyDiff.disabled = !isHost;
-    for (const o of els.lobbyTeams.options) o.disabled = Number(o.value) < lobby.seats.length;
+    els.lobbyTeams.disabled = !isHost; els.lobbyDiff.disabled = !isHost || pvp;
+    for (const o of els.lobbyTeams.options) o.disabled = Number(o.value) < Math.max(blues, reds);
     els.lobbyStart.hidden = !isHost;
     els.lobbyStatus.textContent = isHost ? '' : 'Kuranın başlatması bekleniyor';
     show(els.lobby);

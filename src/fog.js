@@ -1,10 +1,11 @@
 import * as T from 'three';
 import { BUILDINGS, FOG, HALF, VISION } from './config.js';
+import { knownBy, markKnown } from './structures.js';
 
 /**
- * Savaş sisi. Harita bir hücre ızgarasına bölünür; mavi tarafın her birimi ve yapısı kendi görüş yarıçapındaki hücreleri
- * "görünür" yapar, görülen hücreler kalıcı olarak "keşfedilmiş" olur. Hesap sunucuda da istemcide de aynıdır (aynı
- * mavi birimlerden); karartma yalnızca istemcide, sahne verildiğinde (world.scene) yüksekte duran ve kamera açısına göre
+ * Savaş sisi. Harita bir hücre ızgarasına bölünür; izlenen takımın (world.side: istemcide senin takımın, sunucuda mavi)
+ * her birimi ve yapısı kendi görüş yarıçapındaki hücreleri "görünür" yapar, görülen hücreler kalıcı olarak "keşfedilmiş"
+ * olur. Öbür takımın bilgisi (hangi yapıyı gördüğü) yakınlıkla tutulur (seen / seenByRed); karartma yalnızca istemcide, sahne verildiğinde (world.scene) yüksekte duran ve kamera açısına göre
  * kaydırılmış bir düzlemle çizilir.
  */
 export function createFog(world) {
@@ -52,31 +53,34 @@ export function createFog(world) {
       if (!force && timer < FOG.updateEvery) return false;
       timer = 0;
       visible.fill(0);
+      const side = world.side === 'red' ? 'red' : 'blue', other = side === 'red' ? 'blue' : 'red';
       if (fog.enabled) {
         for (const e of world.entities) {
-          if (!e.alive || e.faction !== 'blue') continue;
+          if (!e.alive || e.faction !== side) continue;
           mark(e.pos.x, e.pos.z, e.vision || VISION.soldier);
         }
         for (const s of world.structures) {
-          if (!s.alive || s.faction !== 'blue') continue;
+          if (!s.alive || s.faction !== side) continue;
           mark(s.pos.x, s.pos.z, BUILDINGS[s.kind].vision * (s.ready ? 1 : 0.5));
         }
       } else visible.fill(1);
-      // Rakibin bilgisi: mavi yapı, bir kırmızı birimin ya da yapının görüşüne girince bilinir olur.
+      // Öbür takımın bilgisi: izlenen takımın yapısı, öbür takımın bir biriminin ya da yapısının görüşüne girince bilinir olur.
       for (const s of world.structures) {
-        if (!s.alive || s.faction !== 'blue' || s.seenByRed) continue;
+        if (!s.alive || s.faction !== side || knownBy(s, other)) continue;
+        let hit = false;
         for (const e of world.entities) {
-          if (!e.alive || e.faction !== 'red') continue;
+          if (!e.alive || e.faction !== other) continue;
           const dx = e.pos.x - s.pos.x, dz = e.pos.z - s.pos.z, r = (e.vision || VISION.soldier) + s.radius;
-          if (dx * dx + dz * dz <= r * r) { s.seenByRed = true; break; }
+          if (dx * dx + dz * dz <= r * r) { hit = true; break; }
         }
-        if (!s.seenByRed) for (const r of world.structures) {
-          if (!r.alive || r.faction !== 'red') continue;
-          if (Math.hypot(r.pos.x - s.pos.x, r.pos.z - s.pos.z) <= BUILDINGS[r.kind].vision + s.radius) { s.seenByRed = true; break; }
+        if (!hit) for (const r of world.structures) {
+          if (!r.alive || r.faction !== other) continue;
+          if (Math.hypot(r.pos.x - s.pos.x, r.pos.z - s.pos.z) <= BUILDINGS[r.kind].vision + s.radius) { hit = true; break; }
         }
+        if (hit) markKnown(s, other);
       }
       // Görünen rakip yapı bilinir olur (sis dokusunu beklemeden: bkz. ai.js knownTo da aynı işi yapar).
-      for (const s of world.structures) if (!s.seen && s.alive && fog.isVisible(s.pos.x, s.pos.z)) s.seen = true;
+      for (const s of world.structures) if (!knownBy(s, side) && s.alive && fog.isVisible(s.pos.x, s.pos.z)) markKnown(s, side);
       for (let k = 0; k < N * N; k++) if (visible[k]) explored[k] = 1;
       if (data) {
         const ea = Math.round(255 * FOG.exploredAlpha);

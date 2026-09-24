@@ -151,6 +151,11 @@ export function findBuilding(world, owner, kind, near = null) {
 }
 
 /** Oyuncunun sol tıkla seçebileceği kendi yapısı: imlece en yakın olan (müttefikin yapısı seçilmez). */
+/** Yapı bu takıma bilinir mi (mavi: seen, kırmızı: seenByRed). Kendi ve tarafsız yapılar baştan bilinir. */
+export const knownBy = (s, faction) => (faction === 'red' ? s.seenByRed : s.seen);
+/** Bu takımın bilgisini işaretle. */
+export function markKnown(s, faction) { if (faction === 'red') s.seenByRed = true; else s.seen = true; }
+
 export function pickOwnStructure(world, x, z, owner = world.me) {
   let best = null, bd = Infinity;
   for (const s of world.structures) {

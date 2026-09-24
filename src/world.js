@@ -12,7 +12,7 @@ import { updateZones } from './abilities.js';
 import { clampBounds, integrate, resolveEntityCollisions, resolveObstacleCollisions } from './physics.js';
 import { cancelQueued, enqueue, updateProduction } from './production.js';
 import { collapseStructure, createStructure, removeStructure, updateStructures } from './structures.js';
-import { createPlayers, enemyBanners, limitsFor } from './players.js';
+import { createPlayers, enemyBanners, enemyOf, limitsFor, teamDefeated } from './players.js';
 import { buildReport, createStats, sampleTimeline, statStructureDestroyed, statUnitDied } from './stats.js';
 
 /**
@@ -22,8 +22,10 @@ import { buildReport, createStats, sampleTimeline, statStructureDestroyed, statU
  *  - testlerde başsız (nullFx).
  * Görsel her şey `world.fx` kancalarından geçer (bkz. fx.js); oyuncuya özel geri bildirim (ses, HUD parıltısı, uçan yazı)
  * da fx.ping / flash / float ile **oyuncu** verilerek çağrılır: sunucu yalnızca o oyuncuya yollar.
- * Birden çok insan: mavi takımın ilk yuvaları insanlardır (humans); her insanın kendi girdisi (p.input), kahramanı (p.hero),
- * toplanma bayrağı (p.rally) ve karnesi (p.st) vardır. world.me / world.player yalnızca istemcide anlamlıdır.
+ * Birden çok insan: her takımın ilk yuvaları o takımı seçen insanlardır (humans; iki takımda da insan varsa PvP); her
+ * insanın kendi girdisi (p.input), kahramanı (p.hero), toplanma bayrağı (p.rally) ve karnesi (p.st) vardır.
+ * world.me / world.player yalnızca istemcide anlamlıdır; world.side izlenen takımdır (istemcide senin takımın, sunucuda
+ * mavi): sis ve "bilinen yapı" onun gözünden hesaplanır.
  */
 export function createWorld({ fx = nullFx(), scene = null } = {}) {
   const world = {
@@ -31,7 +33,7 @@ export function createWorld({ fx = nullFx(), scene = null } = {}) {
     env: null, layout: null, half: TEAMS.half(TEAMS.default), teamSize: TEAMS.default, seed: 814,
     entities: [], structures: [], towerSpots: [], nodes: [], lanePoints: [], obstacles: [], bases: {}, spots: [], items: [],
     arrows: [], tornadoes: [], spins: [], zones: [],
-    players: [], humans: [], me: null, player: null, limits: limitsFor(2),
+    players: [], humans: [], me: null, player: null, side: 'blue', limits: limitsFor(2),
     difficulty: 'normal', tmpVec: new T.Vector3(), mode: 'moba',
     fog: null, camps: [], obstacleVersion: 0, ids: { entity: 1, structure: 1, item: 1, arrow: 1, zone: 1 },
     timeline: [], sampleTimer: 0, outcome: null,
@@ -84,15 +86,11 @@ function installHooks(world) {
     // Yıkılan kule / bina da exp bırakır (kule en değerlisi); kendi yıktığın yapı vermez, yoksa bedava exp olurdu.
     if (!s.demolished && s.kind !== 'banner') dropXp(world, s.pos.x, s.pos.z, s.kind === 'tower' ? LEVEL.xp.tower : s.kind === 'camp' ? LEVEL.xp.camp : LEVEL.xp.building);
     if (s.kind !== 'banner') return;
-    if (s.faction === 'red') {
-      // Zafer: rakip takımın **bütün** sancakları yıkılınca. Aradaki her sancak yalnızca ses verir.
-      if (enemyBanners(world, 'blue').length) { for (const h of world.humans) world.fx.ping(h, 'tower'); }
-      else endGame(world, 'victory', 'banners');
-    } else {
-      // Sancağı düşen insan **elenir**: kahramanı bir daha doğmaz. Mavi takımın insan sancakları hep düşünce yenilgi.
-      if (s.owner && s.owner.human) s.owner.eliminated = true;
-      if (!world.humans.some(h => h.banner && h.banner.alive)) endGame(world, 'defeat', 'banner');
-    }
+    // Sancağı düşen insan **elenir**: kahramanı bir daha doğmaz. Takım yenilgisi bkz. players.js teamDefeated:
+    // insanlı takım insanlarının sancakları, insansız takım bütün sancakları yıkılınca yenilir.
+    if (s.owner && s.owner.human) s.owner.eliminated = true;
+    if (teamDefeated(world, s.faction)) endGame(world, enemyOf(s.faction), 'banners');
+    else for (const h of world.humans) if (h.faction !== s.faction) world.fx.ping(h, 'tower');
   };
   /** İşçi birleşti: hedefin kademesi arttı, gelen işçi sahneden kalkar. */
   world.onWorkerMerged = (target, source) => {
@@ -108,10 +106,11 @@ function installHooks(world) {
   };
 }
 
-function endGame(world, result, reason) {
+/** Oyun sonu: winner kazanan takım; result mavinin gözünden (tek başına oyun ve günlük için), karne her oyuncuya kendi takımına göre söyler. */
+function endGame(world, winner, reason) {
   if (world.ended) return;
   world.ended = true;
-  world.outcome = { result, reason };
+  world.outcome = { winner, result: winner === 'blue' ? 'victory' : 'defeat', reason };
   sampleTimeline(world);
   const report = buildReport(world, world.outcome);
   world.report = report;
@@ -119,9 +118,9 @@ function endGame(world, result, reason) {
 }
 
 /**
- * Oyunu kurar: arena takım büyüklüğüne göre, oyuncular (insanlar mavi takımın ilk yuvalarında), her oyuncuya sancak +
+ * Oyunu kurar: arena takım büyüklüğüne göre, oyuncular (insanlar kendi takımlarının ilk yuvalarında), her oyuncuya sancak +
  * başlangıç kulesi + kışla, kahramanlar, kamplar ve haydutlar; sis temizlenir.
- * humans: [{ name, color? }] — en az bir insan (tek başına oyunda 'Sen').
+ * humans: [{ name, color?, faction? }] — en az bir insan (tek başına oyunda 'Sen', mavi).
  */
 export function setupGame(world, { teamSize = TEAMS.default, difficulty = 'normal', humans = [{ name: 'Sen' }], loadout = { ...HERO_UPGRADE.startLoadout }, seed = 814, run = true } = {}) {
   for (const e of world.entities) world.fx.removeEntity(e);
@@ -136,7 +135,7 @@ export function setupGame(world, { teamSize = TEAMS.default, difficulty = 'norma
   const players = createPlayers(teamSize, humans);
   Object.assign(world, {
     env, layout, seed, half: layout.half, teamSize, towerSpots: env.towerSpots, nodes: env.nodes, lanePoints: env.lanePoints, obstacles: env.obstacles, bases: env.bases,
-    players, humans: players.filter(p => p.human), limits: limitsFor(players.length), camps: [],
+    players, humans: players.filter(p => p.human), limits: limitsFor(players.length), camps: [], side: 'blue',
     time: 0, paused: false, ended: false, running: run, difficulty, outcome: null, report: null, timeline: [], sampleTimer: 0,
     ids: { entity: 1, structure: 1, item: 1, arrow: 1, zone: 1 },
   });
@@ -361,11 +360,15 @@ function updateTowers(world, dt) {
   }
 }
 
-/** Zafer: rakip takımın bütün sancakları yıkık **ve** sahada rakip birim kalmadı. */
+/** Zafer: rakip takımın bütün sancakları yıkık **ve** sahada rakip birim kalmadı (her iki takım için). */
 function checkVictory(world) {
-  if (world.ended || enemyBanners(world, 'blue').length) return;
-  if (world.entities.some(e => e.faction === 'red' && e.alive)) return;
-  endGame(world, 'victory', 'annihilation');
+  if (world.ended) return;
+  for (const f of ['blue', 'red']) {
+    if (enemyBanners(world, f).length) continue;
+    const foe = enemyOf(f);
+    if (world.entities.some(e => e.faction === foe && e.alive)) continue;
+    endGame(world, f, 'annihilation'); return;
+  }
 }
 
 function updateLifecycle(world, dt) {

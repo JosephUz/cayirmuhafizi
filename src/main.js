@@ -15,6 +15,7 @@ import { createSceneFx } from './view/scenefx.js';
 import { syncStructureView } from './view/structview.js';
 import { syncZoneView } from './view/zones.js';
 import { enqueueError } from './production.js';
+import { knownBy, markKnown } from './structures.js';
 import { cmdBuild, cmdCancel, cmdConvert, cmdDemolish, cmdEnqueue, cmdRally, convertError, createWorld, setupGame, step } from './world.js';
 
 /**
@@ -174,6 +175,7 @@ export async function start(root) {
     createRoom(nick, settings) { world.net = net; pendingRoom = { create: true, settings }; if (net.connected) { pendingRoom = null; net.create(settings); } else net.connect(nick); },
     joinRoom(nick, code) { world.net = net; pendingRoom = { create: false, code }; if (net.connected) { pendingRoom = null; net.join(code); } else net.connect(nick); },
     lobbySettings(s) { net.settings(s); },
+    lobbyTeam(team) { net.team(team); },
     startRoom() { net.start(); },
     leaveRoom() { net.leave(); },
     leaveGame() { leaveGame(); },
@@ -310,7 +312,7 @@ export async function start(root) {
     const inView = kc ? always : bounds;
     for (const e of world.entities) {
       const v = e.view; if (!v) continue;
-      const shown = (kc && kc.target === e) || (inView(e.pos.x, e.pos.z, 0) && (e.faction === 'blue' || sees(e.pos.x, e.pos.z)));
+      const shown = (kc && kc.target === e) || (inView(e.pos.x, e.pos.z, 0) && (e.faction === world.side || sees(e.pos.x, e.pos.z)));
       if (!shown) { v.g.visible = false; v.hpBar.visible = false; continue; }
       seen++;
       // Uzaktaki birim sade çizilir (uzuvlar gizli, animasyon yok): kalabalıkta en büyük tasarruf burada.
@@ -325,10 +327,10 @@ export async function start(root) {
     for (const z of world.tornadoes) syncZoneView(world, z, animDt);
     for (const z of world.zones) syncZoneView(world, z, animDt);
     for (const s of world.structures) {
-      if (s.faction === 'red' && !s.seen && world.cam === 'tps' && sees(s.pos.x, s.pos.z)) s.seen = true;
+      if (!knownBy(s, world.side) && world.cam === 'tps' && sees(s.pos.x, s.pos.z)) markKnown(s, world.side);
       // Ekran dışındaki yapı hiç çizilmez: matris ve kesme denetimi de düşer (yapı başına ~14 mesh).
       if (!inView(s.pos.x, s.pos.z, 6)) { if (s.view) { s.view.g.visible = false; if (s.view.bars) s.view.bars.g.visible = false; } continue; }
-      syncStructureView(s, animDt, world.clock, camera.quaternion);
+      syncStructureView(s, animDt, world.clock, camera.quaternion, world.side);
     }
     world.ui.updateCampLabels();
     world.ui.updateHint();
