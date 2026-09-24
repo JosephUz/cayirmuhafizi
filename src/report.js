@@ -10,6 +10,16 @@ const fmt = n => Math.round(n).toLocaleString('tr-TR');
 const mmss = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const typeLabel = k => { const t = SOLDIER_TYPES.find(x => x.key === k); return t ? t.label : k === 'hero' ? 'Kahraman' : k; };
+const typeIcon = k => { const t = SOLDIER_TYPES.find(x => x.key === k); return t ? t.icon : k === 'hero' ? '★' : k; };
+/**
+ * Ordu sütun sırası: önce işçiler, sonra askerler **güçsüzden güçlüye** (bedel sırası: kılıçlı 9 ... kalkanlı atlı 33,
+ * mancınık 45), en sonda kahraman. Eşit bedelde SOLDIER_TYPES sırası korunur.
+ */
+function armyOrder(keys) {
+  const idx = k => SOLDIER_TYPES.findIndex(t => t.key === k);
+  const rank = k => { const t = SOLDIER_TYPES.find(x => x.key === k); if (k === 'hero') return [2, 0]; if (!t) return [3, 0]; return [t.worker ? 0 : 1, t.worker ? 0 : t.cost]; };
+  return [...keys].sort((a, b) => { const ra = rank(a), rb = rank(b); return ra[0] - rb[0] || ra[1] - rb[1] || idx(a) - idx(b); });
+}
 
 export function renderReport(card, report, world, actions) {
   const me = world.me ? report.players.find(p => p.id === world.me.id) : null;
@@ -27,17 +37,16 @@ export function renderReport(card, report, world, actions) {
 
   const ranking = () => {
     const list = [...report.players].sort((a, b) => (sortKey === 'name' ? a.name.localeCompare(b.name, 'tr') : b.score[sortKey] - a.score[sortKey]));
-    const teamSum = f => report.players.filter(p => p.faction === f).reduce((a, p) => a + p.score.total, 0);
     return `<table class="rank"><thead><tr><th>#</th><th data-sort="name">Oyuncu</th>${FIELDS.map(([k, l]) => `<th data-sort="${k}" class="${sortKey === k ? 'on' : ''}">${l}</th>`).join('')}</tr></thead><tbody>
       ${list.map((p, i) => `<tr class="${me && p.id === me.id ? 'me' : ''} ${p.faction}"><td>${i + 1}</td><td><i class="dot" style="background:${p.color}"></i>${esc(p.name)}${p.human ? '' : ' <small>bot</small>'}${p.alive ? '' : ' <small>sancağı yıkık</small>'}</td>${FIELDS.map(([k]) => `<td>${fmt(p.score[k])}</td>`).join('')}</tr>`).join('')}
-      </tbody><tfoot><tr><td></td><td>Mavi takım</td><td colspan="4"></td><td>${fmt(teamSum('blue'))}</td></tr><tr><td></td><td>Kırmızı takım</td><td colspan="4"></td><td>${fmt(teamSum('red'))}</td></tr></tfoot></table>`;
+      </tbody></table>`;
   };
 
   const army = () => {
     const keys = new Set();
     for (const p of report.players) for (const o of [p.st.unitsMade, p.st.unitsLost, p.st.kills]) for (const k of Object.keys(o)) keys.add(k);
-    const cols = [...keys];
-    return `<table class="army"><thead><tr><th>Oyuncu</th><th></th>${cols.map(k => `<th>${typeLabel(k)}</th>`).join('')}<th>Hasar</th></tr></thead><tbody>
+    const cols = armyOrder(keys);
+    return `<table class="army"><thead><tr><th>Oyuncu</th><th></th>${cols.map(k => `<th class="ico" title="${esc(typeLabel(k))}">${typeIcon(k)}</th>`).join('')}<th>Hasar</th></tr></thead><tbody>
       ${report.players.map(p => `<tr class="${p.faction} ${me && p.id === me.id ? 'me' : ''}"><td rowspan="3"><i class="dot" style="background:${p.color}"></i>${esc(p.name)}</td><td>bastı</td>${cols.map(k => `<td>${p.st.unitsMade[k] || ''}</td>`).join('')}<td rowspan="3">${fmt(p.st.dmgDealt)} / ${fmt(p.st.dmgTaken)}</td></tr>
         <tr class="${p.faction}"><td>kaybetti</td>${cols.map(k => `<td>${p.st.unitsLost[k] || ''}</td>`).join('')}</tr>
         <tr class="${p.faction}"><td>öldürdü</td>${cols.map(k => `<td>${p.st.kills[k] || ''}</td>`).join('')}</tr>`).join('')}
@@ -55,8 +64,10 @@ export function renderReport(card, report, world, actions) {
     let max = 1; for (const r of rows) for (const v of r.p) max = Math.max(max, v[series]);
     const tMax = Math.max(1, rows[rows.length - 1].t);
     const X = t => pad.l + (W - pad.l - pad.r) * t / tMax, Y = v => H - pad.b - (H - pad.t - pad.b) * v / max;
-    ctx.strokeStyle = '#4a3a22'; ctx.lineWidth = 1; ctx.fillStyle = '#4a3a22'; ctx.font = '11px system-ui';
-    for (let i = 0; i <= 4; i++) { const v = max * i / 4, y = Y(v); ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W - pad.r, y); ctx.globalAlpha = 0.25; ctx.stroke(); ctx.globalAlpha = 1; ctx.fillText(fmt(v), 4, y + 4); }
+    // Koyu zemin (modalla aynı): oyuncu renkleri üstünde belirgin durur, kılavuz çizgileri silik kalır.
+    ctx.fillStyle = '#1c231b'; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = '#8f9d85'; ctx.lineWidth = 1; ctx.fillStyle = '#9fae94'; ctx.font = '11px system-ui';
+    for (let i = 0; i <= 4; i++) { const v = max * i / 4, y = Y(v); ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W - pad.r, y); ctx.globalAlpha = 0.18; ctx.stroke(); ctx.globalAlpha = 1; ctx.fillText(fmt(v), 4, y + 4); }
     for (let t = 0; t <= tMax; t += Math.max(60, Math.ceil(tMax / 8 / 60) * 60)) ctx.fillText(mmss(t), X(t) - 12, H - 6);
     report.players.forEach((p, i) => {
       ctx.strokeStyle = p.color; ctx.lineWidth = me && p.id === me.id ? 3 : 1.6; ctx.setLineDash(p.faction === 'red' ? [5, 3] : []);

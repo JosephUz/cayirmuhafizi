@@ -202,10 +202,12 @@ html,body{margin:0;height:100%;background:#19231d;overflow:hidden}
 #meadow-game .report th,#meadow-game .report td{padding:5px 8px;text-align:right;border-bottom:1px solid #2f3a2e;white-space:nowrap}
 #meadow-game .report th:nth-child(2),#meadow-game .report td:nth-child(2),#meadow-game .report .army td:first-child,#meadow-game .report .army td:nth-child(2){text-align:left}
 #meadow-game .report th[data-sort]{cursor:pointer;color:#b8c5aa}#meadow-game .report th.on{color:#ffd97a}
+#meadow-game .report .army th.ico{font-size:17px;text-align:center;cursor:help;padding:5px 4px}
+#meadow-game .report .army td:not(:first-child):not(:nth-child(2)):not(:last-child){text-align:center;padding:5px 4px;min-width:28px}
 #meadow-game .report tr.me td{background:#5a533033}
 #meadow-game .report tr.red td:nth-child(2){color:#ff9f8c}
 #meadow-game .report tfoot td{color:#b8c5aa;border-top:1px solid #718361}
 #meadow-game .report .chartbar{display:flex;gap:14px;margin-bottom:6px;font-size:12px}
-#meadow-game .report #tl-canvas{width:100%;max-width:860px;height:auto;background:#d9c59a;border-radius:6px;border:2px solid #8d6a45}
+#meadow-game .report #tl-canvas{width:100%;max-width:860px;height:auto;background:#1c231b;border-radius:6px;border:1px solid #3a4636}
 #meadow-game .report .legend{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:6px;font-size:12px}
 #meadow-game .report .hint{font-size:11px;color:#b8c5aa}
