@@ -24,6 +24,7 @@ export const S2C = {
   PLAYERS: 'pl',       // { time, list: [{ g, w, f, sp, att, ban, rally, elim }] } — oyuncu başı hafif durum
   END: 'end',          // karne (bkz. stats.js buildReport)
   PONG: 'pong',
+  ONLINE: 'on',        // { n } — sitede açık sekme sayısı (giriş ekranında "çevrim içi"), değişince en çok 2 sn'de bir
 };
 /** Olay türleri (EVENTS listesindeki her öğe [tür, ...alanlar] dizisidir; kısa adlar bant genişliği için). */
 export const EV = {

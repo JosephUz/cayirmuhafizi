@@ -34,14 +34,16 @@ export function createNetClient(world, hooks) {
 
   const send = obj => { if (ws && ws.readyState === 1) ws.send(JSON.stringify(obj)); };
 
+  let curNick = '';
   function connect(nick) {
-    if (ws) { try { ws.close(); } catch { /* yok */ } }
+    curNick = nick;
+    if (ws) { try { ws.onclose = null; ws.close(); } catch { /* yok */ } }
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     ws = new WebSocket(`${proto}://${location.host}`);
     ws.binaryType = 'arraybuffer';
     wantReconnect = true;
-    ws.onopen = () => { connected = true; send({ t: C2S.HELLO, nick, token: token() }); hooks.onConnect && hooks.onConnect(); };
-    ws.onclose = () => { connected = false; hooks.onDisconnect && hooks.onDisconnect(); if (wantReconnect) setTimeout(() => { if (wantReconnect) connect(nick); }, 1500); };
+    ws.onopen = () => { connected = true; send({ t: C2S.HELLO, nick: curNick, token: token() }); hooks.onConnect && hooks.onConnect(); };
+    ws.onclose = () => { connected = false; hooks.onDisconnect && hooks.onDisconnect(); if (wantReconnect) setTimeout(() => { if (wantReconnect) connect(curNick); }, 1500); };
     ws.onerror = () => {};
     ws.onmessage = ev => {
       if (typeof ev.data === 'string') { let msg; try { msg = JSON.parse(ev.data); } catch { return; } onText(msg); }
@@ -60,6 +62,7 @@ export function createNetClient(world, hooks) {
       case S2C.PLAYERS: applyPlayers(msg); break;
       case S2C.END: world.ended = true; world.report = msg.report; remember(null); hooks.onEnd && hooks.onEnd(msg.report); break;
       case S2C.PONG: rtt = performance.now() - msg.at; client.rtt = rtt; break;
+      case S2C.ONLINE: client.online = msg.n; hooks.onOnline && hooks.onOnline(msg.n); break;
       default: break;
     }
   }
@@ -307,10 +310,15 @@ export function createNetClient(world, hooks) {
     e.pos.x += pred.offX; e.pos.z += pred.offZ;
   }
 
+  // Boşta (giriş ekranı, tek başına oyun) da bağlantı canlı kalsın: ara sunucu (Cloudflare) sessiz soketi ~100 sn'de keser.
+  setInterval(() => { if (connected && !world.replicated) send({ t: C2S.PING, at: performance.now() }); }, NET.keepAlive * 1000);
+
   const client = {
-    id: 0, nick: '', lobby: null, rtt: 0, pending,
+    id: 0, nick: '', lobby: null, rtt: 0, online: 0, pending,
     connect, get connected() { return connected; },
     disconnect() { wantReconnect = false; if (ws) ws.close(); ws = null; world.replicated = false; },
+    /** Bağlıyken adı yenile: sunucu WELCOME ile döner (bekleyen oda kurma / katılma onWelcome'da yürür). */
+    hello(nick) { curNick = nick; send({ t: C2S.HELLO, nick, token: token() }); },
     create(settings) { send({ t: C2S.CREATE, ...settings }); },
     join(code) { send({ t: C2S.JOIN, code }); },
     settings(s) { send({ t: C2S.SETTINGS, ...s }); },

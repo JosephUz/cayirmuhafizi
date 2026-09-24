@@ -122,8 +122,9 @@ export async function start(root) {
   // ---- Ağ istemcisi ve ekranlar
   const net = createNetClient(world, {
     onWelcome() {
-      screens.setStatus('');
+      // Boşta bağlantının karşılaması durum yazısına dokunmaz (örn. "adını yazıp Katıl'a bas" kalsın).
       if (!pendingRoom) return;
+      screens.setStatus('');
       const r = pendingRoom; pendingRoom = null;
       // Geri bağlanmada sunucu koltuğu token'dan tanır ve lobiyi / oyunu kendisi yollar; tanımadıysa koda yeniden katılmayı dener.
       if (r.rejoin) { setTimeout(() => { if (!world.replicated && !net.lobby) net.join(r.code); }, 400); return; }
@@ -140,6 +141,7 @@ export async function start(root) {
     onEnd(report) { world.ui.cancelModes(true); unlockPointer(); screens.end(report, { lobby: () => { screens.show(null); if (net.lobby) screens.lobby(net.lobby); else screens.home(); }, home: () => { leaveGame(); screens.home(); } }); },
     onDisconnect() { if (world.replicated) screens.netStrip(true); },
     onConnect() { screens.netStrip(false); },
+    onOnline(n) { screens.setOnline(n); },
   });
   let pendingRoom = null;
 
@@ -172,8 +174,9 @@ export async function start(root) {
   const app = {
     netId: () => net.id,
     startLocal(nick, difficulty, teamSize) { startLocal(nick, difficulty, teamSize); },
-    createRoom(nick, settings) { world.net = net; pendingRoom = { create: true, settings }; if (net.connected) { pendingRoom = null; net.create(settings); } else net.connect(nick); },
-    joinRoom(nick, code) { world.net = net; pendingRoom = { create: false, code }; if (net.connected) { pendingRoom = null; net.join(code); } else net.connect(nick); },
+    // Bağlantı çoğunlukla açıktır (sayfa açılınca kurulur): önce ad yenilenir, oda isteği WELCOME'da (onWelcome) gider.
+    createRoom(nick, settings) { world.net = net; pendingRoom = { create: true, settings }; if (net.connected) net.hello(nick); else net.connect(nick); },
+    joinRoom(nick, code) { world.net = net; pendingRoom = { create: false, code }; if (net.connected) net.hello(nick); else net.connect(nick); },
     lobbySettings(s) { net.settings(s); },
     lobbyTeam(team) { net.team(team); },
     lobbyMove(m) { net.move(m); },
@@ -274,7 +277,11 @@ export async function start(root) {
     world.net = net; pendingRoom = { create: false, code: remembered, rejoin: true };
     net.connect(screens.nick());
     setTimeout(() => { if (!world.replicated && !net.lobby) { net.forgetRoom(); if (screens.visible() === screens.els.home) screens.home(''); } }, 4000);
-  } else screens.home(urlCode ? 'Odaya katılmak için adını yazıp Katıl’a bas' : '');
+  } else {
+    screens.home(urlCode ? 'Odaya katılmak için adını yazıp Katıl’a bas' : '');
+    // Boşta bağlantı: giriş ekranındaki "çevrim içi" sayısı için (oda kurulunca / katılınca aynı bağlantı kullanılır).
+    net.connect(screens.nick());
+  }
 
   const look = new T.Vector3().copy(world.player.pos);
   let prev = 0, mapTick = 0, prevAlive = true;

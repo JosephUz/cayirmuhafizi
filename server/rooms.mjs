@@ -24,6 +24,22 @@ export function createRooms({ log = console.log } = {}) {
   const sendBin = (conn, bytes) => { if (conn.ws && conn.ws.readyState === 1) conn.ws.send(bytes, { binary: true }); };
   const error = (conn, msg) => send(conn, { t: S2C.ERROR, msg });
 
+  /**
+   * Çevrim içi sayısı: siteyi açan her sekme boşta bir bağlantı tutar (bkz. main.js), yani conns = açık sekme sayısı.
+   * Sayı değişince herkese yayılır, ama en çok 2 sn'de bir (çok sekme aynı anda açılıp kapanınca yağmur olmasın).
+   */
+  let onlineSent = -1, onlineTimer = null;
+  function onlineChanged() {
+    if (onlineTimer) return;
+    onlineTimer = setTimeout(() => {
+      onlineTimer = null;
+      if (conns.size === onlineSent) return;
+      onlineSent = conns.size;
+      const msg = { t: S2C.ONLINE, n: conns.size };
+      for (const c of conns) send(c, msg);
+    }, 2000);
+  }
+
   function lobbyMsg(room) {
     return { t: S2C.LOBBY, code: room.code, hostId: room.hostId, settings: room.settings, state: room.state,
       seats: room.seats.map((c, i) => ({ slot: i, id: c.id, nick: c.nick, online: Boolean(c.ws), team: c.team })) };
@@ -198,7 +214,7 @@ export function createRooms({ log = console.log } = {}) {
           const r = old.room, i = r.seats.indexOf(old); if (i >= 0) r.seats[i] = conn;
           conn.left = false;
           if (conn.player) { conn.player.conn = conn; rejoinPlayer(conn.player); }
-          byToken.set(conn.token, conn); conns.delete(old);
+          byToken.set(conn.token, conn); conns.delete(old); onlineChanged();
           send(conn, { t: S2C.WELCOME, id: conn.id, token: conn.token, nick: conn.nick });
           if (r.state === 'playing') sendStart(r, conn); else if (r.state === 'ended') { send(conn, lobbyMsg(r)); send(conn, { t: S2C.END, report: r.report }); } else broadcastLobby(r);
           log(`geri bağlandı ${conn.nick} (${r.code})`);
@@ -207,6 +223,7 @@ export function createRooms({ log = console.log } = {}) {
         conn.token = conn.token || randomBytes(12).toString('base64url');
         byToken.set(conn.token, conn);
         send(conn, { t: S2C.WELCOME, id: conn.id, token: conn.token, nick: conn.nick });
+        send(conn, { t: S2C.ONLINE, n: conns.size });
         return;
       }
       case C2S.CREATE: {
@@ -292,10 +309,10 @@ export function createRooms({ log = console.log } = {}) {
   return {
     attach(ws) {
       const conn = { id: nextId++, token: null, nick: '', ws, room: null, player: null, lostAt: 0, left: false, team: 'blue' };
-      conns.add(conn);
+      conns.add(conn); onlineChanged();
       ws.on('message', (data, isBinary) => { try { onMessage(conn, data, isBinary); } catch (err) { log('mesaj hatası', err); } });
       ws.on('close', () => {
-        conns.delete(conn); conn.ws = null; conn.lostAt = performance.now();
+        conns.delete(conn); conn.ws = null; conn.lostAt = performance.now(); onlineChanged();
         const r = conn.room;
         if (!r) return;
         if (r.state === 'playing' && conn.player) { conn.player.input = createHeroInput(); broadcastLobby(r); log(`koptu ${conn.nick} (${r.code})`); }
@@ -304,6 +321,7 @@ export function createRooms({ log = console.log } = {}) {
       ws.on('error', () => {});
     },
     rooms,
-    stats() { return { rooms: rooms.size, conns: conns.size }; },
+    /** online: açık sekme (bağlı soket), oyunda: bir odada oturan bağlı sekme. */
+    stats() { let inRoom = 0; for (const c of conns) if (c.room && !c.left) inRoom++; return { rooms: rooms.size, conns: conns.size, online: conns.size, inRoom }; },
   };
 }

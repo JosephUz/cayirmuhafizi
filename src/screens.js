@@ -11,7 +11,7 @@ export function createScreens(root, world, app) {
   const $ = s => root.querySelector(s);
   const els = {
     home: $('#mg-home'), setup: $('#mg-setup'), lobby: $('#mg-lobby'), end: $('#mg-end'), help: $('#mg-help'), menu: $('#mg-menu'), net: $('#mg-net'),
-    nick: $('#home-nick'), joinRow: $('#home-joinrow'), code: $('#home-code'), homeStatus: $('#home-status'),
+    nick: $('#home-nick'), joinRow: $('#home-joinrow'), code: $('#home-code'), homeStatus: $('#home-status'), online: $('#home-online'),
     setupTitle: $('#setup-title'), lobbyCode: $('#lobby-code'), blue: $('#lobby-blue'), red: $('#lobby-red'), lobbyTeams: $('#lobby-teams'), lobbyDiff: $('#lobby-diff'), lobbyStart: $('#lobby-start'), lobbyStatus: $('#lobby-status'), lobbyMode: $('#lobby-mode'),
     endCard: $('#end-card'), helpHero: $('#help-hero'), menuResume: $('#menu-resume'), menuSound: $('#menu-sound'), menuQuality: $('#menu-quality'),
   };
@@ -152,6 +152,7 @@ export function createScreens(root, world, app) {
     els, show, visible, nick,
     home(status = '') { els.homeStatus.textContent = status; els.joinRow.hidden = true; show(els.home); },
     lobby: renderLobby,
+    setOnline(n) { if (els.online) { els.online.textContent = n > 0 ? `● ${n} çevrim içi` : ''; els.online.title = 'Siteyi şu an açık tutan sekme sayısı'; } },
     setStatus(text) { if (visible() === els.lobby) els.lobbyStatus.textContent = text; else els.homeStatus.textContent = text; },
     end(report, actions) { renderReport(els.endCard, report, world, actions); show(els.end); },
     toggleHelp() { if (visible() === els.help) closeHelp(); else openHelp(); },

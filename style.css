@@ -146,6 +146,7 @@ html,body{margin:0;height:100%;background:#19231d;overflow:hidden}
 #meadow-game .foot{margin-top:14px;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#b8c5aa}
 #meadow-game button.link{background:none;border:none;color:#b8c5aa;text-decoration:underline;padding:0;font-size:12px}
 #meadow-game .status{font-size:12px;color:#ffd97a;min-height:1em}
+#meadow-game .foot .online{font-size:12px;color:#8fe08f;white-space:nowrap}
 #meadow-game .card.lobby{max-width:720px}
 #meadow-game .codebox{display:flex;align-items:center;gap:12px;margin-bottom:14px}
 #meadow-game .codebox .lbl{font-size:12px;color:#b8c5aa;letter-spacing:.1em}

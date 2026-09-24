@@ -83,6 +83,10 @@ görseller `world.fx` kancalarından geçer (tarayıcıda mesh, sunucuda olay).
   görünür. Oda ancak bağlı kimse kalmayınca kapanır. Odayı kuranın oyun içinde ayrıcalığı yoktur; kuran koparsa maç sürer.
 - **Yenilgi kuralı co-op'ta**: sancağı düşen insan **elenir** (kahramanı bir daha doğmaz, ordusu yenilenmez, izlemeye devam
   eder); takımdaki **bütün insanların** sancağı düşünce yenilgi. Zafer kuralı aynıdır (rakip sancaklarının hepsi).
+- **Çevrim içi sayısı**: siteyi açan her sekme (giriş ekranı ve tek başına oyun dahil) boşta bir bağlantı tutar; giriş
+  ekranının sağ altında "● N çevrim içi" yazar (`S2C.ONLINE`, değişince en çok 2 sn'de bir). Boşta bağlantı 20 sn'de bir
+  ping atar (Cloudflare sessiz soketi ~100 sn'de keser). `/health`: `online` açık sekme, `inRoom` bir odada oturan sekme.
+  Oda kur / katıl aynı bağlantıyı kullanır (önce ad yenilenir).
 - Kapsam dışı (bilerek): hesap, kalıcı istatistik, yabancılarla eşleştirme, izleyici. Yapı bunları engellemez.
 
 ## PvP (insanlar iki takımda)
