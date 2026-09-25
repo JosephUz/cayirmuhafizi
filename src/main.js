@@ -313,7 +313,7 @@ export async function start(root) {
    * inşa yeri seçerken kapanır ki saha görünsün.
    */
   let drawer = false, lastSel = null, lastPlacing = null, wasPlaying = false;
-  const tbar = root.querySelector('#mg-tbar'), drawerClose = root.querySelector('#mg-drawer-close');
+  const tbar = root.querySelector('#mg-tbar'), drawerClose = root.querySelector('#mg-drawer-close'), placeTap = root.querySelector('#mg-place-tap');
   const setDrawer = on => { drawer = on; root.classList.toggle('drawer', on); };
   if (touch) {
     world.touchBuild = () => { if (world.placing) world.ui.cancelModes(true); else setDrawer(!drawer); };
@@ -332,6 +332,12 @@ export async function start(root) {
     if (world.placing && world.placing !== lastPlacing) { setDrawer(false); world.ui.hint('Yeri seçmek için sahaya dokun · ⚒ vazgeç', 4); }
     lastSel = sel; lastPlacing = world.placing;
     root.classList.toggle('placing-touch', !!world.placing);
+    // İnşa: hayalet sahaya konunca (ilk dokunuş) tepesinde zıplayan ⚒: "aynı yere bir daha dokun, dikilsin".
+    // Yer uygun değilse (kırmızı hayalet) gösterilmez: ikinci dokunuş dikmez, sebebi ipucu yazısında.
+    const a = world.input.aim, ghostUp = playing && world.placing && world.input.hasAim && world.input.pointer.inside && !world.placeError;
+    const sp = ghostUp ? world.toScreen({ x: a.x, y: BUILDINGS[world.placing].radius + 3.2, z: a.z }) : null;
+    placeTap.hidden = !sp;
+    if (sp) placeTap.style.transform = `translate(${sp.x}px,${sp.y}px)`;
   }
 
   const look = new T.Vector3().copy(world.player.pos);

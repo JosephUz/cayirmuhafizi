@@ -292,6 +292,11 @@ html,body{margin:0;height:100%;background:#19231d;overflow:hidden}
 #meadow-game.placing-touch .tbtn[data-t=build] b{font-size:0}
 #meadow-game.placing-touch .tbtn[data-t=build] b::after{content:"✕";font-size:22px}
 #meadow-game #mg-drawer-close{display:none}
+#meadow-game #mg-place-tap{position:absolute;left:0;top:0;z-index:5;pointer-events:none;will-change:transform}
+#meadow-game #mg-place-tap[hidden]{display:none}
+#meadow-game #mg-place-tap b{position:absolute;left:-23px;top:-58px;display:flex;align-items:center;justify-content:center;width:46px;height:46px;border-radius:50%;background:#c9a13df0;border:2px solid #fff3c4;color:#1d1a10;font-size:26px;box-shadow:0 6px 18px #0009;animation:mg-tap-bob .9s ease-in-out infinite}
+#meadow-game #mg-place-tap small{position:absolute;left:0;top:-6px;transform:translateX(-50%);white-space:nowrap;padding:2px 7px;border-radius:6px;background:#1c241ee0;color:#ffe9a8;font:800 10px/1.4 system-ui,sans-serif;letter-spacing:1px}
+@keyframes mg-tap-bob{0%,100%{translate:0 0;rotate:-14deg}50%{translate:0 -9px;rotate:10deg}}
 #meadow-game.touch.drawer #mg-drawer-close:not([hidden]){display:flex;align-items:center;justify-content:center;position:absolute;right:calc(18px + env(safe-area-inset-right));bottom:calc(166px + env(safe-area-inset-bottom));z-index:7;width:52px;height:52px;padding:0;border-radius:50%;font-size:22px;background:#1c241ee8;border:2px solid #e6c25a88;box-shadow:0 6px 20px #0008}
 #meadow-game #mg-tbar{position:absolute;top:calc(8px + env(safe-area-inset-top));right:calc(12px + env(safe-area-inset-right));z-index:7;display:flex;gap:6px}
 #meadow-game #mg-tbar[hidden]{display:none}

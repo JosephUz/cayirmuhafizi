@@ -89,12 +89,14 @@ try {
   await tapAt(spot);
   await page.waitForTimeout(200);
   assert.equal(await game(() => window.__meadow.placing), 'barracks', 'ilk dokunuş hayaleti koyar');
+  assert.ok(await page.locator('#mg-place-tap b').isVisible(), 'hayaletin tepesinde ⚒ "tekrar dokun"');
   await page.screenshot({ path: 'artifacts/t4-ghost.png' });
   await tapAt(spot);
   await page.waitForTimeout(200);
   const placed = await game(() => ({ placing: window.__meadow.placing, n: window.__meadow.structures.length, err: window.__meadow.placeError }));
   assert.equal(placed.placing, null, 'ikinci dokunuş diker (' + placed.err + ')');
   assert.equal(placed.n, before + 1, 'yeni yapı');
+  assert.ok(!(await page.locator('#mg-place-tap b').isVisible()), 'dikilince ⚒ kaybolur');
 
   // Kendi yapına dokun: seçilir, çekmece açılır.
   const banner = await game(() => { const s = window.__meadow.structures.find(o => o.owner === window.__meadow.me && o.kind === 'banner'); return s && [s.pos.x, s.pos.z]; });
