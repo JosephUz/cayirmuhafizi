@@ -23,7 +23,8 @@ export function structureMesh(kind, faction, owner = null) {
     for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; box(g, '#7c7e88', Math.cos(a) * 1.15, 4.5, Math.sin(a) * 1.15, 0.3, 0.4, 0.3); }
     box(g, '#5a4632', 0, 5.2, 0, 0.12, 1.8, 0.12);
     flag = box(g, color, 0.45, 5.7, 0, 0.9, 0.55, 0.05);
-    rng = groundRing(g, color, TOWER.range - 0.15, TOWER.range, 0.18);
+    // Kule halkası = gerçek menzil (towerTarget ve ok sınırı tam bu çember): sancak halkasıyla karışmasın diye kalın ve belirgin.
+    rng = groundRing(g, color, TOWER.range - 0.5, TOWER.range, 0.45);
   } else if (kind === 'barracks') {
     box(g, '#8d8f9a', 0, 0.3, 0, 3.6, 0.6, 3.0);
     box(g, '#c9b28a', 0, 1.5, 0, 3.2, 1.9, 2.6);

@@ -387,8 +387,10 @@ export async function start(root) {
     for (const z of world.zones) syncZoneView(world, z, animDt);
     for (const s of world.structures) {
       if (!knownBy(s, world.side) && world.cam === 'tps' && sees(s.pos.x, s.pos.z)) markKnown(s, world.side);
-      // Ekran dışındaki yapı hiç çizilmez: matris ve kesme denetimi de düşer (yapı başına ~14 mesh).
-      if (!inView(s.pos.x, s.pos.z, 6)) { if (s.view) { s.view.g.visible = false; if (s.view.bars) s.view.bars.g.visible = false; } continue; }
+      // Ekran dışındaki yapı hiç çizilmez: matris ve kesme denetimi de düşer (yapı başına ~14 mesh). Kule ve sancak
+      // halkası ekrana değdiği sürece yapı elenmez: yoksa kule ekran dışındayken halkası kaybolur, ok görünmeyen
+      // bir halkanın içinden gelir ("çizginin dışına atıyor" gibi görünür).
+      if (!inView(s.pos.x, s.pos.z, s.kind === 'tower' ? TOWER.range : s.kind === 'banner' ? BUILD.bannerRadius : 6)) { if (s.view) { s.view.g.visible = false; if (s.view.bars) s.view.bars.g.visible = false; } continue; }
       syncStructureView(s, animDt, world.clock, camera.quaternion, world.side);
     }
     world.ui.updateCampLabels();
