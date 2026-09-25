@@ -12,17 +12,18 @@ import { applyImpulse } from './physics.js';
  * uygular. Şarj zamanlaması simülasyon saatiyle (world.time) tutulur.
  *   mv: [dx, dz] hareket (birim vektör ya da 0), aim: [x, z] nişan, ha: nişan var, sp: koşu,
  *   aq: vuruş (kenar), ah: sol tık basılı, ar: sol tık bırakıldı (kenar), dq: atılma (kenar), jq: zıplama (kenar),
- *   yaw: kilitli omuz üstü bakış açısı, ly: yüz bakışa dönsün (kilitli omuz üstü).
+ *   yaw: kilitli omuz üstü bakış açısı, ly: yüz bakışa dönsün (kilitli omuz üstü),
+ *   dm: atılma nişana değil gidiş yönüne (dokunmatik: nişan noktası eski kalabilir, atılma geriye fren gibi olmasın).
  */
 export function createHeroInput() {
-  return { mv: [0, 0], aim: [0, 1], ha: false, sp: false, aq: false, ah: false, ar: false, dq: false, jq: false, yaw: 0, ly: false, heldAt: -1 };
+  return { mv: [0, 0], aim: [0, 1], ha: false, sp: false, aq: false, ah: false, ar: false, dq: false, jq: false, yaw: 0, ly: false, dm: false, heldAt: -1 };
 }
 
 /** Ağdan gelen girdiyi oyuncunun girdisine işler: kenar bayrakları **birikir** (paket arasında basılıp bırakılan tuş kaybolmaz). */
 export function mergeHeroInput(dst, src) {
   if (Array.isArray(src.mv)) { dst.mv[0] = +src.mv[0] || 0; dst.mv[1] = +src.mv[1] || 0; }
   if (Array.isArray(src.aim)) { dst.aim[0] = +src.aim[0] || 0; dst.aim[1] = +src.aim[1] || 0; }
-  dst.ha = Boolean(src.ha); dst.sp = Boolean(src.sp); dst.ah = Boolean(src.ah); dst.ly = Boolean(src.ly);
+  dst.ha = Boolean(src.ha); dst.sp = Boolean(src.sp); dst.ah = Boolean(src.ah); dst.ly = Boolean(src.ly); dst.dm = Boolean(src.dm);
   dst.yaw = +src.yaw || 0;
   if (src.aq) dst.aq = true; if (src.ar) dst.ar = true; if (src.dq) dst.dq = true; if (src.jq) dst.jq = true;
 }
@@ -51,7 +52,7 @@ export function applyHeroInput(world, player, dt) {
     inp.dq = false;
     if (p.dodgeCd <= 0 && p.stun <= 0) {
       let bx = moving ? dx : Math.sin(p.facing), bz = moving ? dz : Math.cos(p.facing);
-      if (inp.ha) { const vx = ax - p.pos.x, vz = az - p.pos.z, vd = Math.hypot(vx, vz); if (vd > 0.6) { bx = vx / vd; bz = vz / vd; } }
+      if (inp.ha && !inp.dm) { const vx = ax - p.pos.x, vz = az - p.pos.z, vd = Math.hypot(vx, vz); if (vd > 0.6) { bx = vx / vd; bz = vz / vd; } }
       p.facing = yawFromDir(bx, bz);
       heroDash(world, p, bx, bz);
       applyImpulse(p, bx, bz, dashDistance(p) * PHYSICS.pushDrag / p.invMass);

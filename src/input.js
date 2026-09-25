@@ -286,5 +286,7 @@ export function resolveHeroInput(world, out) {
   if (input.dodgeQueued) { out.dq = true; input.dodgeQueued = false; }
   if (input.jumpQueued) { out.jq = true; input.jumpQueued = false; }
   out.yaw = world.look.yaw; out.ly = tps && input.locked;
+  // Dokunmatikte atılma hep gidiş yönüne (duruyorsa baktığı yöne): nişan noktası son saldırıdan kalmış olabilir.
+  out.dm = !!input.touch;
   return out;
 }

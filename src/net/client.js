@@ -17,7 +17,7 @@ import { serverUrl } from '../platform.js';
 export function createNetClient(world, hooks) {
   let ws = null, connected = false, wantReconnect = false;
   const byE = new Map(), byS = new Map(), byI = new Map(), byA = new Map(), byZ = new Map();
-  const pending = { mv: [0, 0], aim: [0, 1], ha: false, sp: false, aq: false, ah: false, ar: false, dq: false, jq: false, yaw: 0, ly: false };
+  const pending = { mv: [0, 0], aim: [0, 1], ha: false, sp: false, aq: false, ah: false, ar: false, dq: false, jq: false, yaw: 0, ly: false, dm: false };
   let inputTimer = 0, keepAlive = 0, lastSnapTime = 0, lastSnapWall = 0, rtt = 0;
   /** Sunucu saati - yerel saat farkı (sn); paket titremesi çizime yansımasın diye yumuşatılır (bkz. NET.clockSmooth). */
   let clockOffset = 0, clockReady = false;
@@ -275,7 +275,7 @@ export function createNetClient(world, hooks) {
     inputTimer += dt;
     if (inputTimer >= NET.inputEvery && world.player) {
       inputTimer = 0;
-      send({ t: C2S.INPUT, mv: [+pending.mv[0].toFixed(3), +pending.mv[1].toFixed(3)], aim: [+pending.aim[0].toFixed(2), +pending.aim[1].toFixed(2)], ha: pending.ha, sp: pending.sp, aq: pending.aq, ah: pending.ah, ar: pending.ar, dq: pending.dq, jq: pending.jq, yaw: +pending.yaw.toFixed(3), ly: pending.ly });
+      send({ t: C2S.INPUT, mv: [+pending.mv[0].toFixed(3), +pending.mv[1].toFixed(3)], aim: [+pending.aim[0].toFixed(2), +pending.aim[1].toFixed(2)], ha: pending.ha, sp: pending.sp, aq: pending.aq, ah: pending.ah, ar: pending.ar, dq: pending.dq, jq: pending.jq, yaw: +pending.yaw.toFixed(3), ly: pending.ly, dm: pending.dm });
       pending.aq = pending.ar = pending.dq = pending.jq = false;
     }
     keepAlive += dt;
