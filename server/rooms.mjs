@@ -83,10 +83,15 @@ export function createRooms({ log = console.log } = {}) {
     if (room.hostId === conn.id) room.hostId = room.seats[0].id;
     if (room.state === 'lobby') { room.settings.teamSize = Math.max(room.settings.teamSize, minTeamSize(room)); broadcastLobby(room); }
   }
-  /** Bağlı kimse kalmadıysa oda kapanır: dünya bellekte yaşar, izleyeni olmayan odayı tutmanın anlamı yok. */
+  /**
+   * Bağlı kimse kalmadıysa oda kapanır: dünya bellekte yaşar, izleyeni olmayan odayı tutmanın anlamı yok.
+   * Koltuktakiler odadan çözülür: yoksa token'la geri bağlanan (ya da aynı bağlantıyla yeni oda kuran) ölü odaya düşer.
+   */
   function closeIfEmpty(room) {
     if (room.seats.some(c => c.ws && !c.left)) return false;
     stopRoom(room); rooms.delete(room.code); log(`bağlı kimse kalmadı, oda kapandı ${room.code}`);
+    for (const c of room.seats) { c.room = null; c.player = null; c.left = false; }
+    room.seats = [];
     return true;
   }
 
@@ -228,6 +233,7 @@ export function createRooms({ log = console.log } = {}) {
       }
       case C2S.CREATE: {
         if (room) leaveRoom(conn, { hard: true });
+        conn.left = false; // önceki odada "Oyundan çık" demiş olabilir: bayrak taşınırsa yeni oyunda girdisi yok sayılır
         let code = roomCode(); while (rooms.has(code)) code = roomCode();
         conn.team = 'blue';
         const r = { code, hostId: conn.id, seats: [conn], state: 'lobby', settings: sanitize(msg), world: null, events: [], playerEvents: new Map(), timer: null, report: null, created: Date.now() };
@@ -251,6 +257,7 @@ export function createRooms({ log = console.log } = {}) {
         if (r.state !== 'lobby') return error(conn, 'Oyun başlamış');
         if (r.seats.length >= MAX_TEAM * 2) return error(conn, 'Oda dolu');
         if (room) leaveRoom(conn, { hard: true });
+        conn.left = false;
         conn.team = pickTeam(r);
         r.seats.push(conn); conn.room = r;
         r.settings.teamSize = Math.max(r.settings.teamSize, minTeamSize(r));
