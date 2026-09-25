@@ -25,6 +25,7 @@ export function createScreens(root, world, app) {
   function show(el) {
     for (const o of overlays) o.hidden = o !== el;
     root.classList.toggle('screen', Boolean(el));
+    root.classList.toggle('at-home', el === els.home);
     if (el === els.home) { els.nick.focus(); }
   }
   const visible = () => overlays.find(o => !o.hidden) || null;

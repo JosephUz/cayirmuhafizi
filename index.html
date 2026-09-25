@@ -38,13 +38,22 @@
     <div id="mg-charge" hidden aria-hidden="true"><i></i></div>
     <div id="mg-respawn" hidden role="status"><div class="title">Kahraman düştü</div><div class="num">5</div><div class="sub">saniye sonra sancakta doğarsın</div></div>
 
-    <!-- Giriş: ad ve üç düğme. -->
-    <div id="mg-home" class="overlay" hidden>
-      <div class="card home">
-        <h1>ÇAYIR MUHAFIZI</h1>
+    <!-- Giriş (Yakar Gol düzeni): sahne arkada, solda başlık, ad, üç düğme ve kurallar; üstte marka ve josephuz.com'a dönüş. -->
+    <section id="mg-home" class="home-screen" hidden>
+      <header class="home-top">
+        <div class="logo">ÇAYIR <span>MUHAFIZI</span><small>SANCAK SAVAŞI / 1v1 – 5v5</small></div>
+        <div class="home-actions">
+          <a class="btn" href="https://www.josephuz.com/">← josephuz.com</a>
+          <button type="button" data-help>Kısayollar <kbd>F1</kbd></button>
+        </div>
+      </header>
+      <div class="home-content">
+        <div class="eyebrow"><i></i> KAHRAMAN + ORDU · İZOMETRİK SAVAŞ</div>
+        <h1>Sancağını koru.<br><span>Çayırı kazan.</span></h1>
+        <p>Kahramanınla öne atıl, işçilerle altın ve odun topla.<br>Ordunu kur, kuleni dik, rakibin sancağını yık.</p>
         <label class="field"><span>Adın</span><input id="home-nick" type="text" maxlength="16" autocomplete="off" spellcheck="false"></label>
-        <div class="menu">
-          <button type="button" id="home-solo" class="primary">Tek başına</button>
+        <div class="home-buttons">
+          <button type="button" id="home-solo" class="primary">TEK BAŞINA <span>↗</span></button>
           <button type="button" id="home-create">Oda kur</button>
           <button type="button" id="home-join">Odaya katıl</button>
         </div>
@@ -52,9 +61,16 @@
           <input id="home-code" type="text" maxlength="6" placeholder="ODA KODU" autocomplete="off" spellcheck="false">
           <button type="button" id="home-join-go">Katıl</button>
         </div>
-        <div class="foot"><button type="button" class="link" data-help>Kısayollar</button><span id="home-status" class="status"></span><span id="home-online" class="online"></span></div>
+        <div class="home-meta"><span>1v1 – 5v5 · BOTLARLA</span><span>CO-OP / PvP</span><span id="home-online" class="online"></span></div>
+        <p id="home-status" class="status"></p>
+        <div class="rule-cards">
+          <div><b>01 / TOPLA</b><span>İşçiler altın, odun ve yiyecek getirir.</span></div>
+          <div><b>02 / KUR</b><span>Kışla, okçuluk, ahır ve kule dik.</span></div>
+          <div><b>03 / YIK</b><span>Rakip sancaklar düşünce maç biter.</span></div>
+        </div>
       </div>
-    </div>
+      <div class="home-note"><i></i> AGE OF + DOTA <span>Üstünlükleri bil, ordunu ona göre bas.</span></div>
+    </section>
 
     <!-- Kurulum: kaça kaç ve zorluk (tek başına ve oda kurma için aynı ekran). -->
     <div id="mg-setup" class="overlay" hidden>
@@ -146,6 +162,7 @@
           <button type="button" id="menu-quality" title="Gölge maliyeti: kalabalık savaşta düşür">Grafik: Orta</button>
           <button type="button" id="menu-sound">Ses: açık</button>
           <button type="button" id="menu-leave">Oyundan çık</button>
+          <a class="btn" href="https://www.josephuz.com/">josephuz.com'a dön</a>
         </div>
         <div id="menu-perf" class="status" title="Kare hızı · çizim çağrısı · çizilen birim / sahadaki birim"></div>
       </div>
