@@ -7,7 +7,9 @@ import { buildEnvironmentView } from './environment.js';
 import { attachInput, clearSelection, createInput, lockPointer, resolveHeroInput, unlockPointer, updateTpsCamera } from './input.js';
 import { createMinimap } from './minimap.js';
 import { createNetClient } from './net/client.js';
+import { isApp, onlineEnabled } from './platform.js';
 import { createScreens } from './screens.js';
+import { enterFullscreen, touchDevice } from './touch.js';
 import { createUI } from './ui.js';
 import { clearEffects, updateEffects } from './view/effects.js';
 import { syncArrowView, syncItemView } from './view/itemview.js';
@@ -24,15 +26,20 @@ import { cmdBuild, cmdCancel, cmdConvert, cmdDemolish, cmdEnqueue, cmdRally, con
  *  - **Çevrim içi**: sunucu koşar; istemci (net/client.js) olay ve durum paketleriyle dünyayı kopyalar, aynı görünüm kodu
  *    çizer. Girdi ağa gider, komutlar sunucuda doğrulanır.
  * Her karede: (yerel adım) -> ara değer / sayaçlar -> görünüm eşitleme -> arayüz -> kamera -> çizim.
+ * **Dokunmatik** kip (telefon, tablet, Android uygulaması; ?touch ile masaüstünde de): joystick ve düğmeler (touch.js,
+ * input.js), alt bant çekmece olur (⚒ açar; yapı seçilince açılır, inşa yeri seçerken kapanır), görüntü hafifler.
+ * Çevrim içi kapalıysa (config.js → ONLINE, ör. uygulamada) sunucuya hiç bağlanılmaz; oda düğmeleri "Yakında" yazar.
  */
 export async function start(root) {
   const view = root.querySelector('#mg-view');
+  const touch = touchDevice(), networked = onlineEnabled();
+  root.classList.toggle('touch', touch);
 
   const scene = new T.Scene();
   scene.background = new T.Color('#adb777');
   scene.fog = new T.Fog('#adb777', 70, 125);
   const renderer = new T.WebGLRenderer({ antialias: true });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.6));
+  renderer.setPixelRatio(Math.min(devicePixelRatio, touch ? 1.25 : 1.6));
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
   renderer.outputColorSpace = T.SRGBColorSpace;
   view.insertBefore(renderer.domElement, view.firstChild);
@@ -71,7 +78,8 @@ export async function start(root) {
    */
   /** Ölçülen kare hızı ve o karede çizilen birim sayısı (Esc menüsündeki ölçüm satırı; app.quality bunları okur). */
   let fps = 0, fpsFrames = 0, fpsSince = 0, drawn = 0;
-  let qualityKey = QUALITY.default;
+  // Telefonda gölgesiz başlar (menüden yükseltilebilir).
+  let qualityKey = touch ? 'low' : QUALITY.default;
   try { const k = localStorage.getItem('cm.quality'); if (k && QUALITY[k]) qualityKey = k; } catch { /* yok */ }
   let shadowTick = 0;
   function applyQuality(key) {
@@ -122,6 +130,7 @@ export async function start(root) {
   // ---- Ağ istemcisi ve ekranlar
   const net = createNetClient(world, {
     onWelcome() {
+      screens.setServer(true);
       // Boşta bağlantının karşılaması durum yazısına dokunmaz (örn. "adını yazıp Katıl'a bas" kalsın).
       if (!pendingRoom) return;
       screens.setStatus('');
@@ -139,7 +148,7 @@ export async function start(root) {
     onLevel(e) { rebuildSwing(e); },
     onOwnDeath() { world.ui.cancelModes(); },
     onEnd(report) { world.ui.cancelModes(true); unlockPointer(); screens.end(report, { lobby: () => { screens.show(null); if (net.lobby) screens.lobby(net.lobby); else screens.home(); }, home: () => { leaveGame(); screens.home(); } }); },
-    onDisconnect() { if (world.replicated) screens.netStrip(true); },
+    onDisconnect() { screens.setServer(false); screens.setOnline(0); if (world.replicated) screens.netStrip(true); },
     onConnect() { screens.netStrip(false); },
     onOnline(n) { screens.setOnline(n); },
   });
@@ -248,17 +257,21 @@ export async function start(root) {
       if (p) { world.look.yaw = p.facing; world.look.pitch = CAMERA.tps.pitch; }
       world.input.lookDX = world.input.lookDY = 0;
       updateTpsCamera(world, tpsCamera, 0);
-      lockPointer(renderer.domElement);
+      if (!touch) lockPointer(renderer.domElement);
     } else unlockPointer();
+    // Dokunmatikte fare kilidi yok: omuz üstünde bakış hep sağ yarıdaki parmaktır, nişan ortadaki artı.
+    if (touch) { world.input.locked = tps; root.classList.toggle('locked', tps); }
     world.ui.update();
   };
   world.toggleCamera = () => { if (world.player) setCameraMode(world.cam === 'tps' ? 'iso' : 'tps'); };
-  attachInput(world, renderer.domElement, camera, root.querySelector('#mg-dragbox'));
+  attachInput(world, renderer.domElement, camera, root.querySelector('#mg-dragbox'), touch ? view : null);
   const minimap = createMinimap(root.querySelector('#mg-minimap'), world, { viewCorners: () => world.viewCorners(), onLeft: () => {}, onRight: () => {} });
 
   function resize() {
     const w = view.clientWidth, h = view.clientHeight;
-    isoCamera.left = -17 * w / h; isoCamera.right = 17 * w / h; isoCamera.top = 17; isoCamera.bottom = -17;
+    // Telefonda izometrik kadraj daha yakın: küçük ekranda kahraman ve birimler seçilebilsin.
+    const half = touch ? 12 : 17;
+    isoCamera.left = -half * w / h; isoCamera.right = half * w / h; isoCamera.top = half; isoCamera.bottom = -half;
     isoCamera.updateProjectionMatrix();
     tpsCamera.aspect = w / h; tpsCamera.updateProjectionMatrix();
     renderer.setSize(w, h, false);
@@ -270,8 +283,9 @@ export async function start(root) {
   world.me = world.players[0]; world.player = world.me.hero; world.loadout = world.player.loadout;
   arenaReady();
   const urlCode = screens.urlCode();
-  const remembered = net.rememberedRoom();
-  if (remembered) {
+  const remembered = networked && net.rememberedRoom();
+  if (!networked) screens.home('');
+  else if (remembered) {
     // Sayfa yenilendi ya da bağlantı koptu: aynı kimlikle sunucuya dönülür; oda sürüyorsa sunucu oyunu / lobiyi yeniden yollar.
     screens.home('Odaya geri bağlanıyor…');
     world.net = net; pendingRoom = { create: false, code: remembered, rejoin: true };
@@ -281,6 +295,41 @@ export async function start(root) {
     screens.home(urlCode ? 'Odaya katılmak için adını yazıp Katıl’a bas' : '');
     // Boşta bağlantı: giriş ekranındaki "çevrim içi" sayısı için (oda kurulunca / katılınca aynı bağlantı kullanılır).
     net.connect(screens.nick());
+  }
+
+  // Android uygulamasında geri tuşu: pencereyi kapat / menüyü aç-kapat (Esc gibi); giriş ekranında uygulamadan çık.
+  const nativeApp = isApp() ? window.Capacitor?.registerPlugin?.('App') : null;
+  nativeApp?.addListener('backButton', () => {
+    if (screens.visible() === screens.els.home) nativeApp.exitApp();
+    else if (world.placing) world.ui.cancelModes(true);
+    else if (drawer) setDrawer(false);
+    else if (!screens.visible() || screens.visible() === screens.els.menu || screens.visible() === screens.els.help) screens.escape();
+    else screens.home('');
+  });
+
+  /**
+   * Dokunmatik çekmece (alt bant) ve üst düğmeler: ⚒ çekmeceyi açar / kapatır (inşa yeri seçerken vazgeçer), 🎥 kamera,
+   * ☰ menü. Kendi yapına dokununca çekmece açılır; inşa yeri seçerken kapanır ki saha görünsün.
+   */
+  let drawer = false, lastSel = null, lastPlacing = null, wasPlaying = false;
+  const tbar = root.querySelector('#mg-tbar');
+  const setDrawer = on => { drawer = on; root.classList.toggle('drawer', on); };
+  if (touch) {
+    tbar.querySelector('[data-tb=build]').onclick = () => { if (world.placing) world.ui.cancelModes(true); else setDrawer(!drawer); };
+    tbar.querySelector('[data-tb=cam]').onclick = () => world.toggleCamera();
+    tbar.querySelector('[data-tb=menu]').onclick = () => screens.escape();
+  }
+  function touchFrame() {
+    const playing = world.running && !world.ended && !world.paused && !screens.visible();
+    if (playing && !wasPlaying) enterFullscreen();
+    wasPlaying = playing;
+    world.input.touch.show(playing);
+    tbar.hidden = !playing;
+    const sel = world.sel.structure;
+    if (sel && sel !== lastSel) setDrawer(true);
+    if (world.placing && world.placing !== lastPlacing) { setDrawer(false); world.ui.hint('Yeri seçmek için sahaya dokun · ⚒ vazgeç', 4); }
+    lastSel = sel; lastPlacing = world.placing;
+    root.classList.toggle('placing-touch', !!world.placing);
   }
 
   const look = new T.Vector3().copy(world.player.pos);
@@ -344,6 +393,7 @@ export async function start(root) {
     world.ui.updateHint();
     world.ui.updateCharge();
     world.ui.updateRespawn();
+    if (touch) touchFrame();
     animateScenery(world, animDt);
     updateMarkers(world, selRings, ghost, ghostMat, ghostRing, rangeRing, heroRing);
     if (world.running) { world.uiTimer -= dt; if (world.uiTimer <= 0) { world.uiTimer = PERF.uiEvery; world.ui.update(); } }

@@ -1,0 +1,12 @@
+{
+  // Çayır Muhafızı istemcisi — Cloudflare Worker, yalnız statik dosyalar (kod yok): cayirmuhafizi.josephuz.com.
+  // Dosyalar `npm run build:web` ile dist/ klasörüne toplanır; yayın: `npm run deploy:web`.
+  // Çevrim içi sunucu ayrı: evdeki PC'de Docker + Cloudflare Tunnel → cayirmuhafizi-sunucu.josephuz.com.
+  "$schema": "https://unpkg.com/wrangler/config-schema.json",
+  "name": "cayirmuhafizi",
+  "compatibility_date": "2026-09-01",
+  "workers_dev": false,
+  "assets": { "directory": "./dist" },
+  // custom_domain: DNS kaydını wrangler açar; bu adda başka kayıt (tunnel route, CNAME) kalmamalı.
+  "routes": [{ "pattern": "cayirmuhafizi.josephuz.com", "custom_domain": true }]
+}

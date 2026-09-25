@@ -1,0 +1,14 @@
+{
+  "appId": "com.josephuz.cayirmuhafizi",
+  "appName": "Çayır Muhafızı",
+  "webDir": "dist",
+  "backgroundColor": "#242d25",
+  "android": {
+    "backgroundColor": "#242d25"
+  },
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "disable"
+    }
+  }
+}

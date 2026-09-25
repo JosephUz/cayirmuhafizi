@@ -2,7 +2,8 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#242d25">
 <title>Çayır Muhafızı</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="/style.css">
@@ -36,6 +37,9 @@
     <div id="mg-alert" aria-hidden="true"></div>
     <div id="mg-cross" aria-hidden="true"></div>
     <div id="mg-charge" hidden aria-hidden="true"><i></i></div>
+    <!-- Dokunmatik üst düğmeler: alt bant çekmecesi (inşa / üretim), kamera, menü. -->
+    <div id="mg-tbar" hidden><button type="button" data-tb="build" aria-label="İnşa ve üretim">⚒</button><button type="button" data-tb="cam" aria-label="Kamera: izometrik / omuz üstü">🎥</button><button type="button" data-tb="menu" aria-label="Menü">☰</button></div>
+    <div id="mg-rotate"><strong>Telefonu yan çevir</strong><span>Çayır Muhafızı yatay ekranda oynanır.</span></div>
     <div id="mg-respawn" hidden role="status"><div class="title">Kahraman düştü</div><div class="num">5</div><div class="sub">saniye sonra sancakta doğarsın</div></div>
 
     <!-- Giriş (Yakar Gol düzeni): sahne arkada, solda başlık, ad, üç düğme ve kurallar; üstte marka ve josephuz.com'a dönüş. -->
@@ -126,8 +130,21 @@
       <div class="card help">
         <h2>Kısayollar</h2>
         <div class="cols">
-          <section><h3>Kahraman</h3><table id="help-hero"></table></section>
-          <section><h3>Ordu</h3><table>
+          <section class="touch-only"><h3>Dokunmatik</h3><table>
+            <tr><th>Sol yarı</th><td>joystick belirir: sürükleyerek yürü, sonuna kadar itince koş</td></tr>
+            <tr><th>SALDIR</th><td>en yakın düşmana vur; basılı tut: güçlü vuruş (omuz üstünde artıya)</td></tr>
+            <tr><th>ATIL / ZIPLA</th><td>atılma + set etkisi; havada tekrar ZIPLA: ikinci zıplama</td></tr>
+            <tr><th>ORDU</th><td>bütün ordu yanına gelir</td></tr>
+            <tr><th>Sahaya basılı tut</th><td>ordu oraya yürür; düşmanın üstündeyse ona saldırır</td></tr>
+          </table></section>
+          <section class="touch-only"><h3>Yapılar ve kamera</h3><table>
+            <tr><th>⚒</th><td>inşa ve üretim çekmecesi (yapına dokununca da açılır)</td></tr>
+            <tr><th>İnşa</th><td>binayı seç, sahaya dokun (hayalet yer gösterir), aynı yere tekrar dokun: dik · ⚒ vazgeç</td></tr>
+            <tr><th>🎥</th><td>izometrik ↔ omuz üstü; omuz üstünde sağ yarıda parmak kaydır: bak</td></tr>
+            <tr><th>☰</th><td>menü (oyun durur)</td></tr>
+          </table></section>
+          <section class="desktop-only"><h3>Kahraman</h3><table id="help-hero"></table></section>
+          <section class="desktop-only"><h3>Ordu</h3><table>
             <tr><th>Orta tık <i>veya</i> E</th><td>boş yere: toplanma alanı, bütün ordu oraya yürür</td></tr>
             <tr><th>Orta tık / E düşmana</th><td>bütün ordu o hedefe saldırır</td></tr>
             <tr><th>Orta tuşu yoksa</th><td>Mac dizüstü ve tek tuşlu farede <b>E</b> aynı işi görür</td></tr>
@@ -141,7 +158,7 @@
             <tr><th>Soldaki düğmeler</th><td>bina dik (kahramanın 14 birim yakınına), yık</td></tr>
             <tr><th>Sancak → Geliştir</th><td>kahraman türü değiştir (sancağa yakınken)</td></tr>
           </table></section>
-          <section><h3>Kamera ve genel</h3><table>
+          <section class="desktop-only"><h3>Kamera ve genel</h3><table>
             <tr><th>V</th><td>izometrik ↔ omuz üstü</td></tr>
             <tr><th>Tab</th><td>omuz üstünde fareyi serbest bırak / kilitle</td></tr>
             <tr><th>F1</th><td>bu pencere</td></tr>

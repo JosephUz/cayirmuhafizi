@@ -6,6 +6,7 @@ import { computeEnvironment, computeLayout } from '../environment.js';
 import { limitsFor } from '../players.js';
 import { C2S, EV, NET, S2C } from './protocol.js';
 import { decodeSnapshot } from './snapshot.js';
+import { serverUrl } from '../platform.js';
 
 /**
  * Çevrim içi istemci: sunucuya bağlanır, lobiyi yürütür, oyun başlayınca dünyayı **kopya** olarak kurar ve sunucudan
@@ -38,12 +39,11 @@ export function createNetClient(world, hooks) {
   function connect(nick) {
     curNick = nick;
     if (ws) { try { ws.onclose = null; ws.close(); } catch { /* yok */ } }
-    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-    ws = new WebSocket(`${proto}://${location.host}`);
+    ws = new WebSocket(serverUrl());
     ws.binaryType = 'arraybuffer';
     wantReconnect = true;
     ws.onopen = () => { connected = true; send({ t: C2S.HELLO, nick: curNick, token: token() }); hooks.onConnect && hooks.onConnect(); };
-    ws.onclose = () => { connected = false; hooks.onDisconnect && hooks.onDisconnect(); if (wantReconnect) setTimeout(() => { if (wantReconnect) connect(curNick); }, 1500); };
+    ws.onclose = () => { connected = false; hooks.onDisconnect && hooks.onDisconnect(); if (wantReconnect) setTimeout(() => { if (wantReconnect) connect(curNick); }, client.lobby || world.replicated ? 1500 : 15000); };
     ws.onerror = () => {};
     ws.onmessage = ev => {
       if (typeof ev.data === 'string') { let msg; try { msg = JSON.parse(ev.data); } catch { return; } onText(msg); }

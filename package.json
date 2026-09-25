@@ -5,10 +5,19 @@
   "type": "module",
   "scripts": {
     "start": "node server.mjs",
-    "dev": "node server.mjs"
+    "dev": "node server.mjs",
+    "build:web": "node scripts/build-web.mjs",
+    "deploy:web": "node scripts/build-web.mjs && npx wrangler@4 deploy",
+    "apk": "node scripts/apk.mjs"
   },
   "dependencies": {
     "three": "0.180.0",
     "ws": "^8.21.3"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/cli": "^8.5.2",
+    "@capacitor/core": "^8.5.2"
   }
 }

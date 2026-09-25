@@ -1,5 +1,6 @@
 import { KIT, TEAMS } from './config.js';
 import { kitKey } from './characters.js';
+import { onlineEnabled } from './platform.js';
 import { renderReport } from './report.js';
 
 /**
@@ -26,7 +27,8 @@ export function createScreens(root, world, app) {
     for (const o of overlays) o.hidden = o !== el;
     root.classList.toggle('screen', Boolean(el));
     root.classList.toggle('at-home', el === els.home);
-    if (el === els.home) { els.nick.focus(); }
+    // Dokunmatikte odak klavyeyi kendiliğinden açar: ad kutusuna yalnız masaüstünde odaklanılır.
+    if (el === els.home && !root.classList.contains('touch')) { els.nick.focus(); }
   }
   const visible = () => overlays.find(o => !o.hidden) || null;
   const readRadio = name => { const el = root.querySelector(`input[name=${name}]:checked`); return el ? el.value : null; };
@@ -37,6 +39,17 @@ export function createScreens(root, world, app) {
   $('#home-join').onclick = () => { els.joinRow.hidden = !els.joinRow.hidden; if (!els.joinRow.hidden) els.code.focus(); };
   const joinGo = () => { const code = els.code.value.trim().toUpperCase(); if (code.length < 4) { els.homeStatus.textContent = 'Oda kodunu yaz'; return; } els.homeStatus.textContent = 'Bağlanıyor…'; app.joinRoom(nick(), code); };
   $('#home-join-go').onclick = joinGo;
+  // Sunucuya bağlanılamadıkça (kapalı ya da config.js → ONLINE ile kapatılmış) oda düğmeleri "Yakında" yazar ve basılmaz;
+  // sunucu karşılayınca (main.js → onWelcome) açılır.
+  function setServer(up) {
+    for (const id of ['#home-create', '#home-join', '#home-join-go']) {
+      const b = $(id), tag = b.querySelector('.soon-tag');
+      b.disabled = !up; b.classList.toggle('soon', !up); b.title = up ? '' : 'Çok oyunculu yakında';
+      if (id === '#home-join-go') continue;
+      if (!up && !tag) b.insertAdjacentHTML('beforeend', '<em class="soon-tag">YAKINDA</em>'); else if (up) tag?.remove();
+    }
+  }
+  setServer(false);
   els.code.addEventListener('keydown', e => { if (e.key === 'Enter') joinGo(); });
   els.nick.addEventListener('keydown', e => { if (e.key === 'Enter') $('#home-solo').click(); });
 
@@ -150,7 +163,7 @@ export function createScreens(root, world, app) {
   $('#mg-menu-btn').onclick = () => screens.escape();
 
   const screens = {
-    els, show, visible, nick,
+    els, show, visible, nick, setServer,
     home(status = '') { els.homeStatus.textContent = status; els.joinRow.hidden = true; show(els.home); },
     lobby: renderLobby,
     setOnline(n) { if (els.online) { els.online.textContent = n > 0 ? `● ${n} çevrim içi` : ''; els.online.title = 'Siteyi şu an açık tutan sekme sayısı'; } },
@@ -171,7 +184,7 @@ export function createScreens(root, world, app) {
     },
     netStrip(show) { els.net.hidden = !show; },
     /** Linkteki oda kodu (?oda=KOD): giriş ekranında kod alanı dolu gelir. */
-    urlCode() { const c = new URLSearchParams(location.search).get('oda'); if (c) { els.code.value = c.toUpperCase(); els.joinRow.hidden = false; } return c ? c.toUpperCase() : null; },
+    urlCode() { const c = onlineEnabled() && new URLSearchParams(location.search).get('oda'); if (c) { els.code.value = c.toUpperCase(); els.joinRow.hidden = false; } return c ? c.toUpperCase() : null; },
   };
   return screens;
 }

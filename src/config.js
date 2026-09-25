@@ -786,3 +786,14 @@ export const SCORE = {
   weights: { military: 1, economy: 0.5, build: 0.6, lossPenalty: 0.5, gatherBonus: 0.1, levelPoints: 25, heroKillPoints: 30, deathPenalty: 15 },
   sampleEvery: 10,
 };
+
+/**
+ * Çevrim içi (oda kur / odaya katıl, çevrim içi sayısı): `web` tarayıcıda, `app` Android uygulamasında açık mı. Kapalıyken
+ * sunucuya hiç bağlanılmaz, oda düğmeleri "Yakında" yazar; tek başına oyun aynen oynanır (bkz. src/platform.js).
+ */
+export const ONLINE = Object.freeze({ web: true, app: false });
+/**
+ * Çevrim içi oyun sunucusu (WebSocket, Cloudflare Tunnel ile evdeki PC). Oyun dosyaları Cloudflare'deki statik siteden
+ * (cayirmuhafizi.josephuz.com) gelir; sayfa sunucunun kendisinden açıldıysa (yerelde, Docker, aynı ağ) aynı adres kullanılır.
+ */
+export const SERVER = 'cayirmuhafizi-sunucu.josephuz.com';

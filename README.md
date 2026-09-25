@@ -40,6 +40,14 @@ Kalıcı Cloudflare Tunnel için `.env.example` dosyasını `.env` olarak kopyal
 Tünel rotası Zero Trust → Networks → Tunnels → tünel → **Published application routes**: alan adı, Path boş, Service `http://game:5173`.
 Kök alan adı kullanılacaksa Cloudflare DNS sayfasındaki eski A / CNAME kaydı önce silinir; rota kaydedilince CNAME kendiliğinden oluşur.
 
+## Telefon ve Android
+
+**Dokunmatik** (telefon, tablet, uygulama; masaüstünde `?touch`): dokunmatik ekran algılanınca açılır, ekran yataydır. Sol yarıda **joystick** (sonuna kadar itmek koşu); sağ altta **SALDIR** (izometrikte en yakın düşmana kendiliğinden nişan alır, basılı tutunca güçlü vuruş), **ATIL**, **ZIPLA**, **ORDU** (toplanma alanı kahramana). Sahaya kısa dokunuş kendi yapını seçer; basılı tutmak orduyu oraya (düşmansa ona) yollar. Sağ üstte **⚒** alt bandı çekmece olarak açar (yapı seçilince kendiliğinden açılır), **🎥** izometrik ↔ omuz üstü (omuz üstünde sağ yarıda parmak kaydırmak bakış, nişan artı), **☰** menü. İnşa: binayı seç, sahaya dokun (hayalet yeri ve hatayı gösterir), aynı yere tekrar dokun: dikilir; ⚒ vazgeçer. Telefonda kadraj yakın, grafik düşük başlar. Kod: `src/touch.js`, `src/input.js` (attachTouch), `src/platform.js`. Test: `node tests/touch-smoke.mjs` (telefon taklidi, `GAME_URL`).
+
+**Çok oyunculu anahtarı**: `src/config.js` → `ONLINE = { web, app }`: tarayıcıda (`web`) ve Android uygulamasında (`app`) oda kur / odaya katıl açık mı. Uygulamada kapalı: sunucuya hiç bağlanılmaz, oda düğmelerinde **YAKINDA** yazar, tek başına oyun aynen oynanır. Tarayıcıda `?app` ile uygulama kipi denenir.
+
+**Android APK (Android Studio gerekmez)**: JDK 21 ve Android SDK komut satırı araçları `%USERPROFILE%\android` altında taşınabilir kurulu (başka yerdeyse `JAVA_HOME` / `ANDROID_HOME`). `npm run apk` oyun dosyalarını `dist/`e toplar, Capacitor ile `android/` projesine kopyalar, Gradle ile derler: telefona kurulacak imzalı **`apk/CayirMuhafizi.apk`**, Play Store için `apk/CayirMuhafizi.aab`, incelemek için `apk/CayirMuhafizi-debug.apk`. USB hata ayıklama açık telefona doğrudan kurmak için `npm run apk -- --install`. Uygulama (`com.josephuz.cayirmuhafizi`) oyunu kendi içinden açar (internetsiz oynanır), yatay ve tam ekrandır, Android geri tuşu menü / geri olur. Yayın anahtarı `android/*-release.jks`, şifresi `android/keystore.properties` (git'e girmez; **yedeklenmeli**). Simge ve açılış görseli `node scripts/icons.mjs`; Play Store görselleri `store/`.
+
 ## Ekranlar
 
 Hesap yok. **Giriş**: ad (tarayıcıda hatırlanır) ve üç düğme: **Tek başına** (kurulum ekranı, sonra oyun), **Oda kur**

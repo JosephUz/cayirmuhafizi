@@ -1,6 +1,18 @@
 import * as T from 'three';
 import { CAMERA } from './config.js';
+import { pickHostile } from './ai.js';
 import { pickOwnStructure } from './structures.js';
+import { createTouch, TOUCH } from './touch.js';
+
+/** Dokunmatik düğmeler (sağ alt): SALDIR basılı tutulunca sol tık gibi şarj olur; ORDU toplanma alanını kahramana diker. */
+const BUTTONS = [
+  { id: 'attack', label: 'SALDIR', sub: 'TUT: GÜÇLÜ', cls: 'big' },
+  { id: 'dodge', label: 'ATIL' },
+  { id: 'army', label: 'ORDU', sub: 'YANIMA' },
+  { id: 'jump', label: 'ZIPLA', sub: 'HAVADA ×2' },
+];
+/** İzometrikte dokunmatik vuruş kahramanın bu yarıçapındaki en yakın düşmana nişan alır. */
+const AUTO_AIM = 12;
 
 /**
  * Kahraman girdisi (yalnızca tarayıcı): WASD hareket, Shift koşu, Boşluk zıplama, **vuruş yalnızca sol tıkla** ve nişan
@@ -9,6 +21,9 @@ import { pickOwnStructure } from './structures.js';
  *  - 'iso': izometrik; WASD ekrana göre, nişan fare imlecinin zemindeki izdüşümü.
  *  - 'tps': omuz üstü; fare kilitliyken bakış fareyle döner (world.look), WASD kameraya göre, nişan ekran ortası. **Tab**
  *    kilidi açar / kapatır. **Orta tık** iki kamerada da ordunun toplanma alanını nişan noktasına diker.
+ * **Dokunmatik** (touchRoot verilince, bkz. touch.js): sol yarıda joystick (sonuna kadar itmek koşu), sağ yarıda omuz
+ * üstünde bakış; SALDIR / ATIL / ZIPLA / ORDU düğmeleri. Sahaya kısa dokunuş kendi yapını seçer ya da inşa yerini onaylar,
+ * basılı tutmak orduyu oraya (düşmansa ona) yollar. İzometrikte vuruş en yakın düşmana kendiliğinden nişan alır.
  * Ham girdi burada toplanır; her karede resolveHeroInput onu simülasyonun anladığı **çözülmüş** biçime çevirir
  * (bkz. hero.js): tek başına oyunda doğrudan oyuncunun girdisine yazılır, çevrim içi oyunda ağa gönderilir.
  */
@@ -18,7 +33,7 @@ export function createInput() {
     dodgeQueued: false, jumpQueued: false, aim: new T.Vector3(0, 0, 1), hasAim: false,
     pointer: { x: 0, y: 0, inside: false }, drag: null, shift: false,
     attackHeld: false, attackDownAt: 0, attackReleased: false,
-    lookDX: 0, lookDY: 0, locked: false, unlockedAt: -1e9,
+    lookDX: 0, lookDY: 0, locked: false, unlockedAt: -1e9, touch: null, stick: { x: 0, z: 0, push: 0 },
   };
 }
 
@@ -38,7 +53,7 @@ export function selectStructureGroup(world, s) {
 }
 export function clearSelection(world) { world.sel.units.clear(); world.sel.structure = null; world.sel.structures = []; }
 
-export function attachInput(world, canvas, camera, dragEl) {
+export function attachInput(world, canvas, camera, dragEl, touchRoot = null) {
   const input = world.input;
   const lastPick = { s: null, t: 0 };
   const ray = new T.Raycaster(), plane = new T.Plane(new T.Vector3(0, 1, 0), 0), ndc = new T.Vector2();
@@ -149,6 +164,7 @@ export function attachInput(world, canvas, camera, dragEl) {
     }
   });
   dragEl.hidden = true;
+  if (touchRoot) attachTouch(world, touchRoot, (x, y, out) => toGround(x, y, out), lastPick);
   window.addEventListener('pointerup', e => {
     if (e.button === 2 || e.buttons === 0) input.rightDown = false;
     if ((e.button === 0 || e.buttons === 0) && input.attackHeld) { input.attackHeld = false; input.attackReleased = true; }
@@ -156,6 +172,56 @@ export function attachInput(world, canvas, camera, dragEl) {
   window.addEventListener('mouseup', e => { if (e.button === 2 || e.buttons === 0) input.rightDown = false; });
   window.addEventListener('pointercancel', () => { input.rightDown = false; });
   document.addEventListener('visibilitychange', () => { if (document.hidden) input.rightDown = false; });
+}
+
+/** Dokunmatik kontroller: düğmeler fareyle aynı bayrakları kurar, sahaya dokunuş seçer / yerleştirir / emir verir. */
+function attachTouch(world, root, toGround, lastPick) {
+  const input = world.input, spot = new T.Vector3();
+  const playing = () => world.running && !world.ended && !world.paused;
+  input.touch = createTouch(root, BUTTONS, {
+    down(id) {
+      if (!playing()) return;
+      if (id === 'attack') { input.attackQueued = true; input.attackHeld = true; input.attackDownAt = world.clock; input.attackReleased = false; }
+      else if (id === 'dodge') { if (world.placing) world.ui.cancelModes(true); else { input.rightDown = true; input.dodgeQueued = true; } }
+      else if (id === 'jump') input.jumpQueued = true;
+      else if (id === 'army' && world.player) world.ui.setRally(world.player.pos.x, world.player.pos.z);
+    },
+    up(id) {
+      if (id === 'attack' && input.attackHeld) { input.attackHeld = false; input.attackReleased = true; }
+      if (id === 'dodge') input.rightDown = false;
+    },
+    look(dx, dy) { if (world.cam === 'tps') { input.lookDX += dx; input.lookDY += dy; } },
+    tap(x, y) {
+      if (!playing() || !toGround(x, y, spot)) return;
+      // İnşa: izometrikte ilk dokunuş hayaleti oraya koyar (renk ve hata yazısı yeri anlatır), aynı yere ikinci dokunuş
+      // diker; omuz üstünde hayalet artıyı izler, dokunuş onaylar.
+      if (world.placing) {
+        const a = input.aim;
+        if (world.cam === 'tps' || (input.pointer.inside && Math.hypot(a.x - spot.x, a.z - spot.z) < 2.5)) world.ui.confirmPlace(a.x, a.z);
+        else { a.copy(spot); input.hasAim = true; Object.assign(input.pointer, { x, y, inside: true }); }
+        return;
+      }
+      const s = pickOwnStructure(world, spot.x, spot.z);
+      if (!s) return;
+      const now = performance.now(), dbl = lastPick.s === s && now - lastPick.t < 400;
+      lastPick.s = s; lastPick.t = now;
+      world.ui.select(s, dbl);
+    },
+    hold(x, y) { if (playing() && !world.placing && toGround(x, y, spot)) world.ui.setRally(spot.x, spot.z); },
+  });
+}
+
+/**
+ * İzometrikte dokunmatik nişan: kahramanın AUTO_AIM yakınındaki en yakın düşman (birim ya da yapı), yoksa baktığı yön.
+ * Omuz üstünde nişan artıdır (updateTpsCamera).
+ */
+function touchAim(world) {
+  const p = world.player, input = world.input;
+  if (!p || world.cam === 'tps') return;
+  const t = pickHostile(world, p.pos.x, p.pos.z, AUTO_AIM);
+  if (t) input.aim.set(t.pos.x, 0, t.pos.z);
+  else input.aim.set(p.pos.x + Math.sin(p.facing) * 4, 0, p.pos.z + Math.cos(p.facing) * 4);
+  input.hasAim = true;
 }
 
 /** Fare kilidi ister; tarayıcı vermezse sessizce vazgeçer. */
@@ -195,19 +261,23 @@ export function updateTpsCamera(world, camera, dt) {
  */
 export function resolveHeroInput(world, out) {
   const input = world.input, k = input.keys;
-  const right = (k.has('KeyD') || k.has('ArrowRight') ? 1 : 0) - (k.has('KeyA') || k.has('ArrowLeft') ? 1 : 0);
-  const down = (k.has('KeyS') || k.has('ArrowDown') ? 1 : 0) - (k.has('KeyW') || k.has('ArrowUp') ? 1 : 0);
+  let right = (k.has('KeyD') || k.has('ArrowRight') ? 1 : 0) - (k.has('KeyA') || k.has('ArrowLeft') ? 1 : 0);
+  let down = (k.has('KeyS') || k.has('ArrowDown') ? 1 : 0) - (k.has('KeyW') || k.has('ArrowUp') ? 1 : 0);
+  // Joystick analogdur (yarım itiş yavaş yürür); sonuna kadar itmek koşudur.
+  const stick = input.touch ? input.touch.poll() : null, pushed = stick && stick.push >= TOUCH.push;
+  if (stick && !right && !down) { right = stick.x; down = stick.z; }
+  if (input.touch && (input.attackQueued || input.attackHeld || input.attackReleased)) touchAim(world);
   const tps = world.cam === 'tps';
   let dx, dz;
   if (tps) {
     const yaw = world.look.yaw, fx = Math.sin(yaw), fz = Math.cos(yaw), rx = -Math.cos(yaw), rz = Math.sin(yaw);
     dx = fx * -down + rx * right; dz = fz * -down + rz * right;
-  } else { dx = right + down; dz = -right + down; }
+  } else { dx = (right + down) * Math.SQRT1_2; dz = (-right + down) * Math.SQRT1_2; }
   const len = Math.hypot(dx, dz);
-  if (len > 0) { dx /= len; dz /= len; }
+  if (len > 1) { dx /= len; dz /= len; }
   out.mv[0] = dx; out.mv[1] = dz;
   out.aim[0] = input.aim.x; out.aim[1] = input.aim.z; out.ha = input.hasAim;
-  out.sp = k.has('ShiftLeft') || k.has('ShiftRight');
+  out.sp = k.has('ShiftLeft') || k.has('ShiftRight') || !!pushed;
   if (input.attackQueued) { out.aq = true; input.attackQueued = false; }
   out.ah = input.attackHeld;
   if (input.attackReleased) { out.ar = true; input.attackReleased = false; }

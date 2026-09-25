@@ -6,3 +6,13 @@ Baslat.cmd
 Dockerfile
 compose.yaml
 .dockerignore
+android
+dist
+apk
+scripts
+store
+capacitor.config.json
+artifacts
+tests
+wrangler.jsonc
+.wrangler
