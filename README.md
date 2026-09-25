@@ -42,7 +42,7 @@ Kök alan adı kullanılacaksa Cloudflare DNS sayfasındaki eski A / CNAME kayd�
 
 ## Telefon ve Android
 
-**Dokunmatik** (telefon, tablet, uygulama; masaüstünde `?touch`): dokunmatik ekran algılanınca açılır, ekran yataydır. Sol yarıda **joystick** (sonuna kadar itmek koşu); sağ altta **SALDIR** (izometrikte en yakın düşmana kendiliğinden nişan alır, basılı tutunca güçlü vuruş), **ATIL**, **ZIPLA**, **ORDU** (toplanma alanı kahramana). Sahaya kısa dokunuş kendi yapını seçer; basılı tutmak orduyu oraya (düşmansa ona) yollar. Sağ üstte **⚒** alt bandı çekmece olarak açar (yapı seçilince kendiliğinden açılır), **🎥** izometrik ↔ omuz üstü (omuz üstünde sağ yarıda parmak kaydırmak bakış, nişan artı), **☰** menü. İnşa: binayı seç, sahaya dokun (hayalet yeri ve hatayı gösterir), aynı yere tekrar dokun: dikilir; ⚒ vazgeçer. Telefonda kadraj yakın, grafik düşük başlar. Kod: `src/touch.js`, `src/input.js` (attachTouch), `src/platform.js`. Test: `node tests/touch-smoke.mjs` (telefon taklidi, `GAME_URL`).
+**Dokunmatik** (telefon, tablet, uygulama; masaüstünde `?touch`): dokunmatik ekran algılanınca açılır, ekran yataydır. Sol yarıda **joystick** (sonuna kadar itmek koşu); sağ altta **SALDIR** (izometrikte en yakın düşmana kendiliğinden nişan alır, basılı tutunca güçlü vuruş), **ATIL**, **ZIPLA**, **ORDU** (toplanma alanı kahramana), ZIPLA'nın üstünde **⚒** (alt bandı çekmece olarak açar; yapı seçilince kendiliğinden açılır, açıkken sahanın sağ altındaki **✕** kapatır). Sahaya kısa dokunuş kendi yapını seçer; basılı tutmak orduyu oraya (düşmansa ona) yollar. Sağ üstte **🎥** izometrik ↔ omuz üstü (omuz üstünde sağ yarıda parmak kaydırmak bakış, nişan artı), **☰** menü. İnşa: binayı seç, sahaya dokun (hayalet yeri ve hatayı gösterir), aynı yere tekrar dokun: dikilir; ⚒ vazgeçer. Telefonda kadraj yakın, grafik düşük başlar. Kod: `src/touch.js`, `src/input.js` (attachTouch), `src/platform.js`. Test: `node tests/touch-smoke.mjs` (telefon taklidi, `GAME_URL`).
 
 **Çok oyunculu anahtarı**: `src/config.js` → `ONLINE = { web, app }`: tarayıcıda (`web`) ve Android uygulamasında (`app`) oda kur / odaya katıl açık mı. Uygulamada kapalı: sunucuya hiç bağlanılmaz, oda düğmelerinde **YAKINDA** yazar, tek başına oyun aynen oynanır. Tarayıcıda `?app` ile uygulama kipi denenir.
 
@@ -357,7 +357,7 @@ kenarında durur. Oyunun her oyuncuya kurduğu **başlangıç kulesi** bu kurald
 
 **Yapı sınırı**: ayakta **en fazla 10 kule** ve **en fazla 10 bina** (kışla / okçuluk / ahır / kuşatma; sancak sayılmaz),
 ayrı ayrı sayılır ve HUD'da `🏰 3/10 🏠 1/10` olarak görünür. Sınır dolunca o türün inşa düğmesi kapanır; yer açmak için
-yapıyı seçip ızgaradaki **🧨 Binayı yık / Kuleyi yık** düğmesine basarsın (yıkılan yapı enkazından odun düşer, sancak yıkılamaz).
+yapıyı seçip ızgaradaki sağ alt yuvadaki **💀 Yık** düğmesine basarsın (yıkılan yapı enkazından odun düşer, sancak yıkılamaz).
 
 **Nüfus sınırı**: bütün asker türlerinin toplamı en fazla **200** (mancınık dahil, kahraman hariç), işçiler ise
 **toplam en fazla 100** (tür başına ayrı sınır yok). İki sınır da takım oyununda oyuncu sayısına bölünür: asker 1v1 200 /

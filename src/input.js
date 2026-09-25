@@ -10,6 +10,7 @@ const BUTTONS = [
   { id: 'dodge', label: 'ATIL' },
   { id: 'army', label: 'ORDU', sub: 'YANIMA' },
   { id: 'jump', label: 'ZIPLA', sub: 'HAVADA ×2' },
+  { id: 'build', label: '⚒' },
 ];
 /** İzometrikte dokunmatik vuruş kahramanın bu yarıçapındaki en yakın düşmana nişan alır. */
 const AUTO_AIM = 12;
@@ -185,6 +186,7 @@ function attachTouch(world, root, toGround, lastPick) {
       else if (id === 'dodge') { if (world.placing) world.ui.cancelModes(true); else { input.rightDown = true; input.dodgeQueued = true; } }
       else if (id === 'jump') input.jumpQueued = true;
       else if (id === 'army' && world.player) world.ui.setRally(world.player.pos.x, world.player.pos.z);
+      else if (id === 'build') world.touchBuild?.();
     },
     up(id) {
       if (id === 'attack' && input.attackHeld) { input.attackHeld = false; input.attackReleased = true; }

@@ -71,11 +71,13 @@ try {
   const rally = await game(() => { const r = window.__meadow.me.rally, p = window.__meadow.player.pos; return r && Math.hypot(r.x - p.x, r.z - p.z); });
   assert.ok(rally !== null && rally < 1, 'ORDU toplanma alanını kahramana diker');
 
-  // ⚒ çekmece: açılır, Kışla seçilince kapanır; sahaya iki dokunuş: hayalet, sonra dikme.
-  await page.tap('#mg-tbar [data-tb=build]');
+  // ⚒ (ZIPLA'nın üstünde) çekmece: açılır, sağ altta ✕ belirir; Kışla seçilince kapanır; sahaya iki dokunuş: hayalet, sonra dikme.
+  assert.ok(!(await page.locator('#mg-drawer-close').isVisible()), 'çekmece kapalıyken ✕ yok');
+  await tapAt(await center('.tbtn[data-t=build]'));
   await page.waitForTimeout(250);
   assert.ok(await game(() => document.getElementById('meadow-game').classList.contains('drawer')), '⚒ çekmeceyi açar');
   assert.ok(!(await page.locator('.tbtn[data-t=attack]').isVisible()), 'çekmece açıkken düğmeler gizli');
+  assert.ok(await page.locator('#mg-drawer-close').isVisible(), 'çekmece açıkken sağ altta ✕');
   await page.screenshot({ path: 'artifacts/t3-drawer.png' });
   await page.tap('#mg-cmd [data-build=barracks]');
   await page.waitForTimeout(250);
@@ -101,8 +103,11 @@ try {
   await page.waitForTimeout(250);
   assert.equal(await game(() => window.__meadow.sel.structure && window.__meadow.sel.structure.kind), 'banner', 'dokunulan yapı seçilir');
   assert.ok(await game(() => document.getElementById('meadow-game').classList.contains('drawer')), 'yapı seçilince çekmece açılır');
-  await page.tap('#mg-tbar [data-tb=build]');
+  assert.ok(await page.locator('#mg-cmd > :nth-child(5)[data-close]').count(), 'Kapat sağ üst yuvada');
+  await page.screenshot({ path: 'artifacts/t5-banner.png' });
+  await page.tap('#mg-drawer-close');
   await page.waitForTimeout(200);
+  assert.ok(!(await game(() => document.getElementById('meadow-game').classList.contains('drawer'))), '✕ çekmeceyi kapatır');
 
   // 🎥 omuz üstü: sağ yarıda parmak kaydırmak bakışı çevirir, artı görünür.
   await page.tap('#mg-tbar [data-tb=cam]');

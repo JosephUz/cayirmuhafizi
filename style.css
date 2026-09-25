@@ -275,7 +275,7 @@ html,body{margin:0;height:100%;background:#19231d;overflow:hidden}
 #meadow-game .touch-stick{position:fixed;left:0;top:0;width:0;height:0;z-index:6;pointer-events:none}
 #meadow-game .touch-stick::before{content:"";position:absolute;left:-60px;top:-60px;width:120px;height:120px;border-radius:50%;background:#1c241eb0;border:2px solid #f6efd955;box-shadow:0 6px 24px #0008}
 #meadow-game .touch-stick i{position:absolute;left:-27px;top:-27px;width:54px;height:54px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#fff6de,#e6c25a);box-shadow:0 4px 14px #0008}
-#meadow-game .touch-buttons{position:absolute;right:calc(18px + env(safe-area-inset-right));bottom:calc(16px + env(safe-area-inset-bottom));width:250px;height:200px;z-index:6;pointer-events:none}
+#meadow-game .touch-buttons{position:absolute;right:calc(18px + env(safe-area-inset-right));bottom:calc(16px + env(safe-area-inset-bottom));width:250px;height:250px;z-index:6;pointer-events:none}
 #meadow-game .tbtn{position:absolute;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:50%;background:#1c241ed9;border:2px solid #f6efd955;color:#f6efd9;box-shadow:0 6px 20px #0008;pointer-events:auto;touch-action:none;transition:transform .08s,background .12s}
 #meadow-game .tbtn b{font:900 12px/1 system-ui,sans-serif;letter-spacing:1px}
 #meadow-game .tbtn small{font:800 7px/1 system-ui,sans-serif;letter-spacing:1px;margin-top:5px;opacity:.8}
@@ -286,11 +286,16 @@ html,body{margin:0;height:100%;background:#19231d;overflow:hidden}
 #meadow-game .tbtn[data-t=dodge]{right:112px;bottom:4px;width:76px;height:76px;border-color:#8fd0ff88}
 #meadow-game .tbtn[data-t=army]{right:98px;bottom:96px;width:66px;height:66px;border-color:#bfe59a88}
 #meadow-game .tbtn[data-t=jump]{right:12px;bottom:112px;width:64px;height:64px}
+#meadow-game .tbtn[data-t=build]{right:18px;bottom:190px;width:52px;height:52px;border-color:#e6c25a88}
+#meadow-game .tbtn[data-t=build] b{font-size:24px}
+#meadow-game.placing-touch .tbtn[data-t=build]{background:#917035e6;border-color:#e6c25a}
+#meadow-game.placing-touch .tbtn[data-t=build] b{font-size:0}
+#meadow-game.placing-touch .tbtn[data-t=build] b::after{content:"✕";font-size:22px}
+#meadow-game #mg-drawer-close{display:none}
+#meadow-game.touch.drawer #mg-drawer-close:not([hidden]){display:flex;align-items:center;justify-content:center;position:absolute;right:calc(18px + env(safe-area-inset-right));bottom:calc(166px + env(safe-area-inset-bottom));z-index:7;width:52px;height:52px;padding:0;border-radius:50%;font-size:22px;background:#1c241ee8;border:2px solid #e6c25a88;box-shadow:0 6px 20px #0008}
 #meadow-game #mg-tbar{position:absolute;top:calc(8px + env(safe-area-inset-top));right:calc(12px + env(safe-area-inset-right));z-index:7;display:flex;gap:6px}
 #meadow-game #mg-tbar[hidden]{display:none}
 #meadow-game #mg-tbar button{width:44px;height:44px;padding:0;font-size:20px;border-radius:10px;background:#1c241ee8}
-#meadow-game.drawer #mg-tbar [data-tb=build],#meadow-game.placing-touch #mg-tbar [data-tb=build]{background:#917035;border-color:#e6c25a}
-#meadow-game.placing-touch #mg-tbar [data-tb=build]::after{content:"✕";font-size:14px;margin-left:2px}
 #meadow-game #mg-rotate{display:none}
 @media(orientation:portrait){#meadow-game.touch #mg-rotate{position:fixed;inset:0;z-index:99;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#242d25;text-align:center;padding:30px}#meadow-game #mg-rotate strong{font-size:26px;color:#e6c25a}#meadow-game #mg-rotate span{font-size:14px;color:#c9d3bd}}
 /* HUD: üstte tek satır, küçük çipler; sağda ⚒ 🎥 ☰ için yer. Skor tablosu sol altta (joystick bölgesi değil, üstünde). */

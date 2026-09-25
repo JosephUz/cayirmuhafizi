@@ -339,7 +339,7 @@ export const RALLY = {
  *    **ayrı ayrı** en fazla bu kadar olur; sancak sayılmaz. İnşası süren yapı da sayılır.
  * Sırada bekleyen emirler de sayılır; sınır dolunca üretim / inşa düğmesi kapanır ve emir alınmaz (işçide düğme
  * kapanmaz, yeni işçi en kalabalık türün yerine geçer).
- * Sınıra takılınca yapı seçilip **yıkılabilir** (bilgi ızgarasındaki "Binayı yık" / "Kuleyi yık" düğmesi).
+ * Sınıra takılınca yapı seçilip **yıkılabilir** (komut ızgarasının sağ alt yuvasındaki "Yık" düğmesi).
  */
 export const LIMITS = { army: 200, armyTotal: 600, workers: 100, workersTotal: 300, towers: 10, buildings: 10 };
 

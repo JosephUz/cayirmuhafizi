@@ -92,7 +92,8 @@ export function createUI(root, world, actions) {
   const heroNearBanner = () => { const p = world.player, b = world.me && world.me.banner; return Boolean(p && b && p.alive && b.alive && Math.hypot(p.pos.x - b.pos.x, p.pos.z - b.pos.z) <= HERO_UPGRADE.range); };
   const heroTypeLabel = p => { const t = SOLDIER_TYPES.find(x => !x.worker && x.weapon === p.loadout.weapon && x.shield === p.loadout.shield && x.horse === p.loadout.horse); return t ? t.label : 'Kılıçlı'; };
 
-  // ---- Komut ızgarası
+  // ---- Komut ızgarası (5 x 3)
+  const SLOT_COUNT = 15, SLOT_CLOSE = 4, SLOT_DEMOLISH = 14;
   const shortGold = n => (n >= 10000 ? `${Math.round(n / 1000)}k` : `${n}`);
   const costOf = o => [o.cost ? `${shortGold(o.cost)}◉` : '', o.food ? `${o.food}🌾` : '', o.wood ? `${o.wood}🪵` : ''].filter(Boolean).join(' ');
   const slot = (o) => `<button type="button" class="slot${o.active ? ' active' : ''}${o.big ? ' big' : ''}" ${Object.entries(o.data || {}).map(([k, v]) => `data-${k}="${v}"`).join(' ')} title="${o.title || o.label}" ${o.disabled ? 'disabled' : ''}><span class="ico">${o.icon}</span><span class="lbl">${o.label}</span>${o.cost != null ? `<span class="cost">${costOf(o)}</span>` : ''}</button>`;
@@ -106,7 +107,7 @@ export function createUI(root, world, actions) {
         out.push({ icon: t.icon, label: t.label, cost: cc, data: { herotype: t.key }, active: same, title: same ? `Şu anki türün: ${t.label}` : `${t.label} ol (${cc.toLocaleString('tr-TR')} altın). Seviyen ve exp'in korunur.` });
       }
       out.push({ icon: '↩', label: 'Geri', data: { heromenu: 1 }, title: 'Sancak menüsüne dön' });
-      out.push({ icon: '✖', label: 'Kapat', data: { close: 1 }, title: 'Menüyü ve seçimi kapat (Esc)' });
+      out.push({ icon: '✖', label: 'Kapat', data: { close: 1 }, title: 'Menüyü ve seçimi kapat (Esc)', at: SLOT_CLOSE });
       return out;
     }
     if (s.structure) {
@@ -121,10 +122,10 @@ export function createUI(root, world, actions) {
     }
     if (s.structure && s.structure.owner === world.me && s.structure.kind !== 'banner') {
       const tower = s.structure.kind === 'tower';
-      out.push({ icon: '🧨', label: tower ? 'Kuleyi yık' : 'Binayı yık', data: { demolish: 1 }, title: tower ? 'Seçili kuleyi yık: sınırdan düşer, enkazından odun çıkar' : 'Seçili binayı yık: sınırdan düşer, enkazından odun çıkar' });
+      out.push({ icon: '💀', label: 'Yık', at: SLOT_DEMOLISH, data: { demolish: 1 }, title: tower ? 'Seçili kuleyi yık: sınırdan düşer, enkazından odun çıkar' : 'Seçili binayı yık: sınırdan düşer, enkazından odun çıkar' });
     }
     if (world.placing) out.push({ icon: '✖', label: 'Vazgeç', data: { cancel: 1 }, title: 'Açık modu bırak' });
-    else if (s.structure) out.push({ icon: '✖', label: 'Kapat', data: { close: 1 }, title: 'Seçimi ve menüyü kapat (Esc)' });
+    else if (s.structure) out.push({ icon: '✖', label: 'Kapat', data: { close: 1 }, title: 'Seçimi ve menüyü kapat (Esc)', at: SLOT_CLOSE });
     return out;
   }
   function renderCmd() {
@@ -132,9 +133,12 @@ export function createUI(root, world, actions) {
     const key = (s.structure ? `S${s.structure.id}:${s.structure.ready}:${world.heroMenu ? 'H' + world.player.level : ''}` : 'U') + '|' + slots.map(o => o.label + (o.active ? '*' : '')).join(',');
     if (key !== cmdKey) {
       cmdKey = key;
-      let html = slots.map(slot).join('');
-      for (let i = slots.length; i < 15; i++) html += '<span class="slot empty"></span>';
-      els.cmd.innerHTML = html;
+      // Sabit yerli düğmeler (Kapat sağ üst, Yık sağ alt) her menüde aynı yuvada; ötekiler kalan yuvalara sırayla dolar.
+      const cells = new Array(SLOT_COUNT).fill(null);
+      for (const o of slots) if (o.at != null) cells[o.at] = o;
+      let i = 0;
+      for (const o of slots) { if (o.at != null) continue; while (i < SLOT_COUNT && cells[i]) i++; if (i < SLOT_COUNT) cells[i] = o; }
+      els.cmd.innerHTML = cells.map(o => (o ? slot(o) : '<span class="slot empty"></span>')).join('');
     }
     const eco = world.me.eco, b = busy();
     // Kapalılık sebebi düğmede taşınır: tıklayınca yazılır (yukarıdaki click), fareyle beklemeye gerek yok.

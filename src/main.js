@@ -308,14 +308,16 @@ export async function start(root) {
   });
 
   /**
-   * Dokunmatik çekmece (alt bant) ve üst düğmeler: ⚒ çekmeceyi açar / kapatır (inşa yeri seçerken vazgeçer), 🎥 kamera,
-   * ☰ menü. Kendi yapına dokununca çekmece açılır; inşa yeri seçerken kapanır ki saha görünsün.
+   * Dokunmatik çekmece (alt bant): ZIPLA'nın üstündeki ⚒ çekmeceyi açar (inşa yeri seçerken vazgeçer); çekmece açıkken
+   * düğmeler gizlenir, sahanın sağ altındaki ✕ kapatır. Üstte 🎥 kamera, ☰ menü. Kendi yapına dokununca çekmece açılır;
+   * inşa yeri seçerken kapanır ki saha görünsün.
    */
   let drawer = false, lastSel = null, lastPlacing = null, wasPlaying = false;
-  const tbar = root.querySelector('#mg-tbar');
+  const tbar = root.querySelector('#mg-tbar'), drawerClose = root.querySelector('#mg-drawer-close');
   const setDrawer = on => { drawer = on; root.classList.toggle('drawer', on); };
   if (touch) {
-    tbar.querySelector('[data-tb=build]').onclick = () => { if (world.placing) world.ui.cancelModes(true); else setDrawer(!drawer); };
+    world.touchBuild = () => { if (world.placing) world.ui.cancelModes(true); else setDrawer(!drawer); };
+    drawerClose.onclick = () => setDrawer(false);
     tbar.querySelector('[data-tb=cam]').onclick = () => world.toggleCamera();
     tbar.querySelector('[data-tb=menu]').onclick = () => screens.escape();
   }
@@ -324,7 +326,7 @@ export async function start(root) {
     if (playing && !wasPlaying) enterFullscreen();
     wasPlaying = playing;
     world.input.touch.show(playing);
-    tbar.hidden = !playing;
+    tbar.hidden = !playing; drawerClose.hidden = !playing;
     const sel = world.sel.structure;
     if (sel && sel !== lastSel) setDrawer(true);
     if (world.placing && world.placing !== lastPlacing) { setDrawer(false); world.ui.hint('Yeri seçmek için sahaya dokun · ⚒ vazgeç', 4); }
