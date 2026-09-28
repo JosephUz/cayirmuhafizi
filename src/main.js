@@ -7,6 +7,7 @@ import { buildEnvironmentView } from './environment.js';
 import { attachInput, clearSelection, createInput, lockPointer, resolveHeroInput, unlockPointer, updateTpsCamera } from './input.js';
 import { createMinimap } from './minimap.js';
 import { createNetClient } from './net/client.js';
+import { macBasladi, macBitti, macKontrol } from './olcum.js';
 import { isApp, onlineEnabled } from './platform.js';
 import { createScreens } from './screens.js';
 import { enterFullscreen, touchDevice } from './touch.js';
@@ -142,12 +143,12 @@ export async function start(root) {
     // Oyun sürerken gelen lobi güncellemesi (biri koptu / döndü) ekranı açmaz; yalnızca lobideyken çizilir.
     onLobby(lobby) { if (!world.replicated || !world.running || world.ended) screens.lobby(lobby); },
     onError(msg) { screens.setStatus(msg); },
-    onStart() { screens.show(null); },
+    onStart(msg, first) { screens.show(null); if (first) macBasladi(); }, // ölçüm: yalnız gerçek başlangıç (geri bağlanma START'ı değil)
     onArena() { arenaReady(); },
     onHero(e) { world.camTarget.copy(e.pos); look.copy(e.pos); },
     onLevel(e) { rebuildSwing(e); },
     onOwnDeath() { world.ui.cancelModes(); },
-    onEnd(report) { world.ui.cancelModes(true); unlockPointer(); screens.end(report, { lobby: () => { screens.show(null); if (net.lobby) screens.lobby(net.lobby); else screens.home(); }, home: () => { leaveGame(); screens.home(); } }); },
+    onEnd(report) { if (world.replicated && world.running) macBitti(); /* ölçüm: yalnız maçı oynayan için */ world.ui.cancelModes(true); unlockPointer(); screens.end(report, { lobby: () => { screens.show(null); if (net.lobby) screens.lobby(net.lobby); else screens.home(); }, home: () => { leaveGame(); screens.home(); } }); },
     onDisconnect() { screens.setServer(false); screens.setOnline(0); if (world.replicated) screens.netStrip(true); },
     onConnect() { screens.netStrip(false); },
     onOnline(n) { screens.setOnline(n); },
@@ -223,10 +224,11 @@ export async function start(root) {
     world.net = null; world.replicated = false;
     setupGame(world, { teamSize, difficulty, humans: [{ name: nick || 'Sen' }], seed: 1000 + Math.floor(Math.random() * 900000) });
     world.me = world.players[0]; world.player = world.me.hero; world.loadout = world.player.loadout;
-    world.onEnd = report => { world.ui.cancelModes(true); unlockPointer(); screens.end(report, { again: () => { screens.show(null); startLocal(nick, difficulty, teamSize); }, home: () => { leaveGame(); screens.home(); } }); };
+    world.onEnd = report => { macBitti(); /* ölçüm: çevrimdışı maç bitti */ world.ui.cancelModes(true); unlockPointer(); screens.end(report, { again: () => { screens.show(null); startLocal(nick, difficulty, teamSize); }, home: () => { leaveGame(); screens.home(); } }); };
     arenaReady();
     world.camTarget.copy(world.player.pos); look.copy(world.player.pos);
     world.ui.update();
+    macBasladi(); // ölçüm: çevrimdışı maç başladı
   }
 
   /** Arena kurulunca (yerel ya da çevrim içi): dekor görünümü, sis, minimap, gölge kutusu, seçimler. */
@@ -348,6 +350,7 @@ export async function start(root) {
     world.clock += dt;
     fpsFrames++;
     if (ms - fpsSince >= 500) { fps = Math.round((fpsFrames * 1000) / (ms - fpsSince)); fpsFrames = 0; fpsSince = ms; }
+    if (world.running && !world.ended) macKontrol(); // ölçüm: oyuncu 60 sn oynayınca bir kez "bir_dakika" (bayrak dolunca anında döner)
     const replicated = world.replicated;
     if (!replicated) {
       const active = world.running && !world.paused && !world.ended;

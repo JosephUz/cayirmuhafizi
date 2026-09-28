@@ -797,3 +797,5 @@ export const ONLINE = Object.freeze({ web: true, app: false });
  * (cayirmuhafizi.josephuz.com) gelir; sayfa sunucunun kendisinden açıldıysa (yerelde, Docker, aynı ağ) aynı adres kullanılır.
  */
 export const SERVER = 'cayirmuhafizi-sunucu.josephuz.com';
+/** Kullanım ölçümü uç noktası (josephuz.com Worker → Analytics Engine). Yerelde / IP adresinden açılınca kapalı (platform.js → olcumUrl). */
+export const OLCUM = 'https://www.josephuz.com/api/olay';

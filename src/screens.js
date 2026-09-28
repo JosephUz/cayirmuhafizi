@@ -1,5 +1,6 @@
 import { KIT, TEAMS } from './config.js';
 import { kitKey } from './characters.js';
+import { paylasti } from './olcum.js';
 import { onlineEnabled } from './platform.js';
 import { renderReport } from './report.js';
 
@@ -65,6 +66,7 @@ export function createScreens(root, world, app) {
   $('#lobby-copy').onclick = () => {
     const code = els.lobbyCode.textContent, url = `${location.origin}${location.pathname}?oda=${encodeURIComponent(code)}`;
     const done = () => { els.lobbyStatus.textContent = 'Link kopyalandı'; setTimeout(() => { els.lobbyStatus.textContent = ''; }, 1500); };
+    paylasti();
     try { navigator.clipboard.writeText(url).then(done, () => { els.lobbyStatus.textContent = url; }); } catch { els.lobbyStatus.textContent = url; }
   };
   els.lobbyTeams.onchange = els.lobbyDiff.onchange = () => app.lobbySettings({ teamSize: Number(els.lobbyTeams.value), difficulty: els.lobbyDiff.value });

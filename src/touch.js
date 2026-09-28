@@ -96,6 +96,10 @@ export function createTouch(parent, buttons, hooks) {
     if (f.kind === 'stick') {
       stick.hidden = true;
       setStick(0, 0);
+      // Joystick bölgesine kısa ve hareketsiz dokunuş da seçim/inşa dokunuşudur: ekranın sol %44'ündeki yapılar
+      // aksi halde hiç seçilemiyordu (mobil test raporu 2026-09-28).
+      const still = e && Math.hypot(e.clientX - f.x0, e.clientY - f.y0) < TOUCH.tapMove;
+      if (still && performance.now() - f.at < TOUCH.tapTime) hooks.tap?.(e.clientX, e.clientY);
     } else if (f.kind === 'look') {
       clearTimeout(f.timer);
       if (f.held) return;

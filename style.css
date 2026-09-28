@@ -348,3 +348,7 @@ html,body{margin:0;height:100%;background:#19231d;overflow:hidden}
 #meadow-game .menu{gap:6px}
 #meadow-game .menu button,#meadow-game .menu a.btn{padding:8px 14px;font-size:14px}
 }
+
+/* Dokunmatikte küçük hedefler 44 px'e çıkar (mobil test raporu 2026-09-28): kurulum seçenekleri ve menü düğmeleri. */
+#meadow-game.touch #mg-setup fieldset label{display:inline-flex;align-items:center;min-height:44px;padding:0 10px}
+#meadow-game.touch .menu button,#meadow-game.touch .menu a.btn{min-height:44px}
