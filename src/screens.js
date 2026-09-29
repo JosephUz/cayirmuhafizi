@@ -145,7 +145,9 @@ export function createScreens(root, world, app) {
 
   // ---- Esc menüsü
   els.menuResume.onclick = () => { show(null); app.resume(); };
-  els.menuSound.onclick = () => { const on = app.toggleSound(); els.menuSound.textContent = `Ses: ${on ? 'açık' : 'kapalı'}`; };
+  const soundText = on => { els.menuSound.textContent = `Ses: ${on ? 'açık' : 'kapalı'}`; };
+  soundText(app.soundOn());
+  els.menuSound.onclick = () => soundText(app.toggleSound());
   /** Grafik kalitesi: Düşük -> Orta -> Yüksek sırayla döner; düğme o anki kare hızını da gösterir. */
   const qualityText = () => { const q = app.quality(); return `Grafik: ${q.label}${q.fps ? ` · ${q.fps} fps` : ''}`; };
   /** Ölçüm satırı: kare hızı, çizim çağrısı, çizilen birim / sahadaki birim. Takılma bildirirken bu satır okunur. */

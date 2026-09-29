@@ -9,7 +9,7 @@ import { mkdir } from 'node:fs/promises';
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const url = process.env.GAME_URL || 'http://127.0.0.1:5173';
 await mkdir('artifacts', { recursive: true });
-const browser = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true });
+const browser = await chromium.launch({ ...(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {}), headless: true, args: [...(process.env.SWIFTSHADER ? ['--use-gl=angle', '--use-angle=swiftshader'] : ['--use-gl=angle', '--use-angle=d3d11', '--ignore-gpu-blocklist'])] });
 try {
   const ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   // Açılan WebSocket'ler sayılır: uygulama kipinde hiç açılmamalı.
@@ -134,6 +134,9 @@ try {
   await page.waitForTimeout(200);
   assert.ok(await page.locator('.tbtn[data-t=attack]').isVisible());
 
+  // Başsız Chromium tam ekran isteğini kabul eder; boyut değiştirmek için önce çıkılır.
+  await page.evaluate(() => document.fullscreenElement && document.exitFullscreen());
+  await page.waitForTimeout(200);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(150);
   assert.ok(await page.locator('#mg-rotate').isVisible(), 'dik tutunca yan çevir uyarısı');

@@ -196,6 +196,7 @@ export async function start(root) {
     resume() { if (!world.replicated && world.running && world.paused) { world.paused = false; world.ui.update(); } },
     pauseForMenu() { if (!world.replicated && world.running && !world.ended) { world.paused = true; unlockPointer(); world.ui.update(); } },
     toggleSound() { return world.ui.toggleSound(); },
+    soundOn() { return world.ui.soundOn; },
     /** Esc menüsündeki grafik düğmesi ve ölçüm satırı: kalite, kare hızı, çizim çağrısı, çizilen birim sayısı. */
     quality() {
       const r = renderer.info.render;
