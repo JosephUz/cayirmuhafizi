@@ -122,7 +122,7 @@ function endGame(world, winner, reason) {
  * başlangıç kulesi + kışla, kahramanlar, kamplar ve haydutlar; sis temizlenir.
  * humans: [{ name, color?, faction? }] — en az bir insan (tek başına oyunda 'Sen', mavi).
  */
-export function setupGame(world, { teamSize = TEAMS.default, difficulty = 'normal', humans = [{ name: 'Sen' }], loadout = { ...HERO_UPGRADE.startLoadout }, seed = 814, run = true } = {}) {
+export function setupGame(world, { teamSize = TEAMS.default, difficulty = 'normal', humans = [{ name: 'Sen' }], loadout = { ...HERO_UPGRADE.startLoadout }, seed = 814, run = true, light = false } = {}) {
   for (const e of world.entities) world.fx.removeEntity(e);
   world.entities.length = 0;
   for (const a of world.arrows) world.fx.removeArrow(a); world.arrows.length = 0;
@@ -135,7 +135,7 @@ export function setupGame(world, { teamSize = TEAMS.default, difficulty = 'norma
   const players = createPlayers(teamSize, humans);
   Object.assign(world, {
     env, layout, seed, half: layout.half, teamSize, towerSpots: env.towerSpots, nodes: env.nodes, lanePoints: env.lanePoints, obstacles: env.obstacles, bases: env.bases,
-    players, humans: players.filter(p => p.human), limits: limitsFor(players.length), camps: [], side: 'blue',
+    players, humans: players.filter(p => p.human), limits: limitsFor(players.length, light), camps: [], side: 'blue',
     time: 0, paused: false, ended: false, running: run, difficulty, outcome: null, report: null, timeline: [], sampleTimer: 0,
     ids: { entity: 1, structure: 1, item: 1, arrow: 1, zone: 1 },
   });

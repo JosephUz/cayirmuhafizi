@@ -190,6 +190,9 @@ html,body{margin:0;height:100%;background:#19231d;overflow:hidden}
 /* Kopma şeridi. */
 #meadow-game .netstrip{position:absolute;top:46px;left:50%;transform:translateX(-50%);z-index:5;background:#3a1c10d9;border:1px solid #d1743a;color:#ffe0c2;padding:4px 12px;border-radius:6px;font-size:12px}
 #meadow-game .netstrip[hidden]{display:none}
+#meadow-game #mg-gl{z-index:30}
+#meadow-game #mg-gl button{margin-left:8px;padding:3px 10px;font-size:12px}
+#meadow-game #mg-gl button[hidden]{display:none}
 /* Bitiş karnesi. */
 #meadow-game .card.report{max-width:940px;color:#f6efd9}
 #meadow-game .report .tabs{display:flex;gap:4px;margin-bottom:12px;border-bottom:1px solid #3c4a3a;padding-bottom:8px}

@@ -1,4 +1,4 @@
-import { DIFFICULTY, ECONOMY, LIMITS, TEAMS } from './config.js';
+import { DIFFICULTY, ECONOMY, LIMITS, LIMITS_LIGHT, TEAMS } from './config.js';
 
 /**
  * Oyuncular. Bir oyunda 2 x takım büyüklüğü oyuncu vardır: insanlar (seçtikleri takımın ilk yuvaları) ve botlar. Her oyuncunun
@@ -89,7 +89,11 @@ export function teamDefeated(world, faction) {
   return !(humans.length ? humans : team).some(p => p.banner && p.banner.alive);
 }
 
-/** Oyuncu başı nüfus sınırları: asker sınırı oyuncu sayısıyla bölünür ki haritadaki toplam armyTotal'ı aşmasın. */
-export function limitsFor(playerCount) {
-  return { army: Math.min(LIMITS.army, Math.round(LIMITS.armyTotal / playerCount)), workers: Math.min(LIMITS.workers, Math.round(LIMITS.workersTotal / playerCount)), towers: LIMITS.towers, buildings: LIMITS.buildings };
+/**
+ * Oyuncu başı nüfus sınırları: asker sınırı oyuncu sayısıyla bölünür ki haritadaki toplam armyTotal'ı aşmasın.
+ * light: telefon (LIMITS_LIGHT, yarı nüfus).
+ */
+export function limitsFor(playerCount, light = false) {
+  const L = light ? { ...LIMITS, ...LIMITS_LIGHT } : LIMITS;
+  return { army: Math.min(L.army, Math.round(L.armyTotal / playerCount)), workers: Math.min(L.workers, Math.round(L.workersTotal / playerCount)), towers: L.towers, buildings: L.buildings };
 }

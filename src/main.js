@@ -42,8 +42,10 @@ export async function start(root) {
   const scene = new T.Scene();
   scene.background = new T.Color('#adb777');
   scene.fog = new T.Fog('#adb777', 70, 125);
-  const renderer = new T.WebGLRenderer({ antialias: true });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, touch ? 1.25 : 1.6));
+  // Telefonda kenar yumuşatma (MSAA) kapalı ve piksel oranı 1: çizim tamponu belleği az RAM'li telefonda sekmeyi
+  // kapatabiliyordu (yoğun ekranda 1 bile keskin kalır).
+  const renderer = new T.WebGLRenderer({ antialias: !touch });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, touch ? 1 : 1.6));
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
   renderer.outputColorSpace = T.SRGBColorSpace;
   view.insertBefore(renderer.domElement, view.firstChild);
@@ -226,7 +228,7 @@ export async function start(root) {
   function startLocal(nick, difficulty, teamSize) {
     if (world.replicated) { net.leave(); net.clearWorld(); world.replicated = false; }
     world.net = null; world.replicated = false;
-    setupGame(world, { teamSize, difficulty, humans: [{ name: nick || 'Sen' }], seed: 1000 + Math.floor(Math.random() * 900000) });
+    setupGame(world, { teamSize, difficulty, humans: [{ name: nick || 'Sen' }], seed: 1000 + Math.floor(Math.random() * 900000), light: touch });
     world.me = world.players[0]; world.player = world.me.hero; world.loadout = world.player.loadout;
     world.onEnd = report => { macBitti(); /* ölçüm: çevrimdışı maç bitti */ world.ui.cancelModes(true); unlockPointer(); screens.end(report, { again: () => { screens.show(null); startLocal(nick, difficulty, teamSize); }, home: () => { leaveGame(); screens.home(); } }); };
     arenaReady();
@@ -277,9 +279,32 @@ export async function start(root) {
   attachKeyboardLock();
   // Maç sürerken sekme kapanmak / yenilenmek istenirse tarayıcı sorar: Ctrl basılıyken W'ye basmak (Ctrl+W) pencerede
   // sayfaya gelmeden sekmeyi kapatıyordu. Giriş ekranında, maç bitince, gösteride ve uygulamada sormaz.
+  let reloading = false;
   window.addEventListener('beforeunload', e => {
-    if (gosteri || isApp() || !world.running || world.ended) return;
+    if (reloading || gosteri || isApp() || !world.running || world.ended) return;
     e.preventDefault(); e.returnValue = '';
+  });
+
+  /**
+   * Görüntü bağlamı kaybı (telefonda görüntü belleği dolunca tarayıcı WebGL'i düşürür): varsayılan davranış ekranın
+   * kararıp donmasıdır. Kayıp kabul edilir (preventDefault) ki tarayıcı bağlamı geri verebilsin; bu sırada tek başına
+   * oyun durur ve şerit çıkar. Geri gelince three.js kaynakları yeniden yükler, oyun kaldığı yerden sürer; gelmezse
+   * "Yeniden yükle" düğmesi çıkar.
+   */
+  const glStrip = root.querySelector('#mg-gl'), glReload = glStrip.querySelector('button');
+  let glTimer = 0, glPaused = false;
+  glReload.onclick = () => { reloading = true; location.reload(); };
+  renderer.domElement.addEventListener('webglcontextlost', e => {
+    e.preventDefault();
+    glPaused = !world.replicated && world.running && !world.paused && !world.ended;
+    if (glPaused) world.paused = true;
+    glStrip.hidden = false; glReload.hidden = true;
+    clearTimeout(glTimer); glTimer = setTimeout(() => { glReload.hidden = false; }, 5000);
+  });
+  renderer.domElement.addEventListener('webglcontextrestored', () => {
+    clearTimeout(glTimer); glStrip.hidden = true;
+    if (glPaused) { world.paused = false; glPaused = false; }
+    applyQuality(qualityKey); world.ui.update();
   });
 
   function resize() {

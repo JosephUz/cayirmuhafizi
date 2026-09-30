@@ -342,6 +342,12 @@ export const RALLY = {
  * Sınıra takılınca yapı seçilip **yıkılabilir** (komut ızgarasının sağ alt yuvasındaki "Yık" düğmesi).
  */
 export const LIMITS = { army: 200, armyTotal: 600, workers: 100, workersTotal: 300, towers: 10, buildings: 10 };
+/**
+ * Telefonda (dokunmatik, tek başına oyun) nüfus yarıdır: tarayıcı belleği sahadaki birim sayısıyla büyür (birim başı
+ * ~40 sahne nesnesi; 5v5'te 330 birimde ~460 MB) ve az RAM'li telefonda uzun maçta sekme kapanıyordu. Çevrim içi
+ * oyunda sınırı sunucu koyar, orada değişmez.
+ */
+export const LIMITS_LIGHT = { army: 100, armyTotal: 300, workers: 50, workersTotal: 150 };
 
 /**
  * Üretim kuyruğu: bina başına en fazla bu kadar emir. Altın sıraya alınırken düşer, iptalde geri gelir.
