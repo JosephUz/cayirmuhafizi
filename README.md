@@ -326,7 +326,7 @@ düşman hedef seçilemez: önce görmen gerekir.
 **Hedef önceliği** (her iki taraf): görünen düşman **birimleri** → **kuleler** → **binalar** → **sancak**. Sancak, o tarafın
 ayakta kulesi kaldıkça can kaybetmez (vuruş yine iner ve kuleleri ele verir); diğer binalar sancağı korumaz.
 Askerler kalkanlı sancağı ancak başka hedef yokken döver: önce kuleler, sonra binalar.
-Üretim düğmesine **Shift** ile basınca 5, **Ctrl** ile 10 birim birden sıraya girer (kaynak ya da sıra bitince durur).
+Üretim düğmesine **Shift** ile basınca 5, **Ctrl** ile 10 birim birden sıraya girer (kaynak ya da sıra bitince durur). Ctrl basılıyken W'ye basmak tarayıcıda **Ctrl+W** (sekmeyi kapat) olur ve normal pencerede sayfa bunu engelleyemez: maç sürerken tarayıcı "ayrılmak istiyor musun?" diye sorar (giriş ekranında, maç bitince ve uygulamada sormaz); tam ekranda hareket tuşları klavye kilidiyle oyuna bağlanır (Chrome / Edge), Ctrl+W hiç çalışmaz.
 
 **Asker basımı kolaydır, ordu büyür**: maliyetler eski değerlerin ~%60'ı, üretim süreleri ~yarısı. Emir, bir bina seçili
 değilse o türü basan binalardan **sırası en kısa olanına** gider; **aynı türden ikinci bir kışla / okçuluk / ahır kurmak

@@ -28,6 +28,22 @@ const AUTO_AIM = 12;
  * Ham girdi burada toplanır; her karede resolveHeroInput onu simülasyonun anladığı **çözülmüş** biçime çevirir
  * (bkz. hero.js): tek başına oyunda doğrudan oyuncunun girdisine yazılır, çevrim içi oyunda ağa gönderilir.
  */
+/** Hareket tuşları: Ctrl ile birlikte basılınca tarayıcı kısayolu çalışmaz (bkz. keydown), tam ekranda kilitlenir. */
+const MOVE_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab']);
+
+/**
+ * Tam ekranda (Chrome / Edge) hareket tuşları klavye kilidiyle sayfaya bağlanır: Ctrl+W sekmeyi kapatmaz, Ctrl+Tab sekme
+ * değiştirmez. Esc kilitlenmez (menü ve tam ekrandan çıkış olduğu gibi çalışır). Desteklemeyen tarayıcıda sessizce geçer.
+ */
+export function attachKeyboardLock() {
+  const kb = navigator.keyboard;
+  if (!kb || !kb.lock) return;
+  document.addEventListener('fullscreenchange', () => {
+    if (document.fullscreenElement) kb.lock([...MOVE_KEYS]).catch(() => {});
+    else kb.unlock();
+  });
+}
+
 export function createInput() {
   return {
     keys: new Set(), attackQueued: false, rightDown: false, blockToggle: false,
@@ -101,6 +117,10 @@ export function attachInput(world, canvas, camera, dragEl, touchRoot = null) {
       if (world.ui) world.ui.escape(); return;
     }
     if (!world.running || world.ended) return;
+    // Ctrl basılıyken (Ctrl + üretim tıklaması 10 birim) W A S D tarayıcı kısayolu olmasın: Ctrl+S kaydet, Ctrl+D yer imi,
+    // Ctrl+A seçim... engellenir. Ctrl+W (sekmeyi kapat) normal pencerede sayfaya hiç gelmez; tam ekranda klavye kilidiyle
+    // gelir ve burada durur, pencerede de main.js'teki "ayrılmak istiyor musun?" sorusu korur.
+    if ((e.ctrlKey || e.metaKey) && MOVE_KEYS.has(e.code)) e.preventDefault();
     if (e.code === 'KeyV' && !e.repeat && world.toggleCamera) { world.toggleCamera(); return; }
     if (e.code === 'Tab') {
       e.preventDefault();

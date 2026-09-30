@@ -5,7 +5,7 @@ import { BUILD, BUILDINGS, CAMERA, GOSTERI, PERF, QUALITY, TOWER } from './confi
 import { buildError } from './economy.js';
 import { buildEnvironmentView } from './environment.js';
 import { createGosteri, gosteriAcik } from './gosteri.js';
-import { attachInput, clearSelection, createInput, lockPointer, resolveHeroInput, unlockPointer, updateTpsCamera } from './input.js';
+import { attachInput, attachKeyboardLock, clearSelection, createInput, lockPointer, resolveHeroInput, unlockPointer, updateTpsCamera } from './input.js';
 import { createMinimap } from './minimap.js';
 import { createNetClient } from './net/client.js';
 import { macBasladi, macBitti, macKontrol } from './olcum.js';
@@ -274,6 +274,13 @@ export async function start(root) {
   const minimap = createMinimap(root.querySelector('#mg-minimap'), world, { viewCorners: () => world.viewCorners(), onLeft: () => {}, onRight: () => {} });
   /** Gösteri kipi (?gosteri=1, yalnız web): bot-bot maç, arayüzsüz, kamera çatışmayı takip eder (bkz. gosteri.js). */
   const gosteri = gosteriAcik() ? createGosteri(world, { arenaReady }) : null;
+  attachKeyboardLock();
+  // Maç sürerken sekme kapanmak / yenilenmek istenirse tarayıcı sorar: Ctrl basılıyken W'ye basmak (Ctrl+W) pencerede
+  // sayfaya gelmeden sekmeyi kapatıyordu. Giriş ekranında, maç bitince, gösteride ve uygulamada sormaz.
+  window.addEventListener('beforeunload', e => {
+    if (gosteri || isApp() || !world.running || world.ended) return;
+    e.preventDefault(); e.returnValue = '';
+  });
 
   function resize() {
     const w = view.clientWidth, h = view.clientHeight;
