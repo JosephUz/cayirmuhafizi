@@ -788,6 +788,40 @@ export const SCORE = {
 };
 
 /**
+ * **Gösteri kipi** (yalnız web, `?gosteri=1`; bkz. src/gosteri.js): içerik klipleri için bot-bot maç. Menü atlanır, iki
+ * tarafı da bot yapay zekâsı yönetir, arayüz gizlenir, ölçüm olayı gitmez ve sunucuya bağlanılmaz. Uygulamada (isApp)
+ * açılmaz. Normal oyun bu ayarlardan etkilenmez.
+ */
+export const GOSTERI = {
+  teamSize: 2, difficulty: 'normal',
+  /** Her karede kaç simülasyon adımı atılır: 2 = iki kat oyun hızı. */
+  hiz: 2,
+  /** Başlangıç kasası (her oyuncuya): üretim ilk saniyeden başlar ve hiç durmaz. */
+  kasa: { gold: 4000, wood: 3000, food: 2500 },
+  /** Başta her oyuncuya verilen hazır birlikler (sırayla basılır, cephe hattına dizilir). */
+  birlikler: ['sword', 'spearshield', 'bow', 'horsesword', 'swordshield', 'bow', 'spear', 'horsespear'],
+  /** Hazır birlikler sancakla en yakın rakip sancak arasında bu oranda (0.5 = tam orta) ve bu yarıçapa dağıtılır. */
+  hat: 0.46, hatYayilma: 7,
+  /** İzometrik kadraj yarı boyu (normal oyunda 17, telefonda 12): gösteri biraz daha yakından bakar. */
+  kadraj: 13,
+  /**
+   * Kamera: `tara` saniyede bir en kalabalık çatışma aranır, seçilen çatışmada en az `tut` saniye kalınır (yeni çatışma
+   * `ustunluk` katı kalabalıksa ya da elindeki bittiyse hemen geçilir), `yumusatma` geçişin yumuşaklığıdır (1/sn).
+   * `hucre` çatışma aranırken kullanılan ızgara hücresinin boyu, `temas` ise "dövüşüyor" sayılan uzaklıktır (birim):
+   * kamera yığının değil, düşmanı dibinde olan birimlerin ağırlık merkezine bakar.
+   */
+  /** `kalabalik`: dövüşmeyen yığının puana katkısı (küçük tutulur; gerçek çatışma her zaman öne geçsin). */
+  kamera: { tara: 1, tut: 4.5, ustunluk: 1.6, yumusatma: 1.5, hucre: 16, temas: 9, kalabalik: 0.05 },
+  /**
+   * Buluşma emri aralığı (sn): iki ordu da ağırlık merkezlerinin ortasına yürütülür ki birbirini ıskalayıp ayrı ayrı
+   * üs kuşatmaya gitmesin — klipte ekranda sürekli çarpışma olsun.
+   */
+  bulusma: 8,
+  /** Maç biterse bu kadar saniye sonra yeni maç başlar: gösteri girdisiz sürer gider. */
+  yenidenBasla: 4,
+};
+
+/**
  * Çevrim içi (oda kur / odaya katıl, çevrim içi sayısı): `web` tarayıcıda, `app` Android uygulamasında açık mı. Kapalıyken
  * sunucuya hiç bağlanılmaz, oda düğmeleri "Yakında" yazar; tek başına oyun aynen oynanır (bkz. src/platform.js).
  */

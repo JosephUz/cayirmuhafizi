@@ -61,6 +61,12 @@ penceresi (F1, sağ alttaki ? ve giriş ekranındaki bağlantı) bütün tuşlar
 **Esc** oyun içinde menüyü açar (Devam, Kısayollar, Ses, Oyundan çık); tek başına oyunda menü oyunu durdurur, co-op'ta
 durdurmaz (başkasının oyununu durduramazsın). Ekranlarda anlatım cümlesi yoktur: her şey kısayol penceresindedir.
 
+## Gösteri kipi (içerik klipleri)
+
+`https://cayirmuhafizi.josephuz.com/?gosteri=1` **kendi kendine oynayan** bir maç açar: menü atlanır, hiç insan oyuncu yoktur, iki tarafı da mevcut bot yapay zekâsı yönetir. İki tarafa da başta bol kaynak ve hazır birlik verilir (birlikler iki üssün arasındaki cepheye dizilir), oyun **iki kat hızda** koşar; ilk saniyelerde ekranda çatışma olur. Kamera en kalabalık çatışmayı (düşmanı dibinde olan birimlerin ağırlık merkezini) yumuşak geçişle takip eder, kadraj biraz daha yakındır. **Arayüz gizlidir** (alt bant, minimap, üst sayaçlar, skor); yalnız oyun dünyası ve köşede küçük oyun adı görünür. Ölçüm olayı gitmez, sunucuya bağlanılmaz, Esc menüsü açılmaz; girdisiz döner, maç biterse birkaç saniye sonra yenisi başlar. Uygulamada (`isApp`) **açılmaz**, normal oyun davranışı hiç değişmez.
+
+Gösteriye özgü üç kural (yalnızca `world.gosteri` açıkken): botlar hep saldırıdadır (çekilme yok), rakip kule menzilinden kaçınma kapalıdır — yoksa iki ordu da kulelerin çemberi önünde mancınık bekleyip yığılıyor, dakikalarca dövüş olmuyordu — ve `GOSTERI.bulusma` saniyede bir iki ordu da ağırlık merkezlerinin ortasına yürütülür ki birbirlerini ıskalamasınlar. Ayarlar `src/config.js` → `GOSTERI`, kod `src/gosteri.js`. Test: `node tests/gosteri-smoke.mjs` (`GAME_URL`, `PLAYWRIGHT_MODULE`). İçerik Üretici bu adresi `ajanlar/testci/hedefler.json` → `cayirmuhafizi.icerik` üzerinden kullanır.
+
 ## Çevrim içi co-op
 
 Sunucu **otoriterdir**: her oda kendi dünyasını (`src/world.js`) saniyede 20 adım koşturur; istemciler yalnızca girdi ve
@@ -620,6 +626,7 @@ Simülasyon ile görünüm ayrıdır: `src/world.js` ve ona bağlı modüller re
 | `src/net/snapshot.js` | İkili durum paketi (kodla / çöz; yalnızca değişen birimler) |
 | `src/net/netfx.js` | Sunucu fx'i: görsel istekleri olaya çevirir; tam durum olayları |
 | `src/net/client.js` | Çevrim içi istemci: bağlantı, lobi, dünya kopyası, olaylar, ara değer, girdi gönderimi, geri bağlanma |
+| `src/gosteri.js` | Gösteri kipi (`?gosteri=1`): bot-bot maç kurulumu, hazır birlikler, buluşma emri, çatışmayı izleyen kamera |
 | `src/screens.js`, `src/report.js` | Ekran akışı (giriş / kurulum / lobi / menü / kısayollar) ve bitiş karnesi (sekmeler, grafik, kopyala) |
 | `src/environment.js` | Arena verisi (tohumlu: sunucu ve istemci aynı araziyi kurar) ve dekor görünümü (InstancedMesh) |
 | `src/players.js` | Oyuncular (insanlar + botlar): takım, sahip, kasa, bot durumu, sınırlar |

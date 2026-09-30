@@ -352,3 +352,12 @@ html,body{margin:0;height:100%;background:#19231d;overflow:hidden}
 /* Dokunmatikte küçük hedefler 44 px'e çıkar (mobil test raporu 2026-09-28): kurulum seçenekleri ve menü düğmeleri. */
 #meadow-game.touch #mg-setup fieldset label{display:inline-flex;align-items:center;min-height:44px;padding:0 10px}
 #meadow-game.touch .menu button,#meadow-game.touch .menu a.btn{min-height:44px}
+
+/* Gösteri kipi (?gosteri=1, yalnız web; bkz. src/gosteri.js): yalnız oyun dünyası görünür — alt bant, minimap, üst
+   sayaçlar, skor, uyarı ve dokunmatik düğmeler gizlenir. Köşede küçük oyun adı durur. */
+#meadow-game.gosteri #mg-hud,#meadow-game.gosteri #mg-bar,#meadow-game.gosteri #mg-score,#meadow-game.gosteri #mg-hint,
+#meadow-game.gosteri #mg-net,#meadow-game.gosteri #mg-floats,#meadow-game.gosteri #mg-respawn,#meadow-game.gosteri #mg-cross,
+#meadow-game.gosteri #mg-charge,#meadow-game.gosteri #mg-alert,#meadow-game.gosteri #mg-tbar,#meadow-game.gosteri #mg-place-tap,
+#meadow-game.gosteri #mg-drawer-close,#meadow-game.gosteri #mg-dragbox{display:none!important}
+#meadow-game #mg-gosteri{position:absolute;left:18px;bottom:16px;z-index:6;font:600 13px/1 system-ui,sans-serif;letter-spacing:3px;
+  color:#f6efd9cc;text-shadow:0 2px 6px #0009;pointer-events:none}

@@ -390,6 +390,8 @@ export function createUI(root, world, actions) {
     toggleHelp() { if (actions.toggleHelp) actions.toggleHelp(); },
 
     update() {
+      // Gösteri kipinde panel yok (bkz. gosteri.js): HUD, komut ızgarası ve skor hiç çizilmez.
+      if (world.gosteri) return;
       const p = world.player, eco = world.me && world.me.eco;
       if (!eco) return;
       for (const u of [...world.sel.units]) if (!u.alive) world.sel.units.delete(u);

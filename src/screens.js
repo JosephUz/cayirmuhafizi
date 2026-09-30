@@ -176,6 +176,7 @@ export function createScreens(root, world, app) {
     toggleHelp() { if (visible() === els.help) closeHelp(); else openHelp(); },
     /** Esc: açık pencereyi kapat; oyun içinde menüyü aç / kapat (tek başına oyunda menü oyunu durdurur). */
     escape() {
+      if (world.gosteri) return; // gösteri kipinde menü yok: kip girdisiz döner (bkz. gosteri.js)
       const v = visible();
       if (v === els.help) { closeHelp(); return; }
       if (v === els.menu) { show(null); app.resume(); return; }
