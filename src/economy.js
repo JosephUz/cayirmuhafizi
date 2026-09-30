@@ -501,6 +501,13 @@ function crowdAround(world, p, mine) {
 function updateBotStance(world, p, me, you) {
   const ai = p.ai, X = ENEMY_AI.extra[world.difficulty];
   const mine = world.entities.filter(e => e.alive && e.owner === p && !e.isHero && !e.isWorker);
+  // Gösteri kipinde (bkz. gosteri.js) botlar hep saldırıdadır: klip boyunca aksiyon çekilmeyle kesilmesin.
+  if (world.gosteri) {
+    ai.needSiege = !world.entities.some(e => e.alive && e.owner === p && e.isSiege)
+      && world.structures.some(s => s.alive && s.kind === 'tower' && s.faction !== p.faction);
+    ai.attacking = true; ai.launchSize = Math.max(ai.launchSize || 0, me.army);
+    return;
+  }
   const retreat = () => {
     ai.attacking = false;
     const r = botRally(world, p);

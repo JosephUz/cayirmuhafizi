@@ -134,6 +134,9 @@ export function pickHostile(world, x, z, pad = RALLY.pickRadius) {
 
 /** Bu nokta ayakta bir **rakip** kulenin menzilinde (pay dahil) mi? Bot askerleri oraya girmez. */
 export function inEnemyTowerRange(world, faction, pos, margin = ENEMY_AI.towerMargin) {
+  // Gösteri kipinde (bkz. gosteri.js) kule çekincesi kapalıdır: yoksa iki ordu da rakip kulelerin menzil çemberi
+  // önünde mancınık bekleyip yığılıyor ve klipte dakikalarca dövüş olmuyordu. Normal oyun bundan etkilenmez.
+  if (world.gosteri) return false;
   const r = TOWER.range + margin, r2 = r * r;
   for (const s of enemyTowers(world, faction)) {
     const dx = pos.x - s.pos.x, dz = pos.z - s.pos.z;

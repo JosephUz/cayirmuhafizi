@@ -1,9 +1,10 @@
 import * as T from 'three';
 import { pickHostile } from './ai.js';
 import { animateView, applyUnitShadows, rebuildSwing, setUnitShadows } from './characters.js';
-import { BUILD, BUILDINGS, CAMERA, PERF, QUALITY, TOWER } from './config.js';
+import { BUILD, BUILDINGS, CAMERA, GOSTERI, PERF, QUALITY, TOWER } from './config.js';
 import { buildError } from './economy.js';
 import { buildEnvironmentView } from './environment.js';
+import { createGosteri, gosteriAcik } from './gosteri.js';
 import { attachInput, clearSelection, createInput, lockPointer, resolveHeroInput, unlockPointer, updateTpsCamera } from './input.js';
 import { createMinimap } from './minimap.js';
 import { createNetClient } from './net/client.js';
@@ -30,6 +31,8 @@ import { cmdBuild, cmdCancel, cmdConvert, cmdDemolish, cmdEnqueue, cmdRally, con
  * **Dokunmatik** kip (telefon, tablet, Android uygulaması; ?touch ile masaüstünde de): joystick ve düğmeler (touch.js,
  * input.js), alt bant çekmece olur (⚒ açar; yapı seçilince açılır, inşa yeri seçerken kapanır), görüntü hafifler.
  * Çevrim içi kapalıysa (config.js → ONLINE, ör. uygulamada) sunucuya hiç bağlanılmaz; oda düğmeleri "Yakında" yazar.
+ * **Gösteri kipi** (yalnız web, `?gosteri=1`; bkz. gosteri.js): menü atlanır, iki tarafı da bot yönetir, arayüz gizlenir,
+ * kamera en kalabalık çatışmayı izler; ölçüm olayı gitmez, sunucuya bağlanılmaz. Normal oyun akışı değişmez.
  */
 export async function start(root) {
   const view = root.querySelector('#mg-view');
@@ -269,11 +272,13 @@ export async function start(root) {
   world.toggleCamera = () => { if (world.player) setCameraMode(world.cam === 'tps' ? 'iso' : 'tps'); };
   attachInput(world, renderer.domElement, camera, root.querySelector('#mg-dragbox'), touch ? view : null);
   const minimap = createMinimap(root.querySelector('#mg-minimap'), world, { viewCorners: () => world.viewCorners(), onLeft: () => {}, onRight: () => {} });
+  /** Gösteri kipi (?gosteri=1, yalnız web): bot-bot maç, arayüzsüz, kamera çatışmayı takip eder (bkz. gosteri.js). */
+  const gosteri = gosteriAcik() ? createGosteri(world, { arenaReady }) : null;
 
   function resize() {
     const w = view.clientWidth, h = view.clientHeight;
-    // Telefonda izometrik kadraj daha yakın: küçük ekranda kahraman ve birimler seçilebilsin.
-    const half = touch ? 12 : 17;
+    // Telefonda izometrik kadraj daha yakın: küçük ekranda kahraman ve birimler seçilebilsin. Gösteride biraz yakın açı.
+    const half = gosteri ? GOSTERI.kadraj : touch ? 12 : 17;
     isoCamera.left = -half * w / h; isoCamera.right = half * w / h; isoCamera.top = half; isoCamera.bottom = -half;
     isoCamera.updateProjectionMatrix();
     tpsCamera.aspect = w / h; tpsCamera.updateProjectionMatrix();
@@ -285,9 +290,15 @@ export async function start(root) {
   setupGame(world, { teamSize: 1, humans: [{ name: 'Sen' }], run: false });
   world.me = world.players[0]; world.player = world.me.hero; world.loadout = world.player.loadout;
   arenaReady();
-  const urlCode = screens.urlCode();
-  const remembered = networked && net.rememberedRoom();
-  if (!networked) screens.home('');
+  const urlCode = gosteri ? null : screens.urlCode();
+  const remembered = !gosteri && networked && net.rememberedRoom();
+  if (gosteri) {
+    // Gösteri: menü atlanır, sunucuya hiç bağlanılmaz, ölçüm olayı gitmez; maç hemen başlar.
+    root.classList.add('gosteri');
+    const ad = root.querySelector('#mg-gosteri'); if (ad) ad.hidden = false;
+    screens.show(null);
+    gosteri.basla();
+  } else if (!networked) screens.home('');
   else if (remembered) {
     // Sayfa yenilendi ya da bağlantı koptu: aynı kimlikle sunucuya dönülür; oda sürüyorsa sunucu oyunu / lobiyi yeniden yollar.
     screens.home('Odaya geri bağlanıyor…');
@@ -343,7 +354,7 @@ export async function start(root) {
     if (sp) placeTap.style.transform = `translate(${sp.x}px,${sp.y}px)`;
   }
 
-  const look = new T.Vector3().copy(world.player.pos);
+  const look = new T.Vector3().copy(gosteri ? gosteri.odak(0) : world.player.pos);
   let prev = 0, mapTick = 0, prevAlive = true;
   applyQuality(qualityKey);
   renderer.setAnimationLoop(ms => {
@@ -351,9 +362,12 @@ export async function start(root) {
     world.clock += dt;
     fpsFrames++;
     if (ms - fpsSince >= 500) { fps = Math.round((fpsFrames * 1000) / (ms - fpsSince)); fpsFrames = 0; fpsSince = ms; }
-    if (world.running && !world.ended) macKontrol(); // ölçüm: oyuncu 60 sn oynayınca bir kez "bir_dakika" (bayrak dolunca anında döner)
+    // ölçüm: oyuncu 60 sn oynayınca bir kez "bir_dakika" (bayrak dolunca anında döner); gösteride hiç ölçüm gitmez
+    if (world.running && !world.ended && !gosteri) macKontrol();
     const replicated = world.replicated;
-    if (!replicated) {
+    // Gösteri kipi: girdi yok, simülasyon iki kat hızda koşar, maç biterse yenisi başlar (bkz. gosteri.js).
+    if (gosteri) gosteri.guncelle(dt);
+    else if (!replicated) {
       const active = world.running && !world.paused && !world.ended;
       if (active) { resolveHeroInput(world, world.me.input); step(world, dt); }
       else world.input.attackQueued = world.input.dodgeQueued = world.input.jumpQueued = world.input.attackReleased = false;
@@ -372,9 +386,12 @@ export async function start(root) {
     updateEffects(world, dt);
     const animDt = world.paused ? 0 : dt;
     const fog = world.fog;
-    const hx = hero ? hero.pos.x : 0, hz = hero ? hero.pos.z : 0, vd2 = CAMERA.tps.viewDist * CAMERA.tps.viewDist;
+    // Uzaklık ölçümünün merkezi (sadeleştirme ve omuz üstü görüş): normalde kahraman, gösteride kameranın baktığı yer.
+    const hx = gosteri ? look.x : hero ? hero.pos.x : 0, hz = gosteri ? look.z : hero ? hero.pos.z : 0;
+    const vd2 = CAMERA.tps.viewDist * CAMERA.tps.viewDist;
     const lod2 = PERF.lodDist * PERF.lodDist;
     let seen = 0;
+    // Gösteride sis kapalıdır (fog.enabled = false): kamera nereye giderse gitsin iki tarafın da birlikleri görünür.
     const sees = world.cam === 'tps' && !kc ? (x, z) => (x - hx) ** 2 + (z - hz) ** 2 <= vd2 : (x, z) => fog.isVisible(x, z);
     const bounds = updateViewBounds(world, hero);
     // Ölüm kamerasında kadraj kahramanın değil katilin çevresidir: kırpma kapanır, katil her hâlükârda görünür.
@@ -403,14 +420,17 @@ export async function start(root) {
       if (!inView(s.pos.x, s.pos.z, s.kind === 'tower' ? TOWER.range : s.kind === 'banner' ? BUILD.bannerRadius : 6)) { if (s.view) { s.view.g.visible = false; if (s.view.bars) s.view.bars.g.visible = false; } continue; }
       syncStructureView(s, animDt, world.clock, camera.quaternion, world.side);
     }
-    world.ui.updateCampLabels();
-    world.ui.updateHint();
-    world.ui.updateCharge();
-    world.ui.updateRespawn();
-    if (touch) touchFrame();
+    // Gösteride arayüz yoktur: panel, etiket ve işaret güncellemeleri hiç koşmaz (bkz. style.css `.gosteri`).
+    if (!gosteri) {
+      world.ui.updateCampLabels();
+      world.ui.updateHint();
+      world.ui.updateCharge();
+      world.ui.updateRespawn();
+      if (touch) touchFrame();
+    }
     animateScenery(world, animDt);
-    updateMarkers(world, selRings, ghost, ghostMat, ghostRing, rangeRing, heroRing);
-    if (world.running) { world.uiTimer -= dt; if (world.uiTimer <= 0) { world.uiTimer = PERF.uiEvery; world.ui.update(); } }
+    if (!gosteri) updateMarkers(world, selRings, ghost, ghostMat, ghostRing, rangeRing, heroRing);
+    if (world.running && !gosteri) { world.uiTimer -= dt; if (world.uiTimer <= 0) { world.uiTimer = PERF.uiEvery; world.ui.update(); } }
 
     // Ölüm kamerası omuz üstünde de izometrik kadrajla çizer: ölüyken bakış kahramanda değil katildedir.
     let frameCam = camera;
@@ -418,8 +438,9 @@ export async function start(root) {
       world.camTarget.copy(hero.pos); look.copy(hero.pos);
       updateTpsCamera(world, tpsCamera, animDt);
     } else {
-      const focus = kc ? kc.target.pos : (hero ? hero.pos : null);
-      if (focus) { world.camTarget.copy(focus); look.lerp(focus, 1 - Math.exp(-dt * 5)); }
+      // Gösteride kamera kahramanı değil en kalabalık çatışmayı izler; yumuşatmayı gosteri.js yapar.
+      const focus = kc ? kc.target.pos : gosteri ? gosteri.odak(dt) : (hero ? hero.pos : null);
+      if (focus) { world.camTarget.copy(focus); if (gosteri) look.copy(focus); else look.lerp(focus, 1 - Math.exp(-dt * 5)); }
       frameCam = isoCamera;
       isoCamera.position.set(look.x + 24, 29, look.z + 24);
       isoCamera.lookAt(look.x, 0, look.z);
@@ -429,7 +450,7 @@ export async function start(root) {
     const q = QUALITY[qualityKey];
     if (q.shadows && !renderer.shadowMap.autoUpdate) { if ((shadowTick++ % q.every) === 0) renderer.shadowMap.needsUpdate = true; }
     renderer.render(scene, frameCam);
-    if ((mapTick++ & 1) === 0) minimap.draw();
+    if ((mapTick++ & 1) === 0 && !gosteri) minimap.draw();
   });
 }
 
