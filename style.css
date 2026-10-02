@@ -364,3 +364,8 @@ html,body{margin:0;height:100%;background:#19231d;overflow:hidden}
 #meadow-game.gosteri #mg-drawer-close,#meadow-game.gosteri #mg-dragbox{display:none!important}
 #meadow-game #mg-gosteri{position:absolute;left:18px;bottom:16px;z-index:6;font:600 13px/1 system-ui,sans-serif;letter-spacing:3px;
   color:#f6efd9cc;text-shadow:0 2px 6px #0009;pointer-events:none}
+/* Sahnelenmiş gösterinin (?gosteri=kahraman) büyük açıklama yazısı: görüntünün **orta yatay bandında** ve yanlardan
+   iyice içeride durur — içerik betiği 16:9 kaydı dikey keserken yanlardan pay aldığı için yazı kesilmesin. */
+#meadow-game #mg-gosteri-yazi{position:absolute;left:19%;right:19%;top:54%;z-index:6;text-align:center;pointer-events:none;
+  font:800 clamp(20px,3.1vw,46px)/1.18 system-ui,sans-serif;letter-spacing:.5px;color:#fff6dd;
+  text-shadow:0 3px 14px #000c,0 0 34px #0008}
