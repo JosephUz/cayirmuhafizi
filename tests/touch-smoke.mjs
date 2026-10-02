@@ -125,14 +125,23 @@ try {
   await page.screenshot({ path: 'artifacts/t5-tps.png' });
 
   // ☰ menü: oyun durur, düğmeler gizlenir.
-  await page.tap('#mg-tbar [data-tb=menu]');
-  await page.waitForTimeout(200);
-  assert.ok(await page.locator('#mg-menu').isVisible());
+  /**
+   * Dokunuş sonucu çıkana kadar dener. Yukarıdaki bakış kaydırması CDP ile elle gönderildiği için (Playwright'ın
+   * kendi dokunuş sırasının dışında), ondan sonraki ilk `tap` arada Chromium tarafından yutuluyor ve düğme hiç
+   * basılmamış oluyordu — test de boşuna düşüyordu. Sonuç gelene kadar dokunuşu tekrarlamak bunu kapatır.
+   */
+  const tapTaDa = async (dugme, bekleyen, mesaj) => {
+    for (let i = 0; i < 4; i++) {
+      if (await page.locator(bekleyen).isVisible()) return;
+      await page.tap(dugme);
+      await page.waitForTimeout(300);
+    }
+    assert.ok(await page.locator(bekleyen).isVisible(), mesaj);
+  };
+  await tapTaDa('#mg-tbar [data-tb=menu]', '#mg-menu', '☰ menüyü açar');
   assert.ok(await game(() => window.__meadow.paused), 'menü oyunu durdurur');
   assert.ok(!(await page.locator('.tbtn[data-t=attack]').isVisible()), 'menüde düğmeler gizli');
-  await page.tap('#menu-resume');
-  await page.waitForTimeout(200);
-  assert.ok(await page.locator('.tbtn[data-t=attack]').isVisible());
+  await tapTaDa('#menu-resume', '.tbtn[data-t=attack]', 'Devam et oyuna döner');
 
   // Başsız Chromium tam ekran isteğini kabul eder; boyut değiştirmek için önce çıkılır.
   await page.evaluate(() => document.fullscreenElement && document.exitFullscreen());

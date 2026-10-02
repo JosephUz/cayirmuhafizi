@@ -73,6 +73,10 @@ Gösteriye özgü üç kural (yalnızca `world.gosteri` açıkken): botlar hep s
 
 1000 birimle akıcı kalmak için **yalnız bu sahnede**: grafik kalitesi orta (asker gölgesi yok), kadraj elemesi odaktan 62 birim, birim sadeleştirmesi 13 birim (normalde `PERF.lodDist` 42) ve uzak birimde göz de çizilmez (`setLodGoz`, birim başına iki çizim çağrısı). Dokunmatikte kalabalık 220'ye düşer ve kalite düşüktür: içerik kaydı masaüstünde yapılır, telefonda sahne yalnız çökmeden açılsın yeter. Ayarlar `src/config.js` → `GOSTERI_KAHRAMAN`, kod `src/gosteri-kahraman.js`. Test: `node tests/gosteri-kahraman-smoke.mjs` (`GAME_URL`, `PLAYWRIGHT_MODULE`); zıplama / sağ tık alanı / dalga ekran görüntülerini `artifacts/` altına yazar ve kare hızını basar. `?gosteri=1` ve normal oyun bu sahneden etkilenmez.
 
+## Testler
+
+`npm test` üç dumanı testini sırayla koşturur: gösteri kipi, kahramanların gücü sahnesi, dokunmatik. Betik (`scripts/test.mjs`) **kendi kendine yeter**: oyun sunucusunu boş bir portta açar, Playwright'ı bulur (önce `PLAYWRIGHT_MODULE`, sonra bu depodaki kurulum, sonra komşu depolardaki tarayıcısı inmiş kurulum) ve bitince sunucuyu kapatır — elle kurulum gerekmez. Playwright bu depoya bilerek kurulu değildir (oyun paketine girmesin diye); hiç bulunamazsa betik ne yapılacağını yazıp düşer. Tek bir testi koşturmak için `GAME_URL` ve `PLAYWRIGHT_MODULE` verip `node tests/<ad>.mjs` yeter. Kare hızı eşiği donanıma bağlı olduğu için `FPS_ESIK` ile indirilebilir.
+
 ## Çevrim içi co-op
 
 Sunucu **otoriterdir**: her oda kendi dünyasını (`src/world.js`) saniyede 20 adım koşturur; istemciler yalnızca girdi ve

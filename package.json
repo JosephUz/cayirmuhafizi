@@ -9,7 +9,7 @@
     "build:web": "node scripts/build-web.mjs",
     "deploy:web": "node scripts/build-web.mjs && npx wrangler@4 deploy",
     "apk": "node scripts/apk.mjs",
-    "test": "node tests/gosteri-smoke.mjs && node tests/gosteri-kahraman-smoke.mjs && node tests/touch-smoke.mjs"
+    "test": "node scripts/test.mjs"
   },
   "dependencies": {
     "three": "0.180.0",

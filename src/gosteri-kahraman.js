@@ -257,7 +257,9 @@ export function createKahramanGosteri(world, { arenaReady, root }) {
 
   /** Her kare: girdi kurulur, simülasyon (ağır çekimde yavaşlamış) bir adım atar, evreler ve yazı güncellenir. */
   function guncelle(dt) {
-    if (!sahne || !world.running) return;
+    // `paused` da denetlenir: görüntü bağlamı düşünce (telefonda görüntü belleği dolunca) oyun durur, sahne de
+    // durmalı — yoksa ekran donmuşken simülasyon koşmaya devam eder (bkz. main.js webglcontextlost).
+    if (!sahne || !world.running || world.paused) return;
     const olcek = agir > 0 ? K.agir.olcek : 1;
     agir = Math.max(0, agir - dt);
     const sdt = dt * olcek;

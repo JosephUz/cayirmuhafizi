@@ -103,12 +103,16 @@ try {
   assert.equal(await game(() => window.__sockets), 0, 'gösteride sunucuya bağlanılmaz');
   assert.equal(await game(() => window.__olcum), 0, 'gösteride ölçüm olayı gitmez');
 
-  // 7) Kare hızı: 1000 birimle akıcı kalmalı (masaüstü hedefi 60; dumanı testi ağır gerilemede düşer).
+  /**
+   * 7) Kare hızı: 1000 birimle akıcı kalmalı. Eşik bilerek düşük (masaüstü hedefi 60, ölçülen ~55): bu bir başarım
+   * ölçütü değil, **ağır gerileme** alarmıdır — sayı donanıma bağlıdır. Zayıf makinede `FPS_ESIK` ile indirilebilir.
+   */
+  const esik = Number(process.env.FPS_ESIK || 40);
   const k0 = await game(() => window.__kare);
   await page.waitForTimeout(8000);
   const fps = ((await game(() => window.__kare) - k0) / 8);
   const cizim = await game(() => { const r = window.__meadow.renderer.info.render; return { calls: r.calls, tris: r.triangles }; });
-  assert.ok(fps >= 40, `1000 birimle kare hızı yeterli (ölçülen ${fps.toFixed(1)} fps)`);
+  assert.ok(fps >= esik, `1000 birimle kare hızı yeterli (ölçülen ${fps.toFixed(1)} fps, eşik ${esik})`);
 
   assert.deepEqual(errors, [], 'sayfa hatasız');
   console.log('Kahraman gösterisi dumanı testi geçti.');
