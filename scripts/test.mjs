@@ -1,4 +1,5 @@
-// `npm test`: dumanı testlerini **kendi başına** koşturur — oyun sunucusunu boş bir portta açar, Playwright'ı bulur,
+// `npm test`: önce tarayıcısız **birim** testlerini (`tests/*.test.mjs`), sonra dumanı testlerini **kendi başına**
+// koşturur — oyun sunucusunu boş bir portta açar, Playwright'ı bulur,
 // testleri sırayla çalıştırır ve sonunda sunucuyu kapatır. Testleri tek tek koşturmak isteyen `GAME_URL` ve
 // `PLAYWRIGHT_MODULE` vererek doğrudan `node tests/<ad>.mjs` diyebilir (bkz. README); bu betik aynı iki değişkeni
 // kendisi hesaplar, böylece elle kurulum gerekmez.
@@ -14,7 +15,9 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const TESTLER = ['tests/gosteri-smoke.mjs', 'tests/gosteri-kahraman-smoke.mjs', 'tests/touch-smoke.mjs'];
+/** Tarayıcısız birim testleri (`node --test`): sunucu da Playwright de gerekmez. */
+const BIRIM_TESTLER = ['tests/gorunur-alan.test.mjs'];
+const TESTLER = ['tests/gosteri-smoke.mjs', 'tests/gosteri-kahraman-smoke.mjs', 'tests/touch-smoke.mjs', 'tests/mobil-ust-alan.mjs'];
 
 /** İşletim sisteminin verdiği boş bir port: sabit 5173 başka bir sunucuda açık olabilir. */
 const bosPort = () => new Promise((çöz, hata) => {
@@ -92,6 +95,10 @@ const kos = (komut, argv, env) => new Promise(çöz => {
   c.on('close', kod => çöz(kod ?? 1));
   c.on('error', e => { console.error(e.message); çöz(1); });
 });
+
+// Birim testleri önce: tarayıcı ve sunucu gerektirmez, saniyeler sürer, düşerse dumanı testlerini beklemeye gerek yok.
+const birim = await kos(process.execPath, ['--test', ...BIRIM_TESTLER]);
+if (birim !== 0) process.exit(birim);
 
 const playwright = await playwrightBul();
 if (!playwright) {
