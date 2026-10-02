@@ -106,11 +106,14 @@ const adres = `http://127.0.0.1:${port}`;
 const sunucu = spawn(process.execPath, ['server.mjs'], { cwd: root, env: { ...process.env, PORT: String(port) }, stdio: 'ignore' });
 let kod = 0;
 try {
-  if (!await sunucuyuBekle(adres)) { console.error(`Oyun sunucusu ${adres} adresinde açılmadı.`); process.exit(1); }
-  console.log(`Oyun sunucusu: ${adres} · Playwright: ${playwright}\n`);
-  for (const t of TESTLER) {
-    const sonuc = await kos(process.execPath, [t], { GAME_URL: adres, PLAYWRIGHT_MODULE: playwright });
-    if (sonuc !== 0) { kod = sonuc; break; }
+  // Burada `process.exit` **kullanılmaz**: `finally` çalışmadan çıkılırsa açılan sunucu süreci arkada kalır.
+  if (!await sunucuyuBekle(adres)) { console.error(`Oyun sunucusu ${adres} adresinde açılmadı.`); kod = 1; }
+  else {
+    console.log(`Oyun sunucusu: ${adres} · Playwright: ${playwright}\n`);
+    for (const t of TESTLER) {
+      const sonuc = await kos(process.execPath, [t], { GAME_URL: adres, PLAYWRIGHT_MODULE: playwright });
+      if (sonuc !== 0) { kod = sonuc; break; }
+    }
   }
 } finally {
   sunucu.kill();

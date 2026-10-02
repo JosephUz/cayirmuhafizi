@@ -288,7 +288,6 @@ export function removeView(e) {
   e.view = null;
 }
 
-/** Tamamen prosedürel canlandırma: yürüyüş sinüs, saldırı tek eğri, ölüm devrilip gömülme. */
 /**
  * Uzak birimde göz de gizlensin mi (birim başına iki çizim çağrısı): **yalnızca kalabalık gösteri sahnesi** açar
  * (bkz. gosteri-kahraman.js). Normal oyun ve `?gosteri=1` kapalı kalır, yani çizimleri bir ucundan değişmez.
@@ -310,6 +309,7 @@ function setDetail(v, on) {
   if (v.eyes && lodGoz) v.eyes.visible = on;
 }
 
+/** Tamamen prosedürel canlandırma: yürüyüş sinüs, saldırı tek eğri, ölüm devrilip gömülme. */
 export function animateView(e, dt, camQuat, far = false) {
   const v = e.view; if (!v) return;
   v.g.position.x = e.pos.x; v.g.position.z = e.pos.z; v.g.rotation.y = e.facing;
