@@ -829,75 +829,117 @@ export const GOSTERI = {
 
 /**
  * **Kahramanların gücü gösterisi** (yalnız web, `?gosteri=kahraman`; bkz. src/gosteri-kahraman.js): maç değil,
- * sahnelenmiş ve durmadan tekrarlanan tek bir gösteri. Mızraklı Atlı kahraman kalabalığın kenarından koşar, **zıplar**
- * (oyunda Boşluk), havada inerken **sağ tık** atar (atılma + vakumlu kazık alanı) ve yere iner inmez **sol tıkı basılı
- * tutup bırakır** (mızrakta 3 koridor dalgası, bkz. CHARGE.spear). Sayılar oyunun kendi mekaniklerini kullanır;
+ * sahnelenmiş ve durmadan tekrarlanan tek bir gösteri. **Atlı Okçu** kahraman kalkansız kılıçlı bir kalabalığın
+ * kenarından koşar, **zıplar** (oyunda Boşluk), havada inerken **sağ tık** atar (atılma + vakumlu **ok yağmuru**) ve
+ * yere iner inmez **sol tıkı basılı tutup bırakır** (yayda 5 atışlık hızlı yaylım, bkz. CHARGE.bow). Bu çevrim bir
+ * turda `tekrar` kez üst üste koşar: kahraman yerde oyalanmaz, hep havada ya da koşuyordur. İlk yaylımdan sonra
+ * kalabalığın beyni açılır ve askerler kahramana saldırır. Sayılar oyunun kendi mekaniklerini kullanır;
  * `?gosteri=1` ve normal oyun bu ayarlardan etkilenmez.
  */
 export const GOSTERI_KAHRAMAN = {
   /**
-   * Kahraman: oyundaki **Mızraklı Atlı** seti (at + mızrak). Sahnenin anlattığı şey kahramanın gücü olduğu için
-   * seviyesi yüksek seçilir; oyunun kendi seviye ölçeği işler, uydurma bir çarpan yoktur (LEVEL.maxLevel sınırsızdır):
-   *  - vuruş gücü seviye başına %8 artar (LEVEL.damagePerLevel): 85. seviyede bir koridor dalgası seviye 1 askeri
-   *    **tek vuruşta** düşürür (14.5 x 7.72 x 0.93 ≈ 104 > 100 can), yani dalgalar kalabalığı gerçekten biçer;
-   *  - vuruş alanı 18. seviyede tavana oturur (LEVEL.maxReachMult 3): koridor 9 birim, dalgalarla 1x/1.4x/1.8x;
-   *  - alan / vakum yarıçapı her 10 seviyede %10 büyür (LEVEL.dashEvery): 85'te 1.8 kat, yani kazık alanı 5.8 birim
+   * Kahraman: oyundaki **Atlı Okçu** seti (at + yay, kalkansız). Oyunun kendi seviye ölçeği işler, uydurma bir çarpan
+   * yoktur (LEVEL.maxLevel sınırsızdır). Hesap (vuruş gücü 18 x 0.55 asker çarpanı x 0.65 soldierMult x 1.2 at = 7.72;
+   * seviye 85'te damageMult 1 + 0.08 x 84 = 7.72, yani bir ok 59.6 taban hasar taşır):
+   *  - Atlı Okçu kılıçlının **antisidir** (ANTI.table.horsebow). Anti vuruşun askere hasarı hedefin azami canının
+   *    ANTI.soldierMult (0.34) katıdır, **şarj oranıyla ölçeklenir ve seviyeden bağımsızdır**: tek ok 100 canlı
+   *    seviye 1 kılıçlıya 34 hasar verir (üç okta ölür), ok yağmurunun her vuruşu KIT.bow.fieldDamage 0.6 oranında
+   *    olduğu için 100 x 0.34 x 0.6 = **20.4** verir. Yağmur 0.25 sn'de bir vurur (fieldTick), yani **5. vuruşta
+   *    (1.0 sn)** askeri düşürür; alan 2 sn yaşadığı için (fieldLife) 8 vuruş yapar. Yani ok yağmuru seviye 1
+   *    kılıçlıyı gerçekten öldürür — seviye bunu değiştirmez, **alanın büyüklüğünü ve ok sayısını** değiştirir.
+   *  - Alan / vakum yarıçapı her 10 seviyede %10 büyür (LEVEL.dashEvery): 85'te 1.8 kat, yani ok yağmuru 5.8 birim
    *    ve vakum 13.8 birimdir — sağ tıkta kalabalığın iç halkası tek seferde merkeze çekilir.
+   *  - Yaylımdaki ok sayısı seviye kadardır, en çok LEVEL.arrowsMax 40; atlı okçuda iki katı (KIT.horsebow.arrowMult),
+   *    yani 80 ok. Şarjlı yaylım bunu CHARGE.bow.shots (5) kez tekrarlar.
+   *  - Yay menzili birim tavanındadır (9 birim, bkz. rangeCap): seviye onu artırmaz.
+   * Seviye 85 seçilmesinin tek nedeni budur: en geniş yağmur alanı ve en kalabalık yaylım.
    */
-  kahraman: { loadout: { weapon: 'spear', shield: false, horse: true }, seviye: 85 },
+  kahraman: { loadout: { weapon: 'bow', shield: false, horse: true }, seviye: 85 },
   /**
-   * Kalabalık: `sayi` düşman, hepsi **seviye 1** ve **beyinsiz** (brain = null): kıpırdamaz, saldırmaz, dağılmaz —
-   * yalnız vakumla çekilir, dalgalarla biçilir ve savrulur. Yerler altıgen ızgaradan merkeze en yakın `sayi` tanesi
-   * seçilir; ağaç / kaya gibi engele düşen yerler atlanır (kalabalıkta doğal boşluklar olur, kimse engele sıkışmaz).
+   * Kalabalık: `sayi` düşman, hepsi **seviye 1 kalkansız kılıçlı**. Tek tür olmasının iki nedeni var: Atlı Okçu
+   * kılıçlının antisidir (üç okta düşürür) ve yayın **kalkana karşı hasarı yok sayılır** (ANTI.weak.bowVsShield 0.15),
+   * yani kalkanlı bir kalabalık ok yağmurunu yutardı. Tur başında beyinleri kapalıdır (brain = null): kıpırdamaz,
+   * saldırmaz, dağılmazlar — böylece zıplayış ve ilk vuruş temiz görünür. Kahraman **ilk yaylımını** yaptıktan sonra
+   * beyinleri açılır ve kahramana koşup saldırırlar (bkz. `beyin`).
+   * Yerler altıgen ızgaradan merkeze en yakın `sayi` tanesi seçilir; ağaç / kaya gibi engele düşen yerler atlanır
+   * (kalabalıkta doğal boşluklar olur, kimse engele sıkışmaz). 500 birim 15.2 birim yarıçaplı sıkı bir blok olur.
    * `carpismaYaricap` yalnız **fizik** yarıçapıdır (görünüm değişmez): kutular birbirine değecek kadar sık dursun diye
    * normal 0.45 yerine küçültülür, yoksa PHYSICS.unitSpacing ile 1.71 birimden sık dizilemezlerdi.
+   *
+   * **Neden 1000 değil 500?** Askerlerin beyni açılınca kalabalık artık durmuyor: yürüyor, çarpışıyor ve dalga dalga
+   * ölüyor. Maliyet **koşan ve ölen** birim sayısıyla büyüyor (duran 1000 birim bedava: 60 fps). Ölçülen (1280x720,
+   * d3d11): 1000 birimde ortalama 32 fps ve çevrim aralarında 20 fps'e kadar dalışlar; 750'de ortalama ~50, dip 29;
+   * 600'de ortalama 54, dip 29; **500'de ortalama 57-59, en kötü yarım saniye 44** — yani tek takılmasız ayar budur.
+   * 500 ayrıca tur sonunda kalabalığı **tamamen** temizliyor (ayakta 1-5), Yusuf'un "hepsini öldürsün" isteği birebir
+   * oluyor. Dumanı testi bu iki sayıyı da ölçer (bkz. tests/gosteri-kahraman-smoke.mjs).
    */
-  kalabalik: { sayi: 1000, turler: ['sword', 'spear', 'bow'], aralik: 1.25, yaricap: 30, carpismaYaricap: 0.3,
+  kalabalik: { sayi: 500, turler: ['sword'], aralik: 1.25, yaricap: 30, carpismaYaricap: 0.3,
     /**
      * Dokunmatikte (telefon / tablet) kalabalık bu kadardır: içerik kaydı masaüstünde yapılır, telefonda sahne yalnız
-     * **çökmeden** açılsın yeter. 1000 birim telefon tarayıcısının görüntü belleğini doldurup sekmeyi kapatıyor
+     * **çökmeden** açılsın yeter. Kalabalık birim telefon tarayıcısının görüntü belleğini doldurup sekmeyi kapatıyor
      * (birim başına ~20 sahne nesnesi; bkz. LIMITS_LIGHT'in aynı gerekçesi).
      */
     telefon: 220 },
-  /** Kahraman kalabalığın merkezine bu uzaklıktan, kenarın dışından başlar. */
-  baslangic: 34,
+  /**
+   * Askerlerin beyni (ilk yaylımdan sonra açılır). Her askere hazır bir `attack` emri verilir: hedefi doğrudan
+   * kahramandır, yani ai.js'in **hedef arama** dalına hiç girilmez (findTarget her birim için bütün sahayı tarar;
+   * yüzlerce birimde kare başına milyonlarca denetim ederdi). Böylece birim başına maliyet sabittir: yönel, yürü,
+   * menzile girince vur. Üstüne bir de **uzaklık kapısı** vardır: kahramandan `yaricap` biriminden uzaktaki askerin
+   * beyni geçici olarak kapanır (yerinde durur) ve yaklaşınca yeniden açılır — kadrajın dışındaki kalabalık için
+   * yapay zekâ koşturulmaz. 500 birimlik kalabalık 15.2 birime sığdığı için `yaricap` 34 pratikte hepsini kapsar;
+   * kapı asıl kalabalık büyütülürse işe yarar (ölçümde yarıçapı kısmak fps'i artırıyor ama kalabalık kahramana
+   * gelmediği için ölüm sayısı düşüyordu, bu yüzden tercih kalabalığı küçültmek oldu).
+   * `uyanma`: yarıçap sıfırdan bu kadar saniyede büyür. Bütün kalabalık aynı karede yürümeye başlayınca kare hızı o
+   * anda çöküyordu; yavaş büyüyen yarıçap hem yükü yayar hem de dışa yayılan bir "uyanma dalgası" gibi görünür.
+   */
+  beyin: { yaricap: 34, uyanma: 1.6 },
+  /** Kahraman kalabalığın merkezine bu uzaklıktan, kenarın dışından başlar (ilk zıplama tam ortaya düşsün diye). */
+  baslangic: 27,
+  /** Bir turda kaç **zıpla → ok yağmuru → in → yaylım** çevrimi koşar (ilki kalabalığın dışından gelen zıplamadır). */
+  tekrar: 4,
   /**
    * Evre süreleri (simülasyon saniyesi; ağır çekimde gerçek süre uzar).
    *  hazir: kahraman kenarda bekler · kosu: koşarak yaklaşır · ucusEnCok: havadaki üst sınır (güvenlik)
-   *  inis: yere değdikten sonraki duraklama · sarjEnCok: şarjın üst sınırı (güvenlik) · dalga: dalgaların süpürme süresi
-   *  bitis: son kadraj, ardından sahne yeniden kurulur.
+   *  inisEnCok: yere değdikten sonra şarjın dolmasını bekleme sınırı (şarj havada başlar, çoğu zaman inişte doludur)
+   *  yaylim: şarjlı yaylımın beş atışının süresi (CHARGE.bow: 5 x 0.12 sn) · ara: iki çevrim arası koşu (yerde
+   *  oyalanma yok, bir sonraki zıplamaya hazırlık) · bitis: son kadraj, ardından sahne yeniden kurulur.
    */
-  evre: { hazir: 1.3, kosu: 0.5, ucusEnCok: 2.4, inis: 0.4, sarjEnCok: 1.6, dalga: 1.05, bitis: 2.6 },
-  /** Sağ tık: ikinci zıplamadan sonra, alçalırken yere bu kadar yaklaşınca atılır (alan indiği yerde açılsın). */
-  sagTikYukseklik: 0.7,
+  evre: { hazir: 0.9, kosu: 0.45, ucusEnCok: 2.2, inisEnCok: 0.55, yaylim: 0.66, ara: 0.4, bitis: 1.6 },
+  /** Sağ tık: ikinci zıplamadan sonra, alçalırken yere bu kadar yaklaşınca atılır (yağmur kalabalığın üstünde açılsın). */
+  sagTikYukseklik: 1.1,
   /**
-   * Koridor süpürmesi: dalgalar o anki nişanı izlediği için (bkz. abilities.chargePulse) koridor `genislik` derece
-   * boyunca taranır. Süpürme `sure` saniyede biter — bu, şarjın üç dalgasının süresidir (CHARGE.spear: 3 x 0.14 sn):
-   * böylece üç koridor üst üste binmez, kalabalıkta yan yana üç ayrı yarık açarlar. `ilk` ilk şarjın başlangıç açısı,
-   * `ikinci` ikinci şarjın ona göre dönüşüdür (kalabalığın öbür yanı taransın).
+   * Yaylımın süpürmesi: şarjın beş atışı o anki nişanı izlediği için (bkz. abilities.chargePulse) nişan `genislik`
+   * derece boyunca `sure` saniyede taranır, yani oklar çevreyi yelpaze gibi tarar. `ilk` ilk çevrimin başlangıç açısı
+   * (kahramanın bakış yönüne göre), `adim` her çevrimde başlangıcın kaç derece döndüğüdür (art arda gelen yaylımlar
+   * kalabalığın başka bir yanını tarasın).
    */
-  supurme: { ilk: -40, ikinci: 150, genislik: 80, sure: 0.3 },
-  /** Ağır çekim: `olcek` zaman çarpanı; `inis` yere değişte, `dalga` ilk dalgada kaç **gerçek** saniye sürer. */
-  agir: { olcek: 0.4, inis: 1, dalga: 0.9 },
+  supurme: { ilk: -60, adim: 95, genislik: 120, sure: 0.6 },
+  /**
+   * Ağır çekim: `olcek` zaman çarpanı; `ilkYaylim` turun **yalnız ilk** yaylımında kaç **gerçek** saniye sürer.
+   * Yusuf "daha hareketli" istediği için ağır çekim bir tura tek, kısa bir vurgu olarak bırakıldı; inişte hiç yok.
+   */
+  agir: { olcek: 0.45, ilkYaylim: 0.3 },
   /**
    * Kamera (3B, yarı yüksek omuz üstü). `yaklasma` zıplama / uçuş evresinde (kahramanı yakından izler), `genis` iniş ve
-   * dalgalarda (kalabalığın büyüklüğü ve dalgaların boyu kadraja girsin). `dist` odağa uzaklık, `pitch` eğim (radyan),
-   * `bakisY` bakılan noktanın yüksekliği, `yumusatma` geçiş sertliği (1/sn), `donus` dalgalar sırasında yavaş yörünge
+   * yaylımda. `genis` eski sahneden belirgin **daha yakın ve daha alçaktır** (31 / 0.55 yerine 15.5 / 0.34): kahraman
+   * kalabalığın ortasında artık kafa denizinde kaybolmasın, ok yağmuru ve yaylım kadraja girsin.
+   * `dist` odağa uzaklık, `pitch` eğim (radyan),
+   * `bakisY` bakılan noktanın yüksekliği, `yumusatma` geçiş sertliği (1/sn), `donus` yaylım sırasında yavaş yörünge
    * (radyan/sn), `sapma` her turda açının rastgele değişimi (radyan).
    */
   kamera: {
     yaklasma: { dist: 13, pitch: 0.3, bakisY: 2.4 },
-    genis: { dist: 31, pitch: 0.55, bakisY: 1.6 },
-    yumusatma: 2.6, odakYumusatma: 3.4, donus: 0.1, sapma: 0.5,
+    genis: { dist: 15.5, pitch: 0.34, bakisY: 2.1 },
+    yumusatma: 3.2, odakYumusatma: 3.8, donus: 0.12, sapma: 0.5,
   },
   /** Ekrandaki büyük açıklama yazısı (yalnız bu sahnede; yeri için bkz. style.css `#mg-gosteri-yazi`). */
-  yazi: { zipla: 'Boşluk: zıpla · Sağ tık: alan aç', dalga: 'Sol tık basılı: dalga dalga biç' },
+  yazi: { zipla: 'Boşluk: zıpla · Sağ tık: ok yağmuru', dalga: 'Sol tık basılı: hızlı yaylım' },
   /**
-   * Yalnız bu sahnenin çizim ayarı (1000 birimle 60 fps için): `lod` birim sadeleştirme uzaklığı (normalde
+   * Yalnız bu sahnenin çizim ayarı (kalabalıkla 60 fps için): `lod` birim sadeleştirme uzaklığı (normalde
    * PERF.lodDist 42) — bu uzaklıktan öteki birimlerde uzuv ve silah çizilmez; `gorus` kadraj elemesinin yarıçapı
    * (odaktan bu kadar uzaktaki hiçbir şey çizilmez); `kalite` grafik kalitesi (asker gölgesi kapalı, bkz. QUALITY).
    */
-  lod: 13, gorus: 62, kalite: 'medium',
+  lod: 13, gorus: 54, kalite: 'medium',
 };
 
 /**
