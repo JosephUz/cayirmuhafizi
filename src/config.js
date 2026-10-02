@@ -828,6 +828,79 @@ export const GOSTERI = {
 };
 
 /**
+ * **Kahramanların gücü gösterisi** (yalnız web, `?gosteri=kahraman`; bkz. src/gosteri-kahraman.js): maç değil,
+ * sahnelenmiş ve durmadan tekrarlanan tek bir gösteri. Mızraklı Atlı kahraman kalabalığın kenarından koşar, **zıplar**
+ * (oyunda Boşluk), havada inerken **sağ tık** atar (atılma + vakumlu kazık alanı) ve yere iner inmez **sol tıkı basılı
+ * tutup bırakır** (mızrakta 3 koridor dalgası, bkz. CHARGE.spear). Sayılar oyunun kendi mekaniklerini kullanır;
+ * `?gosteri=1` ve normal oyun bu ayarlardan etkilenmez.
+ */
+export const GOSTERI_KAHRAMAN = {
+  /**
+   * Kahraman: oyundaki **Mızraklı Atlı** seti (at + mızrak). Sahnenin anlattığı şey kahramanın gücü olduğu için
+   * seviyesi yüksek seçilir; oyunun kendi seviye ölçeği işler, uydurma bir çarpan yoktur (LEVEL.maxLevel sınırsızdır):
+   *  - vuruş gücü seviye başına %8 artar (LEVEL.damagePerLevel): 85. seviyede bir koridor dalgası seviye 1 askeri
+   *    **tek vuruşta** düşürür (14.5 x 7.72 x 0.93 ≈ 104 > 100 can), yani dalgalar kalabalığı gerçekten biçer;
+   *  - vuruş alanı 18. seviyede tavana oturur (LEVEL.maxReachMult 3): koridor 9 birim, dalgalarla 1x/1.4x/1.8x;
+   *  - alan / vakum yarıçapı her 10 seviyede %10 büyür (LEVEL.dashEvery): 85'te 1.8 kat, yani kazık alanı 5.8 birim
+   *    ve vakum 13.8 birimdir — sağ tıkta kalabalığın iç halkası tek seferde merkeze çekilir.
+   */
+  kahraman: { loadout: { weapon: 'spear', shield: false, horse: true }, seviye: 85 },
+  /**
+   * Kalabalık: `sayi` düşman, hepsi **seviye 1** ve **beyinsiz** (brain = null): kıpırdamaz, saldırmaz, dağılmaz —
+   * yalnız vakumla çekilir, dalgalarla biçilir ve savrulur. Yerler altıgen ızgaradan merkeze en yakın `sayi` tanesi
+   * seçilir; ağaç / kaya gibi engele düşen yerler atlanır (kalabalıkta doğal boşluklar olur, kimse engele sıkışmaz).
+   * `carpismaYaricap` yalnız **fizik** yarıçapıdır (görünüm değişmez): kutular birbirine değecek kadar sık dursun diye
+   * normal 0.45 yerine küçültülür, yoksa PHYSICS.unitSpacing ile 1.71 birimden sık dizilemezlerdi.
+   */
+  kalabalik: { sayi: 1000, turler: ['sword', 'spear', 'bow'], aralik: 1.25, yaricap: 30, carpismaYaricap: 0.3,
+    /**
+     * Dokunmatikte (telefon / tablet) kalabalık bu kadardır: içerik kaydı masaüstünde yapılır, telefonda sahne yalnız
+     * **çökmeden** açılsın yeter. 1000 birim telefon tarayıcısının görüntü belleğini doldurup sekmeyi kapatıyor
+     * (birim başına ~20 sahne nesnesi; bkz. LIMITS_LIGHT'in aynı gerekçesi).
+     */
+    telefon: 220 },
+  /** Kahraman kalabalığın merkezine bu uzaklıktan, kenarın dışından başlar. */
+  baslangic: 34,
+  /**
+   * Evre süreleri (simülasyon saniyesi; ağır çekimde gerçek süre uzar).
+   *  hazir: kahraman kenarda bekler · kosu: koşarak yaklaşır · ucusEnCok: havadaki üst sınır (güvenlik)
+   *  inis: yere değdikten sonraki duraklama · sarjEnCok: şarjın üst sınırı (güvenlik) · dalga: dalgaların süpürme süresi
+   *  bitis: son kadraj, ardından sahne yeniden kurulur.
+   */
+  evre: { hazir: 1.3, kosu: 0.5, ucusEnCok: 2.4, inis: 0.4, sarjEnCok: 1.6, dalga: 1.05, bitis: 2.6 },
+  /** Sağ tık: ikinci zıplamadan sonra, alçalırken yere bu kadar yaklaşınca atılır (alan indiği yerde açılsın). */
+  sagTikYukseklik: 0.7,
+  /**
+   * Koridor süpürmesi: dalgalar o anki nişanı izlediği için (bkz. abilities.chargePulse) koridor `genislik` derece
+   * boyunca taranır. Süpürme `sure` saniyede biter — bu, şarjın üç dalgasının süresidir (CHARGE.spear: 3 x 0.14 sn):
+   * böylece üç koridor üst üste binmez, kalabalıkta yan yana üç ayrı yarık açarlar. `ilk` ilk şarjın başlangıç açısı,
+   * `ikinci` ikinci şarjın ona göre dönüşüdür (kalabalığın öbür yanı taransın).
+   */
+  supurme: { ilk: -40, ikinci: 150, genislik: 80, sure: 0.3 },
+  /** Ağır çekim: `olcek` zaman çarpanı; `inis` yere değişte, `dalga` ilk dalgada kaç **gerçek** saniye sürer. */
+  agir: { olcek: 0.4, inis: 1, dalga: 0.9 },
+  /**
+   * Kamera (3B, yarı yüksek omuz üstü). `yaklasma` zıplama / uçuş evresinde (kahramanı yakından izler), `genis` iniş ve
+   * dalgalarda (kalabalığın büyüklüğü ve dalgaların boyu kadraja girsin). `dist` odağa uzaklık, `pitch` eğim (radyan),
+   * `bakisY` bakılan noktanın yüksekliği, `yumusatma` geçiş sertliği (1/sn), `donus` dalgalar sırasında yavaş yörünge
+   * (radyan/sn), `sapma` her turda açının rastgele değişimi (radyan).
+   */
+  kamera: {
+    yaklasma: { dist: 13, pitch: 0.3, bakisY: 2.4 },
+    genis: { dist: 31, pitch: 0.55, bakisY: 1.6 },
+    yumusatma: 2.6, odakYumusatma: 3.4, donus: 0.1, sapma: 0.5,
+  },
+  /** Ekrandaki büyük açıklama yazısı (yalnız bu sahnede; yeri için bkz. style.css `#mg-gosteri-yazi`). */
+  yazi: { zipla: 'Boşluk: zıpla · Sağ tık: alan aç', dalga: 'Sol tık basılı: dalga dalga biç' },
+  /**
+   * Yalnız bu sahnenin çizim ayarı (1000 birimle 60 fps için): `lod` birim sadeleştirme uzaklığı (normalde
+   * PERF.lodDist 42) — bu uzaklıktan öteki birimlerde uzuv ve silah çizilmez; `gorus` kadraj elemesinin yarıçapı
+   * (odaktan bu kadar uzaktaki hiçbir şey çizilmez); `kalite` grafik kalitesi (asker gölgesi kapalı, bkz. QUALITY).
+   */
+  lod: 13, gorus: 62, kalite: 'medium',
+};
+
+/**
  * Çevrim içi (oda kur / odaya katıl, çevrim içi sayısı): `web` tarayıcıda, `app` Android uygulamasında açık mı. Kapalıyken
  * sunucuya hiç bağlanılmaz, oda düğmeleri "Yakında" yazar; tek başına oyun aynen oynanır (bkz. src/platform.js).
  */

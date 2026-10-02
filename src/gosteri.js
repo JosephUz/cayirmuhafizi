@@ -20,9 +20,17 @@ import { setupGame, step } from './world.js';
  * Uygulamada (isApp) açılmaz: Play Store sürümüne yeni bir kip girmez.
  */
 export function gosteriAcik() {
-  if (isApp()) return false;
+  return gosteriKipi() !== null;
+}
+
+/**
+ * Hangi gösteri sahnesi açık: `?gosteri=1` bu dosyadaki bot-bot maç, `?gosteri=kahraman` sahnelenmiş kahraman
+ * gösterisi (bkz. gosteri-kahraman.js). Kapalıysa (adres yok ya da `0`, ya da uygulama) null döner.
+ */
+export function gosteriKipi() {
+  if (isApp()) return null;
   const v = new URLSearchParams(location.search).get('gosteri');
-  return v !== null && v !== '0';
+  return v === null || v === '0' ? null : v;
 }
 
 /** dt'siz (0) çağrıda kamera hedefe yapışır; sonraki karelerde yumuşak kayar. */

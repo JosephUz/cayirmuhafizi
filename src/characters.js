@@ -193,7 +193,9 @@ export function buildView(scene, e, side = 'blue') {
   box(body, e.isPlayer || e.isHero ? headColor : '#e1b48a', 0, 1.64, 0, 0.57, 0.57, 0.52);
   box(body, e.isPlayer || e.isHero ? headColor : beast ? COLORS.beastHead : e.isWorker ? '#d8c27a' : blue ? '#433e36' : '#818b83', 0, 1.95, 0, 0.62, 0.15, 0.57);
   if (e.isWorker) { mesh(body, new T.CylinderGeometry(0.55, 0.6, 0.06, 10), '#d8c27a', 0, 1.94, 0); box(body, '#8a6a44', 0, 0.62, -0.28, 0.5, 0.45, 0.22); }
-  for (const x of [-0.13, 0.13]) box(body, '#30372f', x, 1.7, 0.268, 0.065, 0.07, 0.03);
+  // Gözler ayrı bir grupta: uzak birim sadeleştirmesinde (setDetail) bütün olarak gizlenebilsinler.
+  const eyes = new T.Group(); body.add(eyes);
+  for (const x of [-0.13, 0.13]) box(eyes, '#30372f', x, 1.7, 0.268, 0.065, 0.07, 0.03);
 
   const legs = [], arms = [];
   for (const s of [-1, 1]) {
@@ -273,7 +275,7 @@ export function buildView(scene, e, side = 'blue') {
   const hpBar = bars.g, hpFill = bars.fill;
 
   scene.add(g);
-  e.view = { g, body, legs, arms, w, shieldMesh, horseLegs, swing, swingEdge, tunicMat, hpBar, hpFill, bars, sel, mounted: horse, detail: true };
+  e.view = { g, body, legs, arms, eyes, w, shieldMesh, horseLegs, swing, swingEdge, tunicMat, hpBar, hpFill, bars, sel, mounted: horse, detail: true };
   // Grafik kalitesi düşükse asker gölge düşürmez (bkz. config.js QUALITY): kalabalık savaşta en pahalı kalem budur.
   if (!unitShadows) applyUnitShadows(e, false);
   return e.view;
@@ -288,6 +290,13 @@ export function removeView(e) {
 
 /** Tamamen prosedürel canlandırma: yürüyüş sinüs, saldırı tek eğri, ölüm devrilip gömülme. */
 /**
+ * Uzak birimde göz de gizlensin mi (birim başına iki çizim çağrısı): **yalnızca kalabalık gösteri sahnesi** açar
+ * (bkz. gosteri-kahraman.js). Normal oyun ve `?gosteri=1` kapalı kalır, yani çizimleri bir ucundan değişmez.
+ */
+let lodGoz = false;
+export function setLodGoz(on) { lodGoz = Boolean(on); }
+
+/**
  * Uzak birim: gövde ve kafa kalır, uzuvlar gizlenir (bkz. PERF.lodDist). Aç / kapat yalnızca durum değişince
  * yapılır, her karede traverse edilmez.
  */
@@ -298,6 +307,7 @@ function setDetail(v, on) {
   for (const a of v.arms) a.visible = on;
   if (v.horseLegs) for (const l of v.horseLegs) l.visible = on;
   if (v.shieldMesh) v.shieldMesh.visible = on;
+  if (v.eyes && lodGoz) v.eyes.visible = on;
 }
 
 export function animateView(e, dt, camQuat, far = false) {

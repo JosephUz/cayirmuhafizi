@@ -4,7 +4,8 @@ import { animateView, applyUnitShadows, rebuildSwing, setUnitShadows } from './c
 import { BUILD, BUILDINGS, CAMERA, GOSTERI, PERF, QUALITY, TOWER } from './config.js';
 import { buildError } from './economy.js';
 import { buildEnvironmentView } from './environment.js';
-import { createGosteri, gosteriAcik } from './gosteri.js';
+import { createGosteri, gosteriAcik, gosteriKipi } from './gosteri.js';
+import { createKahramanGosteri } from './gosteri-kahraman.js';
 import { attachInput, attachKeyboardLock, clearSelection, createInput, lockPointer, resolveHeroInput, unlockPointer, updateTpsCamera } from './input.js';
 import { createMinimap } from './minimap.js';
 import { createNetClient } from './net/client.js';
@@ -33,6 +34,8 @@ import { cmdBuild, cmdCancel, cmdConvert, cmdDemolish, cmdEnqueue, cmdRally, con
  * Çevrim içi kapalıysa (config.js → ONLINE, ör. uygulamada) sunucuya hiç bağlanılmaz; oda düğmeleri "Yakında" yazar.
  * **Gösteri kipi** (yalnız web, `?gosteri=1`; bkz. gosteri.js): menü atlanır, iki tarafı da bot yönetir, arayüz gizlenir,
  * kamera en kalabalık çatışmayı izler; ölçüm olayı gitmez, sunucuya bağlanılmaz. Normal oyun akışı değişmez.
+ * `?gosteri=kahraman` (bkz. gosteri-kahraman.js) aynı kipin sahnelenmiş sürümüdür: maç değil, tekrarlanan tek bir
+ * gösteri; kamera izometrik değil **3B**'dir (sahne yerleştirir) ve kadraj elemesi / birim sadeleştirmesi sahneden gelir.
  */
 export async function start(root) {
   const view = root.querySelector('#mg-view');
@@ -99,7 +102,8 @@ export async function start(root) {
     for (const e of world.entities) applyUnitShadows(e, q.units);
     renderer.shadowMap.needsUpdate = q.shadows;
     fitShadow();
-    try { localStorage.setItem('cm.quality', qualityKey); } catch { /* yok */ }
+    // Gösteride kalite sahnenin kendi ayarıdır (bkz. gosteri.kalite): oyuncunun menüden seçtiği kalite bozulmasın.
+    if (!gosteri) try { localStorage.setItem('cm.quality', qualityKey); } catch { /* yok */ }
   }
 
   // Dünya: simülasyon + istemciye özel alanlar.
@@ -274,8 +278,15 @@ export async function start(root) {
   world.toggleCamera = () => { if (world.player) setCameraMode(world.cam === 'tps' ? 'iso' : 'tps'); };
   attachInput(world, renderer.domElement, camera, root.querySelector('#mg-dragbox'), touch ? view : null);
   const minimap = createMinimap(root.querySelector('#mg-minimap'), world, { viewCorners: () => world.viewCorners(), onLeft: () => {}, onRight: () => {} });
-  /** Gösteri kipi (?gosteri=1, yalnız web): bot-bot maç, arayüzsüz, kamera çatışmayı takip eder (bkz. gosteri.js). */
-  const gosteri = gosteriAcik() ? createGosteri(world, { arenaReady }) : null;
+  /**
+   * Gösteri kipi (yalnız web, arayüzsüz): `?gosteri=1` bot-bot maç (gosteri.js), `?gosteri=kahraman` sahnelenmiş
+   * kahraman gösterisi (gosteri-kahraman.js). İkisi de aynı kancaları verir: basla / guncelle / odak.
+   */
+  const gosteri = !gosteriAcik() ? null
+    : gosteriKipi() === 'kahraman' ? createKahramanGosteri(world, { arenaReady, root })
+      : createGosteri(world, { arenaReady });
+  // 3B gösteride etkin kamera perspektiftir: can çubukları ve dünya işaretleri ona göre döner (bkz. animateView).
+  if (gosteri && gosteri.kamera3b) { camera = tpsCamera; world.camera = tpsCamera; }
   attachKeyboardLock();
   // Maç sürerken sekme kapanmak / yenilenmek istenirse tarayıcı sorar: Ctrl basılıyken W'ye basmak (Ctrl+W) pencerede
   // sayfaya gelmeden sekmeyi kapatıyordu. Giriş ekranında, maç bitince, gösteride ve uygulamada sormaz.
@@ -388,6 +399,11 @@ export async function start(root) {
 
   const look = new T.Vector3().copy(gosteri ? gosteri.odak(0) : world.player.pos);
   let prev = 0, mapTick = 0, prevAlive = true;
+  // Sahnenin kendi çizim ayarları (yalnız gösteride): kalite, kadraj elemesi ve birim sadeleştirme uzaklığı.
+  // Telefonda sahne de düşük kalitede açılır: kalabalık gösteri gölgelerle telefon tarayıcısını zorlar.
+  if (gosteri && gosteri.kalite && !touch) qualityKey = gosteri.kalite;
+  const gosteriGorus = gosteri && gosteri.gorus ? gosteri.gorus() : null;
+  const lodDist = gosteri && gosteri.lod ? gosteri.lod : PERF.lodDist;
   applyQuality(qualityKey);
   renderer.setAnimationLoop(ms => {
     const dt = Math.min((ms - prev) / 1000 || 0.016, 0.1); prev = ms;
@@ -421,11 +437,12 @@ export async function start(root) {
     // Uzaklık ölçümünün merkezi (sadeleştirme ve omuz üstü görüş): normalde kahraman, gösteride kameranın baktığı yer.
     const hx = gosteri ? look.x : hero ? hero.pos.x : 0, hz = gosteri ? look.z : hero ? hero.pos.z : 0;
     const vd2 = CAMERA.tps.viewDist * CAMERA.tps.viewDist;
-    const lod2 = PERF.lodDist * PERF.lodDist;
+    const lod2 = lodDist * lodDist;
     let seen = 0;
     // Gösteride sis kapalıdır (fog.enabled = false): kamera nereye giderse gitsin iki tarafın da birlikleri görünür.
     const sees = world.cam === 'tps' && !kc ? (x, z) => (x - hx) ** 2 + (z - hz) ** 2 <= vd2 : (x, z) => fog.isVisible(x, z);
-    const bounds = updateViewBounds(world, hero);
+    // 3B gösteride kadraj elemesini sahne verir (izometrik köşe izdüşümü perspektif kamerada işlemez).
+    const bounds = gosteriGorus ? (world.inView = gosteriGorus) : updateViewBounds(world, hero);
     // Ölüm kamerasında kadraj kahramanın değil katilin çevresidir: kırpma kapanır, katil her hâlükârda görünür.
     const inView = kc ? always : bounds;
     for (const e of world.entities) {
@@ -473,9 +490,13 @@ export async function start(root) {
       // Gösteride kamera kahramanı değil en kalabalık çatışmayı izler; yumuşatmayı gosteri.js yapar.
       const focus = kc ? kc.target.pos : gosteri ? gosteri.odak(dt) : (hero ? hero.pos : null);
       if (focus) { world.camTarget.copy(focus); if (gosteri) look.copy(focus); else look.lerp(focus, 1 - Math.exp(-dt * 5)); }
-      frameCam = isoCamera;
-      isoCamera.position.set(look.x + 24, 29, look.z + 24);
-      isoCamera.lookAt(look.x, 0, look.z);
+      // Sahnelenmiş gösteri (?gosteri=kahraman) izometrik değil 3B bakar: perspektif kamerayı sahnenin kendisi yerleştirir.
+      if (!kc && gosteri && gosteri.kamera3b) { gosteri.bakis(dt, tpsCamera, look); frameCam = tpsCamera; }
+      else {
+        frameCam = isoCamera;
+        isoCamera.position.set(look.x + 24, 29, look.z + 24);
+        isoCamera.lookAt(look.x, 0, look.z);
+      }
     }
     followShadow(look.x, look.z);
     // Gölge haritası: yüksek kalitede her kare, orta / düşükte birkaç karede bir yenilenir (maliyetin yarısı).
