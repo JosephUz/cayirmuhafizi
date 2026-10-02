@@ -56,7 +56,10 @@ export function createTouch(parent, buttons, hooks) {
     if (kind === 'stick') {
       if ([...fingers.values()].some(o => o.kind === 'stick')) return;
       stick.hidden = false;
-      stick.style.transform = `translate(${e.clientX}px,${e.clientY}px)`;
+      // Konum dokunmatik katmana göre: kök görünür alana kilitlendiğinde (telefonda adres çubuğu) katman pencerenin
+      // tepesinden aşağıda başlayabilir.
+      const r = pad.getBoundingClientRect();
+      stick.style.transform = `translate(${e.clientX - r.left}px,${e.clientY - r.top}px)`;
       knob.style.transform = '';
       setStick(0, 0);
     } else if (kind === 'look') {

@@ -4,6 +4,7 @@ import { animateView, applyUnitShadows, rebuildSwing, setUnitShadows } from './c
 import { BUILD, BUILDINGS, CAMERA, GOSTERI, PERF, QUALITY, TOWER } from './config.js';
 import { buildError } from './economy.js';
 import { buildEnvironmentView } from './environment.js';
+import { gorunurAlanaKilitle } from './gorunur-alan.js';
 import { createGosteri, gosteriAcik, gosteriKipi } from './gosteri.js';
 import { createKahramanGosteri } from './gosteri-kahraman.js';
 import { attachInput, attachKeyboardLock, clearSelection, createInput, lockPointer, resolveHeroInput, unlockPointer, updateTpsCamera } from './input.js';
@@ -41,6 +42,10 @@ export async function start(root) {
   const view = root.querySelector('#mg-view');
   const touch = touchDevice(), networked = onlineEnabled();
   root.classList.toggle('touch', touch);
+  // Telefonda oyun kökünü tarayıcı çubuklarının bıraktığı görünür alana kilitler: üst bilgi çubuğu ve lobideki oda
+  // kodu adres çubuğunun altında kalmaz (bkz. src/gorunur-alan.js, style.css → `html.vv`). Sahneden önce: çizim
+  // alanı (#mg-view) ilk ölçüsünü kilitlenmiş kökten alsın.
+  const gorunurAlan = gorunurAlanaKilitle(window);
 
   const scene = new T.Scene();
   scene.background = new T.Color('#adb777');
@@ -377,6 +382,8 @@ export async function start(root) {
     drawerClose.onclick = () => setDrawer(false);
     tbar.querySelector('[data-tb=cam]').onclick = () => world.toggleCamera();
     tbar.querySelector('[data-tb=menu]').onclick = () => screens.escape();
+    // Tam ekrana girip çıkınca tarayıcı çubukları gider / gelir: görünür alan kilidi yeni ölçüyü okusun.
+    document.addEventListener('fullscreenchange', () => setTimeout(gorunurAlan.guncelle, 120));
   }
   function touchFrame() {
     const playing = world.running && !world.ended && !world.paused && !screens.visible();

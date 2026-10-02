@@ -9,7 +9,8 @@
     "build:web": "node scripts/build-web.mjs",
     "deploy:web": "node scripts/build-web.mjs && npx wrangler@4 deploy",
     "apk": "node scripts/apk.mjs",
-    "test": "node scripts/test.mjs"
+    "test": "node scripts/test.mjs",
+    "test:mobil": "node tests/mobil-ust-alan.mjs"
   },
   "dependencies": {
     "three": "0.180.0",
