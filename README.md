@@ -60,8 +60,37 @@ kırmızıya geçer, oda 1v1 kalır); iki takım da doluysa oda bir büyür. **K
 geçer**; kuran oyuncuları **sürükleyip bırakır** (bkz. PvP). Kaça kaç ve zorluğu **yalnızca kuran** değiştirir ve **Başlat**'a basar, kimse
 "hazır" basmaz; 1v1 seçilirse kuran tek başına botlarla oynar. **Bitiş**: karne (bkz. Karne ve skor). **Kısayollar**
 penceresi (F1, sağ alttaki ? ve giriş ekranındaki bağlantı) bütün tuşları ve kahramanın o anki yetenek setini yazar.
-**Esc** oyun içinde menüyü açar (Devam, Kısayollar, Ses, Oyundan çık); tek başına oyunda menü oyunu durdurur, co-op'ta
+**Esc** oyun içinde menüyü açar (Devam, Kısayollar, Grafik, Ses, Müzik, Oyundan çık); tek başına oyunda menü oyunu durdurur, co-op'ta
 durdurmaz (başkasının oyununu durduramazsın). Ekranlarda anlatım cümlesi yoktur: her şey kısayol penceresindedir.
+
+## Müzik
+
+Üç parça, hepsi **bizim bestemiz** (enstrüman örnekleri VSCO 2 Community Edition, CC0; `muzik/LISANS.txt`), 128 kbps
+mp3, dosya başına ~2 MB:
+
+| Dosya | Parça | Nerede |
+| --- | --- | --- |
+| `muzik/cayir-2-cayirda-sabah.mp3` | Çayırda Sabah | **sakin**: giriş, kurulum, lobi, bitiş karnesi (tek parça, kendi kendine döner) |
+| `muzik/cayir-1-kahramansiz-savas.mp3` | Kahramansız Savaş Olmaz | **maç**: ana tema |
+| `muzik/cayir-3-sancak-dusmeden.mp3` | Sancak Düşmeden | **maç**: çatışma; ana temayla sırayla çalar |
+
+Çalar `src/muzik.js`'tedir ve `<audio>` kullanır (Web Audio yalnızca efekt "ping"leri içindir, bkz. `ui.js`). Sahne her
+karede dünyanın durumundan okunur (`main.js`: maç sürüyorsa `mac`, değilse `sakin`), aynı sahne verilince hiçbir şey
+olmaz — ekran geçişlerini tek tek kancalamaya gerek yoktur. Sahne değişiminde ve parça bitmeden **1,8 sn çapraz
+geçiş** yapılır, araya sessizlik girmez. Dosyalar gerektiğinde iner: menüde yalnız sakin parça, maç parçaları maç
+başlarken. Yollar **görelidir** (`muzik/...`), bu yüzden aynı dosyalar Capacitor'ın `https://localhost/` kökünde de
+çalar ve bir sonraki APK'ya kendiliğinden girer (`scripts/build-web.mjs` `dist/muzik/`e kopyalar).
+
+Ses düzeyi efektlerin altındadır (**varsayılan %35**). Açık / kapalı iki yerdedir — giriş ekranının üst çubuğunda ve
+Esc menüsünde; ses düzeyi sürgüsü yalnız Esc menüsündedir. İkisi de `localStorage`'da saklanır (`cm.muzik`,
+`cm.muzik.ses`) ve efekt sesinden (`cm.sound`) bağımsızdır. Tarayıcının otomatik oynatma kuralı gereği müzik **ilk
+dokunuş / tuştan sonra** başlar (engellenirse sonraki dokunuşta yeniden denenir); sekme gizlenince durur, dönünce sürer.
+
+**Müziğin hiç kurulmadığı yerler**: gösteri kipleri (`?gosteri=...` — klibin müziğini video betiği ekler) ve otomatik
+tarayıcılar (`navigator.webdriver`: dumanı testleri 6 MB ses indirmesin). `?muzik=0` elle kapatır, `?muzik=1` otomatik
+tarayıcıda açar (müziği ölçen test bunu kullanır; gösteriyi açamaz). Kapalıyken hiç `<audio>` öğesi yaratılmaz.
+Sunucu ses dosyalarını bir hafta önbelleğe verir ve `Range` isteklerini yanıtlar (tarayıcı inmemiş bir yere sarabilsin).
+Test: `node tests/muzik-smoke.mjs` (`GAME_URL`, `PLAYWRIGHT_MODULE`; `--mute-audio` ile koşar).
 
 ## Gösteri kipi (içerik klipleri)
 
@@ -91,7 +120,7 @@ Kahramanlar ise **oyunun kendi sistemleridir**: girdileri `hero.js` `applyHeroIn
 
 ## Testler
 
-`npm test` önce tarayıcısız birim testlerini (`tests/*.test.mjs`, şu an görünür alan kilidi), sonra tarayıcı testlerini sırayla koşturur: gösteri kipi, kahramanların gücü sahnesi, iki ordu sahnesi, dokunmatik, telefonda üst alan (`tests/mobil-ust-alan.mjs`). Betik (`scripts/test.mjs`) **kendi kendine yeter**: oyun sunucusunu boş bir portta açar, Playwright'ı bulur (önce `PLAYWRIGHT_MODULE`, sonra bu depodaki kurulum, sonra komşu depolardaki tarayıcısı inmiş kurulum) ve bitince sunucuyu kapatır — elle kurulum gerekmez. Playwright bu depoya bilerek kurulu değildir (oyun paketine girmesin diye); hiç bulunamazsa betik ne yapılacağını yazıp düşer. Tek bir testi koşturmak için `GAME_URL` ve `PLAYWRIGHT_MODULE` verip `node tests/<ad>.mjs` yeter. Kare hızı eşikleri donanıma bağlı olduğu için `FPS_ESIK` (ortalama) ve `FPS_DIP_ESIK` (en kötü yarım saniye) ile indirilebilir.
+`npm test` önce tarayıcısız birim testlerini (`tests/*.test.mjs`, şu an görünür alan kilidi), sonra tarayıcı testlerini sırayla koşturur: gösteri kipi, kahramanların gücü sahnesi, iki ordu sahnesi, dokunmatik, telefonda üst alan (`tests/mobil-ust-alan.mjs`), oyun içi müzik (`tests/muzik-smoke.mjs`). Betik (`scripts/test.mjs`) **kendi kendine yeter**: oyun sunucusunu boş bir portta açar, Playwright'ı bulur (önce `PLAYWRIGHT_MODULE`, sonra bu depodaki kurulum, sonra komşu depolardaki tarayıcısı inmiş kurulum) ve bitince sunucuyu kapatır — elle kurulum gerekmez. Playwright bu depoya bilerek kurulu değildir (oyun paketine girmesin diye); hiç bulunamazsa betik ne yapılacağını yazıp düşer. Tek bir testi koşturmak için `GAME_URL` ve `PLAYWRIGHT_MODULE` verip `node tests/<ad>.mjs` yeter. Kare hızı eşikleri donanıma bağlı olduğu için `FPS_ESIK` (ortalama) ve `FPS_DIP_ESIK` (en kötü yarım saniye) ile indirilebilir.
 
 ## Çevrim içi co-op
 
@@ -657,6 +686,7 @@ Simülasyon ile görünüm ayrıdır: `src/world.js` ve ona bağlı modüller re
 | `src/gosteri-savas.js` | Sahnelenmiş gösteri (`?gosteri=savas`): 1000'er kişilik iki ordu, ucuz ordu beyni, iki Kılıçlı Atlı kahramanın düellosu, geniş izometrik kamera |
 | `src/view/ordu.js` | Kalabalık ordu çizimi (yalnız `?gosteri=savas`): taraf başına tek InstancedMesh, birleşik asker geometrisi |
 | `src/screens.js`, `src/report.js` | Ekran akışı (giriş / kurulum / lobi / menü / kısayollar) ve bitiş karnesi (sekmeler, grafik, kopyala) |
+| `src/muzik.js`, `muzik/` | Oyun içi müzik: sahne seçimi (sakin / maç), çapraz geçiş, ayar ve saklama; parçalar ve lisans notu |
 | `src/environment.js` | Arena verisi (tohumlu: sunucu ve istemci aynı araziyi kurar) ve dekor görünümü (InstancedMesh) |
 | `src/players.js` | Oyuncular (insanlar + botlar): takım, sahip, kasa, bot durumu, sınırlar |
 | `src/structures.js` | Yapılar (veri): kurma, yerleştirme denetimi, inşa, yıkım |

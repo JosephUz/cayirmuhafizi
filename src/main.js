@@ -10,6 +10,7 @@ import { createKahramanGosteri } from './gosteri-kahraman.js';
 import { createSavasGosteri } from './gosteri-savas.js';
 import { attachInput, attachKeyboardLock, clearSelection, createInput, lockPointer, resolveHeroInput, unlockPointer, updateTpsCamera } from './input.js';
 import { createMinimap } from './minimap.js';
+import { createMuzik } from './muzik.js';
 import { createNetClient } from './net/client.js';
 import { macBasladi, macBitti, macKontrol } from './olcum.js';
 import { isApp, onlineEnabled } from './platform.js';
@@ -124,6 +125,9 @@ export async function start(root) {
     killcam: null,
   });
   Object.defineProperty(world, 'selected', { get: () => world.sel.structure, set: v => { world.sel.structure = v; } });
+  // Oyun içi müzik (bkz. muzik.js): sahnesi her karede dünyanın durumundan okunur, gösteri kiplerinde hiç kurulmaz.
+  const muzik = createMuzik(root);
+  world.muzik = muzik;
   globalThis.__meadow = world;
 
   // İşaretler: seçim halkaları, inşa hayaleti, kahraman inşa halkası.
@@ -212,6 +216,12 @@ export async function start(root) {
     pauseForMenu() { if (!world.replicated && world.running && !world.ended) { world.paused = true; unlockPointer(); world.ui.update(); } },
     toggleSound() { return world.ui.toggleSound(); },
     soundOn() { return world.ui.soundOn; },
+    /** Müzik ayarları (bkz. muzik.js): gösteri kiplerinde `muzikVar()` false döner, ayar düğmeleri gizlenir. */
+    muzikVar() { return !muzik.kapali; },
+    muzikAcik() { return muzik.acik; },
+    toggleMuzik() { return muzik.ac(); },
+    muzikSes() { return muzik.ses; },
+    setMuzikSes(v) { return muzik.sesAyarla(v); },
     /** Esc menüsündeki grafik düğmesi ve ölçüm satırı: kalite, kare hızı, çizim çağrısı, çizilen birim sayısı. */
     quality() {
       const r = renderer.info.render;
@@ -422,6 +432,9 @@ export async function start(root) {
     if (ms - fpsSince >= 500) { fps = Math.round((fpsFrames * 1000) / (ms - fpsSince)); fpsFrames = 0; fpsSince = ms; }
     // ölçüm: oyuncu 60 sn oynayınca bir kez "bir_dakika" (bayrak dolunca anında döner); gösteride hiç ölçüm gitmez
     if (world.running && !world.ended && !gosteri) macKontrol();
+    // Müzik sahnesi: maç sürerken savaş parçaları, menüde / lobide / karnede sakin parça. Aynı sahne verilirse
+    // hiçbir şey olmaz, bu yüzden her kareden sorulabilir: ekran geçişlerini tek tek kancalamaya gerek kalmaz.
+    muzik.sahne(world.running && !world.ended ? 'mac' : 'sakin');
     const replicated = world.replicated;
     // Gösteri kipi: girdi yok, simülasyon iki kat hızda koşar, maç biterse yenisi başlar (bkz. gosteri.js).
     if (gosteri) gosteri.guncelle(dt);

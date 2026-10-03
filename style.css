@@ -154,6 +154,12 @@ html.vv #meadow-game{--mg-h:var(--vv-h);inset:auto;top:var(--vv-top);left:var(--
 #meadow-game input[type=text]:focus{outline:2px solid #ffdf86;outline-offset:1px}
 #meadow-game .menu{display:flex;flex-direction:column;gap:8px}
 #meadow-game .menu button{padding:12px 16px;font-size:16px}
+/* Müzik ses düzeyi: Müzik düğmesinin hemen altında bir sürgü; müzik kapalıyken soluk görünür (bkz. screens.js). */
+#meadow-game .menu .slider{display:flex;align-items:center;gap:10px;font-size:13px;color:#b8c5aa;padding:0 4px}
+#meadow-game .menu .slider[hidden]{display:none}
+#meadow-game .menu .slider.off{opacity:.45}
+#meadow-game .menu .slider input[type=range]{flex:1;min-width:0;accent-color:#e6c25a}
+#meadow-game .menu .slider b{color:#f6efd9;font-weight:600;min-width:38px;text-align:right}
 #meadow-game .joinrow{margin-top:10px;align-items:stretch}
 #meadow-game .joinrow input{flex:1;min-width:0;padding:12px 14px;border-radius:8px;text-transform:uppercase;letter-spacing:.15em;text-align:left}
 #meadow-game .joinrow button{padding:0 18px;border-radius:8px}

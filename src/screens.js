@@ -16,6 +16,7 @@ export function createScreens(root, world, app) {
     nick: $('#home-nick'), joinRow: $('#home-joinrow'), code: $('#home-code'), homeStatus: $('#home-status'), online: $('#home-online'),
     setupTitle: $('#setup-title'), lobbyCode: $('#lobby-code'), blue: $('#lobby-blue'), red: $('#lobby-red'), lobbyTeams: $('#lobby-teams'), lobbyDiff: $('#lobby-diff'), lobbyStart: $('#lobby-start'), lobbyStatus: $('#lobby-status'), lobbyMode: $('#lobby-mode'),
     endCard: $('#end-card'), helpHero: $('#help-hero'), menuResume: $('#menu-resume'), menuSound: $('#menu-sound'), menuQuality: $('#menu-quality'),
+    menuMuzik: $('#menu-muzik'), menuMuzikRow: $('#menu-muzik-row'), menuMuzikSes: $('#menu-muzik-ses'), menuMuzikYuzde: $('#menu-muzik-yuzde'), homeMuzik: $('#home-muzik'),
   };
   const overlays = [els.home, els.setup, els.lobby, els.end, els.help, els.menu];
   let setupMode = 'solo', helpReturn = null;
@@ -148,6 +149,29 @@ export function createScreens(root, world, app) {
   const soundText = on => { els.menuSound.textContent = `Ses: ${on ? 'açık' : 'kapalı'}`; };
   soundText(app.soundOn());
   els.menuSound.onclick = () => soundText(app.toggleSound());
+  /**
+   * Müzik ayarı (bkz. muzik.js): efekt sesinden **ayrıdır**. Açık / kapalı iki yerdedir — giriş ekranının üst
+   * çubuğunda (müzik orada başlar) ve Esc menüsünde; ses düzeyi yalnız Esc menüsündedir. İkisi de aynı değeri
+   * gösterir, seçim tarayıcıda saklanır. Gösteri kiplerinde müzik hiç kurulmaz: düğmeler o zaman gizlenir.
+   */
+  function muzikYaz() {
+    const on = app.muzikAcik();
+    if (els.menuMuzik) els.menuMuzik.textContent = `Müzik: ${on ? 'açık' : 'kapalı'}`;
+    if (els.homeMuzik) els.homeMuzik.textContent = `♪ Müzik: ${on ? 'açık' : 'kapalı'}`;
+    if (els.menuMuzikRow) els.menuMuzikRow.classList.toggle('off', !on);
+    if (els.menuMuzikYuzde) els.menuMuzikYuzde.textContent = `${Math.round(app.muzikSes() * 100)}%`;
+  }
+  if (!app.muzikVar()) {
+    for (const el of [els.menuMuzik, els.menuMuzikRow, els.homeMuzik]) if (el) el.hidden = true;
+  } else {
+    if (els.menuMuzikSes) {
+      els.menuMuzikSes.value = String(Math.round(app.muzikSes() * 100));
+      els.menuMuzikSes.oninput = () => { app.setMuzikSes(Number(els.menuMuzikSes.value) / 100); muzikYaz(); };
+    }
+    for (const b of [els.menuMuzik, els.homeMuzik]) if (b) b.onclick = () => { app.toggleMuzik(); muzikYaz(); };
+    muzikYaz();
+  }
+
   /** Grafik kalitesi: Düşük -> Orta -> Yüksek sırayla döner; düğme o anki kare hızını da gösterir. */
   const qualityText = () => { const q = app.quality(); return `Grafik: ${q.label}${q.fps ? ` · ${q.fps} fps` : ''}`; };
   /** Ölçüm satırı: kare hızı, çizim çağrısı, çizilen birim / sahadaki birim. Takılma bildirirken bu satır okunur. */

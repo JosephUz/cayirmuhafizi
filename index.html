@@ -55,6 +55,7 @@
         <div class="logo">ÇAYIR <span>MUHAFIZI</span><small>SANCAK SAVAŞI / 1v1 – 5v5</small></div>
         <div class="home-actions">
           <a class="btn" href="https://www.josephuz.com/">← josephuz.com</a>
+          <button type="button" id="home-muzik" title="Oyun müziği (Esc menüsünde ses düzeyi de var)">♪ Müzik: açık</button>
           <button type="button" data-help>Kısayollar <kbd>F1</kbd></button>
         </div>
       </header>
@@ -185,6 +186,8 @@
           <button type="button" data-help>Kısayollar</button>
           <button type="button" id="menu-quality" title="Gölge maliyeti: kalabalık savaşta düşür">Grafik: Orta</button>
           <button type="button" id="menu-sound">Ses: açık</button>
+          <button type="button" id="menu-muzik" title="Oyun müziği (efektlerden ayrı)">Müzik: açık</button>
+          <label id="menu-muzik-row" class="slider">Müzik sesi <input type="range" id="menu-muzik-ses" min="0" max="100" step="5" aria-label="Müzik sesi"><b id="menu-muzik-yuzde">35%</b></label>
           <button type="button" id="menu-leave">Oyundan çık</button>
           <a class="btn" href="https://www.josephuz.com/">josephuz.com'a dön</a>
         </div>
