@@ -7,6 +7,7 @@ import { buildEnvironmentView } from './environment.js';
 import { gorunurAlanaKilitle } from './gorunur-alan.js';
 import { createGosteri, gosteriAcik, gosteriKipi } from './gosteri.js';
 import { createKahramanGosteri } from './gosteri-kahraman.js';
+import { createSavasGosteri } from './gosteri-savas.js';
 import { attachInput, attachKeyboardLock, clearSelection, createInput, lockPointer, resolveHeroInput, unlockPointer, updateTpsCamera } from './input.js';
 import { createMinimap } from './minimap.js';
 import { createNetClient } from './net/client.js';
@@ -285,11 +286,13 @@ export async function start(root) {
   const minimap = createMinimap(root.querySelector('#mg-minimap'), world, { viewCorners: () => world.viewCorners(), onLeft: () => {}, onRight: () => {} });
   /**
    * Gösteri kipi (yalnız web, arayüzsüz): `?gosteri=1` bot-bot maç (gosteri.js), `?gosteri=kahraman` sahnelenmiş
-   * kahraman gösterisi (gosteri-kahraman.js). İkisi de aynı kancaları verir: basla / guncelle / odak.
+   * kahraman gösterisi (gosteri-kahraman.js), `?gosteri=savas` iki ordu + iki kahraman gösterisi
+   * (gosteri-savas.js). Hepsi aynı kancaları verir: basla / guncelle / odak.
    */
   const gosteri = !gosteriAcik() ? null
     : gosteriKipi() === 'kahraman' ? createKahramanGosteri(world, { arenaReady, root })
-      : createGosteri(world, { arenaReady });
+      : gosteriKipi() === 'savas' ? createSavasGosteri(world, { arenaReady })
+        : createGosteri(world, { arenaReady });
   // 3B gösteride etkin kamera perspektiftir: can çubukları ve dünya işaretleri ona göre döner (bkz. animateView).
   if (gosteri && gosteri.kamera3b) { camera = tpsCamera; world.camera = tpsCamera; }
   attachKeyboardLock();
@@ -501,8 +504,13 @@ export async function start(root) {
       if (!kc && gosteri && gosteri.kamera3b) { gosteri.bakis(dt, tpsCamera, look); frameCam = tpsCamera; }
       else {
         frameCam = isoCamera;
-        isoCamera.position.set(look.x + 24, 29, look.z + 24);
-        isoCamera.lookAt(look.x, 0, look.z);
+        // İki ordu gösterisi (?gosteri=savas) izometrik bakar ama kadrajı ve uzaklığı kendi ayarlar: tepeden,
+        // haritanın büyük kısmını alan geniş bir bakış (bkz. gosteri-savas.js bakisIzo).
+        if (!kc && gosteri && gosteri.izometrik) gosteri.bakisIzo(dt, isoCamera, look, view.clientWidth / Math.max(1, view.clientHeight));
+        else {
+          isoCamera.position.set(look.x + 24, 29, look.z + 24);
+          isoCamera.lookAt(look.x, 0, look.z);
+        }
       }
     }
     followShadow(look.x, look.z);

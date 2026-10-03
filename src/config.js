@@ -943,6 +943,135 @@ export const GOSTERI_KAHRAMAN = {
 };
 
 /**
+ * **İki ordu gösterisi** (yalnız web, `?gosteri=savas`; bkz. src/gosteri-savas.js): içerik videosu için sahnelenmiş,
+ * her turda sıfırlanan tek bir sahne. 1000'er kişilik iki ordu haritanın iki ucundan birbirine hücum eder, tam
+ * birleşecekleri anda iki **Kılıçlı Atlı** kahraman kendi ordusunun içinden zıplayıp atılarak öne fırlar ve ortada
+ * peş peşe saldırı vurur.
+ *
+ * **Neden 1000 gerçekten 1000?** Askerlerin oyunun normal görünümü (asker başına ~15 mesh) ve normal yapay zekâsı
+ * yoktur; bu sahne kendi ordu beynini (bu dosyada `dovus`) ve kendi **örnekli çizicisini** (view/ordu.js, taraf
+ * başına tek çizim çağrısı) kullanır. Kahraman gösterisindeki 500 sınırı buradan gelmiyordu: orada her asker normal
+ * görünümle çizilip ai.js ile sürülüyordu.
+ */
+export const GOSTERI_SAVAS = {
+  /**
+   * Ordu: `sayi` taraf başına asker (dokunmatikte `telefon`), `sutun` cephedeki asker sayısı, `aralik` cephedeki
+   * yan yana mesafe, `sira` arkadaki sıralar arası mesafe, `hiz` hücum hızı (SOLDIER_BASE.speed 3.8 yerine; sinema
+   * hücumu koşar adımdır), `carpismaYaricap` yalnız **fizik** yarıçapıdır (görünüm değişmez): PHYSICS.unitSpacing
+   * ile sıkı bir cephe ancak böyle durur. `boy` her askerin rastgele boy çarpanı aralığıdır — kutu askerler
+   * birbirinin kopyası görünmesin.
+   * 50 sütun x 2 birim = 100 birimlik cephe: `kamera.genis` kadrajının dikeyi 88 birimdir, yani cephe ekranın
+   * **dışına taşar** — Yusuf'un istediği "haritayı kaplayan dalga" görüntüsü budur. 1000 / 50 = 20 sıra x 2.4 =
+   * 48 birim derinlik.
+   */
+  ordu: { sayi: 1000, telefon: 220, sutun: 50, aralik: 1.8, sira: 2.4, hiz: 5, carpismaYaricap: 0.42, boy: [0.92, 1.08],
+    /**
+     * Askerin çizim boyu çarpanı (yalnız görünüm; fizik yarıçapı değişmez). Bu kadraj tepeden ve geniştir, asker
+     * 1280x720'de ~12 piksele düşüyordu ve ağaçlardan ayırt edilemiyordu; 1.5 kat büyütülünce hem asker hem taraf
+     * rengi okunur hâle geliyor. Çarpışma aralığı (PHYSICS.unitSpacing x carpismaYaricap = 1.6 birim) olduğu gibi
+     * kaldığı için cephe sıkı kalır — askerler birbirine değecek kadar yakın durur, tam da istenen "duvar" görüntüsü.
+     */
+    olcek: 1.5 },
+  /**
+   * Ordu merkezlerinin tur başındaki merkeze uzaklığı (birim). Cephe arası boşluk = 2 x 60 - 48 = 72 birim; iki
+   * ordu 2 x 5 x 1.65 = 16.5 birim/sn kapattığı için hücum ~3.3 sn sürer ve ordular hiç kadraj dışına çıkmaz.
+   */
+  baslangic: 60,
+  /**
+   * Hücum ekseni: iki ordu bu doğrultuda birbirine koşar. İzometrik kamerada (bakış açısı 45°) bu yön **ekranın
+   * yatayına** düşer, yani ordular soldan ve sağdan gelir; cephe hattı ekranın dikeyine oturur. Birim vektör.
+   */
+  eksen: { x: 0.7071, z: -0.7071 },
+  /**
+   * Ordu beyni (ai.js değil; yüzlerce birimde findTarget bütün sahayı tarar ve kare hızını yere indirir):
+   *  `tara` hedef arama ızgarasının göz boyu, `dilim` ordunun kaçta kaçı her karede yeni hedef arar (4 = dörtte
+   *  biri, yani arama maliyeti dörde bölünür), `kopma` hedefin bırakıldığı uzaklık, `menzil` vuruş mesafesi,
+   *  `hasar` bir vuruşun hasarı (100 can = 3 vuruş), `itme` vuruşun savurma gücü, `saparma` hücumda her askerin
+   *  yönüne eklenen rastgele sapma (cephe tek sıra gibi değil, dalga gibi görünsün).
+   */
+  dovus: { tara: 5, dilim: 4, kopma: 12, menzil: 2.2, hasar: 34, itme: 7, sapma: 0.12 },
+  /**
+   * Ölen asker `bekle` saniye sonra (cesedi yere gömüldükten sonra) ordusunun **gerisinde** yeniden doğar: cephe
+   * incelmez, tur boyunca taze dalgalar gelir ve — asıl önemlisi — varlık sayısı sabit kalır, yani hiçbir kare
+   * yüzlerce görünüm kurup yıkmaz. `geri` ordunun o anki ağırlık merkezinin kaç birim gerisi olduğudur.
+   * `bekle` world.js updateLifecycle'ın cesedi sahneden kaldırma eşiğinden (1.9 sn) küçük olmalı.
+   */
+  takviye: { bekle: 1.72, geri: 22, yayilma: 2.5 },
+  /**
+   * Kahraman: oyundaki **Kılıçlı Atlı** seti (at + kılıç, kalkansız) ve sahne seviyesi. Seviye vuruş menzilini
+   * (levelReachMult), şok dalgasının çapını, atılma mesafesini (dashDistance) ve itmeyi büyütür: kahraman ortada
+   * dövüşürken çevresindeki askerler gerçekten savrulur. Can her karede doldurulur (kahraman düşmez).
+   * Seviye 50'de kılıçlı kahramanın vuruşu **360°** ve 6.6 birimdir (LEVEL.maxReachMult tavanı), atılma 10.7 birim.
+   * `hiz`: kahramanın hareket hızı ordunun hücum hızına eşitlenir (normalde 6.2 x 1.7 = 10.5 ile ordusunu geçer ve
+   * hücumun önünde tek başına kalırdı); kahraman böylece kendi ordusunun **içinde** gelir.
+   * `oncu`: kahramanın ordusunun cephe hattına göre yeri (eksi = **cephenin gerisinde**, yani ordunun içinde):
+   * Yusuf "kendi ordusunun içinden zıplayıp atılsınlar" dedi, bu yüzden kahraman ön safın 4 birim gerisinde durur.
+   * `olcek`: kahramanın çizim boyu (bkz. characters.js `viewOlcek`). Askerler bu sahnede 1.5 kat çizildiği için
+   * kahraman normal boyunda kalsaydı kendi askerinden küçük görünürdü.
+   */
+  kahraman: { loadout: { weapon: 'sword', shield: false, horse: true }, seviye: 50, hiz: 8.25, oncu: -4, olcek: 2 },
+  /**
+   * Evre süreleri (simülasyon saniyesi; ağır çekimde gerçek süre uzar).
+   *  hazir: ordular karşılıklı dizili bekler · hucumEnCok: hücumun güvenlik üst sınırı (cepheler `temas` birime
+   *  yaklaşınca evre kendiliğinden biter) · ziplama: kahramanların havada kalma süresi (zıpla → havada bir daha
+   *  zıpla → atıl) · dovus: kahramanların ortada peş peşe saldırdığı süre · savas: kamera geri çekilir, iki ordu
+   *  cepheyi doldurur · bitis: son kadraj, ardından sahne yeniden kurulur.
+   * Toplam ~14 sn: istenen 12-16 sn aralığının ortası.
+   */
+  evre: { hazir: 1, hucumEnCok: 4.6, temas: 22, ziplama: 1.5, dovus: 4.6, savas: 3.4, bitis: 0.5 },
+  /** Sağ tık: ikinci zıplamadan sonra, alçalırken yere bu kadar yaklaşınca atılır (atılma kalabalığın üstünden geçsin). */
+  sagTikYukseklik: 1.6,
+  /**
+   * Kahramanların **peş peşe saldırı** betiği (evre başından itibaren saniye; `dovus` ve `savas` evrelerinde
+   * başa sarar): `aq` sol tık (kılıç vuruşu, 360°), `tut` sol tıkı basılı tutmaya başla, `birak` bırak (şarjlı
+   * **şok dalgası**: 3 dalga, gitgide genişler, son dalga üç kat iter), `dq` sağ tık (atılma + kılıç fırtınası +
+   * vakum: çevredeki askerler önce merkeze çekilir, sonra savrulur).
+   * Tempo silahın kendi bekleme süresine uyar (kılıç cooldown 0.46 sn; şarjdan sonra 1.5 katı) ve atılmalar
+   * TORNADO.cooldown (1.4 sn) aralığını aşar — hiçbir komut boşa gitmez.
+   */
+  betik: [
+    { t: 0.05, k: 'aq' }, { t: 0.6, k: 'aq' }, { t: 1.2, k: 'tut' }, { t: 2.06, k: 'birak' },
+    { t: 2.4, k: 'dq' }, { t: 2.95, k: 'aq' }, { t: 3.5, k: 'aq' }, { t: 4, k: 'tut' }, { t: 4.86, k: 'birak' },
+  ],
+  /**
+   * Betiğin başa sarma süresi (sn), kahramanların birbirine bu kadar yaklaşınca durup çevresinde döndüğü mesafe
+   * ve bunun `yakinOran` katından da yakınsa geri çekildikleri sınır. Atılma havada olduğu için (havadaki gövde
+   * hiçbir şeye çarpmaz, bkz. physics.js) iki kahraman birbirinin içine girebiliyordu; bu üç bölgeli kural ikisini
+   * de kadrajda ayrı ayrı tutar.
+   */
+  betikSure: 5.2, dovusMesafe: 4.2, yakinOran: 0.6,
+  /**
+   * Ağır çekim: `olcek` zaman çarpanı; `atilma` kahramanların fırlayıp ilk çarpıştıkları anda kaç **gerçek**
+   * saniye sürer. Kısa tutuldu: klip 25 sn ve ağır çekim turun temposunu düşürmemeli.
+   */
+  agir: { olcek: 0.45, atilma: 1.1 },
+  /**
+   * Kamera (izometrik, tepeden; oyunun kendi 45° bakışıyla aynı açı). `uzaklik` kameranın odaktan uzaklık çarpanı
+   * (oyundaki (24, 29, 24) yönü korunur, yalnız ölçeklenir), `genis` / `yakin` dikey yarı kadraj: `genis` 44'te
+   * ekranın dikeyi 88 birimdir, yani 80 birimlik cephe baştan başa görünür; `yakin` kahraman düellosunda hafifçe
+   * yaklaşır ama ordular kadrajda kalır. `yumusatma` kadraj ve odak geçişinin sertliği (1/sn).
+   */
+  kamera: { uzaklik: 3.6, genis: 40, yakin: 30, yumusatma: 2.4, odakYumusatma: 2.6 },
+  /**
+   * Yalnız bu sahnenin çizim ayarı: `gorus` kadraj elemesinin yarıçapı (odaktan bu kadar uzaktaki ağaç / eşya
+   * çizilmez; ordular örnekli çizildiği için bundan etkilenmez), `kalite` grafik kalitesi — **düşük**: gölge
+   * haritası kamera odağının 60 birim çevresini kapsar (PERF.shadowBox), bu kadar geniş bir kadrajda sahanın
+   * yarısı gölgeli yarısı gölgesiz görünürdü. `sis` sahne pusunun kameraya uzaklık aralığı (çarpan; kameranın
+   * odağa uzaklığıyla çarpılır): varsayılan 70-125 bu kadrajda ordunun yarısını yutardı.
+   */
+  gorus: 150, kalite: 'low', sis: { yakin: 0.75, uzak: 1.9 },
+  /** Vuruş parlamasının gücü (örnek rengi çarpanı; bkz. view/ordu.js). */
+  parlama: 0.8,
+  /**
+   * Asker renkleri (taraf başına tunik ve **miğfer**). Tepeden bakışta askerin görünen yüzeyi neredeyse yalnız
+   * miğferin üstüdür, bu yüzden miğfer de taraf rengindedir ve tunikten belirgin daha açıktır: 1280x720'de bile
+   * hangi askerin hangi orduda olduğu bir bakışta okunur. Oyunun kendi asker renkleri (COLORS.blue / COLORS.red)
+   * değişmez; bu yalnız bu sahnenin örnekli çiziminde geçerlidir.
+   */
+  renk: { blue: { tunik: '#3f8fd0', migfer: '#7fcdff' }, red: { tunik: '#c9503e', migfer: '#ff9a52' } },
+};
+
+/**
  * Çevrim içi (oda kur / odaya katıl, çevrim içi sayısı): `web` tarayıcıda, `app` Android uygulamasında açık mı. Kapalıyken
  * sunucuya hiç bağlanılmaz, oda düğmeleri "Yakında" yazar; tek başına oyun aynen oynanır (bkz. src/platform.js).
  */
