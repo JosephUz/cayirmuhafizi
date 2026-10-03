@@ -153,13 +153,13 @@ export function createScreens(root, world, app) {
    * yazar. Ses efektleri (`cm.sound`, bkz. ui.js) ile müzik (`cm.muzik`, bkz. muzik.js) **bağımsızdır**: biri
    * kapatılınca öbürü çalmaya devam eder. Müzik ses düzeyi sürgüsü yalnız Esc menüsündedir.
    */
-  const sesYaz = on => { for (const b of [els.menuSound, els.homeSound]) if (b) b.textContent = `Ses: ${on ? 'açık' : 'kapalı'}`; };
+  const sesYaz = on => { for (const b of [els.menuSound, els.homeSound]) if (b) { b.textContent = `Ses: ${on ? 'açık' : 'kapalı'}`; b.classList.toggle('muted', !on); } };
   sesYaz(app.soundOn());
   for (const b of [els.menuSound, els.homeSound]) if (b) b.onclick = () => sesYaz(app.toggleSound());
 
   function muzikYaz() {
     const on = app.muzikAcik();
-    for (const b of [els.menuMuzik, els.homeMuzik]) if (b) b.textContent = `Müzik: ${on ? 'açık' : 'kapalı'}`;
+    for (const b of [els.menuMuzik, els.homeMuzik]) if (b) { b.textContent = `Müzik: ${on ? 'açık' : 'kapalı'}`; b.classList.toggle('muted', !on); }
     if (els.menuMuzikRow) els.menuMuzikRow.classList.toggle('off', !on);
     if (els.menuMuzikYuzde) els.menuMuzikYuzde.textContent = `${Math.round(app.muzikSes() * 100)}%`;
   }

@@ -421,3 +421,14 @@ html.vv #meadow-game{--mg-h:var(--vv-h);inset:auto;top:var(--vv-top);left:var(--
 #meadow-game #mg-gosteri-yazi{position:absolute;left:19%;right:19%;top:54%;z-index:6;text-align:center;pointer-events:none;
   font:800 clamp(20px,3.1vw,46px)/1.18 system-ui,sans-serif;letter-spacing:.5px;color:#fff6dd;
   text-shadow:0 3px 14px #000c,0 0 34px #0008}
+/* Telefonda standart araç çubuğu öbür oyunlarla (Yakar Gol, Son Plaka, İz Peşinde) aynı biçimde: "← josephuz.com"
+   yazı kalır, Ses / Müzik / Kontroller simgeye iner (sıra ve düğmeler aynı). Kapalı ses/müzik `muted` (screens.js). */
+#meadow-game.touch .home-actions{gap:6px;flex:0 0 auto}
+#meadow-game.touch .home-actions button{font-size:0;padding:0;width:38px;height:38px;display:inline-grid;place-items:center}
+#meadow-game.touch .home-actions button::before{font-size:17px;line-height:1}
+#meadow-game.touch .home-actions a.btn{font-size:10px;padding:0 10px;height:38px;display:inline-flex;align-items:center}
+#meadow-game.touch #home-sound::before{content:"🔊"}
+#meadow-game.touch #home-sound.muted::before{content:"🔇"}
+#meadow-game.touch #home-muzik::before{content:"♫"}
+#meadow-game.touch #home-muzik.muted::before{text-decoration:line-through;opacity:.65}
+#meadow-game.touch #home-help::before{content:"?";font-weight:900}
