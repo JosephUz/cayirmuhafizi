@@ -16,7 +16,8 @@ export function createScreens(root, world, app) {
     nick: $('#home-nick'), joinRow: $('#home-joinrow'), code: $('#home-code'), homeStatus: $('#home-status'), online: $('#home-online'),
     setupTitle: $('#setup-title'), lobbyCode: $('#lobby-code'), blue: $('#lobby-blue'), red: $('#lobby-red'), lobbyTeams: $('#lobby-teams'), lobbyDiff: $('#lobby-diff'), lobbyStart: $('#lobby-start'), lobbyStatus: $('#lobby-status'), lobbyMode: $('#lobby-mode'),
     endCard: $('#end-card'), helpHero: $('#help-hero'), menuResume: $('#menu-resume'), menuSound: $('#menu-sound'), menuQuality: $('#menu-quality'),
-    menuMuzik: $('#menu-muzik'), menuMuzikRow: $('#menu-muzik-row'), menuMuzikSes: $('#menu-muzik-ses'), menuMuzikYuzde: $('#menu-muzik-yuzde'), homeMuzik: $('#home-muzik'),
+    menuMuzik: $('#menu-muzik'), menuMuzikRow: $('#menu-muzik-row'), menuMuzikSes: $('#menu-muzik-ses'), menuMuzikYuzde: $('#menu-muzik-yuzde'),
+    homeSound: $('#home-sound'), homeMuzik: $('#home-muzik'), menuLeave: $('#menu-leave'),
   };
   const overlays = [els.home, els.setup, els.lobby, els.end, els.help, els.menu];
   let setupMode = 'solo', helpReturn = null;
@@ -146,21 +147,23 @@ export function createScreens(root, world, app) {
 
   // ---- Esc menüsü
   els.menuResume.onclick = () => { show(null); app.resume(); };
-  const soundText = on => { els.menuSound.textContent = `Ses: ${on ? 'açık' : 'kapalı'}`; };
-  soundText(app.soundOn());
-  els.menuSound.onclick = () => soundText(app.toggleSound());
   /**
-   * Müzik ayarı (bkz. muzik.js): efekt sesinden **ayrıdır**. Açık / kapalı iki yerdedir — giriş ekranının üst
-   * çubuğunda (müzik orada başlar) ve Esc menüsünde; ses düzeyi yalnız Esc menüsündedir. İkisi de aynı değeri
-   * gösterir, seçim tarayıcıda saklanır. Gösteri kiplerinde müzik hiç kurulmaz: düğmeler o zaman gizlenir.
+   * **Ses ve müzik düğmeleri iki yerdedir**: giriş ekranının sağ üstündeki standart araç çubuğunda ve Esc menüsünde.
+   * İkisi de aynı durumu gösterir, bu yüzden yazıyı tek bir yer (`sesYaz` / `muzikYaz`) her iki düğmeye birden
+   * yazar. Ses efektleri (`cm.sound`, bkz. ui.js) ile müzik (`cm.muzik`, bkz. muzik.js) **bağımsızdır**: biri
+   * kapatılınca öbürü çalmaya devam eder. Müzik ses düzeyi sürgüsü yalnız Esc menüsündedir.
    */
+  const sesYaz = on => { for (const b of [els.menuSound, els.homeSound]) if (b) b.textContent = `Ses: ${on ? 'açık' : 'kapalı'}`; };
+  sesYaz(app.soundOn());
+  for (const b of [els.menuSound, els.homeSound]) if (b) b.onclick = () => sesYaz(app.toggleSound());
+
   function muzikYaz() {
     const on = app.muzikAcik();
-    if (els.menuMuzik) els.menuMuzik.textContent = `Müzik: ${on ? 'açık' : 'kapalı'}`;
-    if (els.homeMuzik) els.homeMuzik.textContent = `♪ Müzik: ${on ? 'açık' : 'kapalı'}`;
+    for (const b of [els.menuMuzik, els.homeMuzik]) if (b) b.textContent = `Müzik: ${on ? 'açık' : 'kapalı'}`;
     if (els.menuMuzikRow) els.menuMuzikRow.classList.toggle('off', !on);
     if (els.menuMuzikYuzde) els.menuMuzikYuzde.textContent = `${Math.round(app.muzikSes() * 100)}%`;
   }
+  // Gösteri kiplerinde müzik hiç kurulmaz: iki müzik düğmesi de sürgü de gizlenir, çubukta üçlü kalır.
   if (!app.muzikVar()) {
     for (const el of [els.menuMuzik, els.menuMuzikRow, els.homeMuzik]) if (el) el.hidden = true;
   } else {
@@ -208,6 +211,8 @@ export function createScreens(root, world, app) {
       if (!world.running) return;
       // Menü açılırken kare hızı tazelensin: grafik düğmesi o anki fps'i de yazar.
       if (els.menuQuality) els.menuQuality.textContent = qualityText();
+      // Standart menüde çıkış düğmesi tek başına oyunda "Ana menü", odadayken "Odadan çık" yazar.
+      if (els.menuLeave) els.menuLeave.textContent = world.replicated ? 'Odadan çık' : 'Ana menü';
       const perf = root.querySelector('#menu-perf'); if (perf) perf.textContent = perfText();
       show(els.menu); app.pauseForMenu();
     },

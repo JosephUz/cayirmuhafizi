@@ -58,10 +58,28 @@ Hesap yok. **Giriş**: ad (tarayıcıda hatırlanır) ve üç düğme: **Tek ba�
 bot oturur). Gelen oyuncu önce seçili büyüklükteki **boş koltuğa** oturur (önce mavi, sonra kırmızı; 1v1 odaya gelen
 kırmızıya geçer, oda 1v1 kalır); iki takım da doluysa oda bir büyür. **Karşı takımdaki bir bot koltuğuna tıklayan oraya
 geçer**; kuran oyuncuları **sürükleyip bırakır** (bkz. PvP). Kaça kaç ve zorluğu **yalnızca kuran** değiştirir ve **Başlat**'a basar, kimse
-"hazır" basmaz; 1v1 seçilirse kuran tek başına botlarla oynar. **Bitiş**: karne (bkz. Karne ve skor). **Kısayollar**
-penceresi (F1, sağ alttaki ? ve giriş ekranındaki bağlantı) bütün tuşları ve kahramanın o anki yetenek setini yazar.
-**Esc** oyun içinde menüyü açar (Devam, Kısayollar, Grafik, Ses, Müzik, Oyundan çık); tek başına oyunda menü oyunu durdurur, co-op'ta
-durdurmaz (başkasının oyununu durduramazsın). Ekranlarda anlatım cümlesi yoktur: her şey kısayol penceresindedir.
+"hazır" basmaz; 1v1 seçilirse kuran tek başına botlarla oynar. **Bitiş**: karne (bkz. Karne ve skor). **Kontroller**
+penceresi (F1, sağ alttaki ? ve giriş ekranındaki düğme) bütün tuşları ve kahramanın o anki yetenek setini yazar.
+Ekranlarda anlatım cümlesi yoktur: her şey o pencerededir.
+
+### STANDART üst araç çubuğu ve duraklatma menüsü
+
+Bütün JosephUz oyunlarında aynı — yazılar ve sıra birebir budur, oyunlar arasında değişmez:
+
+- **Giriş ekranı, sağ üst, tek satır**: `← josephuz.com` · `Ses: açık/kapalı` · `Müzik: açık/kapalı` · `Kontroller F1`.
+  Eski adlar ("Kısayollar", "Nasıl oynanır") bu çubukta kullanılmaz. Dar ekranda `F1` tuş etiketi düşer, 480 px'in
+  altında çubuk adın **altına** iner; sıra ve yazılar aynı kalır.
+- **Esc menüsü**: `DEVAM ET →` · `Kontroller F1` · `Ses: …` · `Müzik: …` (altında müzik sesi sürgüsü) ·
+  `Grafik: …` (oyuna özgü ek, standart sıranın ardında) · `Ana menü` / çevrim içinde `Odadan çık` ·
+  `josephuz.com'a dön`. Pencere düğme sütunu kadar dar; alçak ekranda (yatay telefon) başlık düşer ve dokunma
+  hedefleri 36 px'e iner ki kart kaydırmaya düşmeden sığsın.
+- Çubuktaki ve menüdeki **Ses** / **Müzik** düğmeleri aynı durumu gösterir (`screens.js` → `sesYaz` / `muzikYaz`
+  ikisine birden yazar) ve birbirinden bağımsızdır: `cm.sound` efektleri, `cm.muzik` müziği tutar.
+- Test: `node tests/standart-cubuk.mjs` (`GAME_URL`, `PLAYWRIGHT_MODULE`) — üç ekran ölçüsünde sıra, yazılar,
+  taşma ve menü kartının sığması ölçülür; görüntüler `artifacts/cubuk-*.png`.
+
+**Esc** oyun içinde menüyü açar; tek başına oyunda menü oyunu durdurur, co-op'ta durdurmaz (başkasının oyununu
+durduramazsın).
 
 ## Müzik
 
@@ -120,7 +138,7 @@ Kahramanlar ise **oyunun kendi sistemleridir**: girdileri `hero.js` `applyHeroIn
 
 ## Testler
 
-`npm test` önce tarayıcısız birim testlerini (`tests/*.test.mjs`, şu an görünür alan kilidi), sonra tarayıcı testlerini sırayla koşturur: gösteri kipi, kahramanların gücü sahnesi, iki ordu sahnesi, dokunmatik, telefonda üst alan (`tests/mobil-ust-alan.mjs`), oyun içi müzik (`tests/muzik-smoke.mjs`). Betik (`scripts/test.mjs`) **kendi kendine yeter**: oyun sunucusunu boş bir portta açar, Playwright'ı bulur (önce `PLAYWRIGHT_MODULE`, sonra bu depodaki kurulum, sonra komşu depolardaki tarayıcısı inmiş kurulum) ve bitince sunucuyu kapatır — elle kurulum gerekmez. Playwright bu depoya bilerek kurulu değildir (oyun paketine girmesin diye); hiç bulunamazsa betik ne yapılacağını yazıp düşer. Tek bir testi koşturmak için `GAME_URL` ve `PLAYWRIGHT_MODULE` verip `node tests/<ad>.mjs` yeter. Kare hızı eşikleri donanıma bağlı olduğu için `FPS_ESIK` (ortalama) ve `FPS_DIP_ESIK` (en kötü yarım saniye) ile indirilebilir.
+`npm test` önce tarayıcısız birim testlerini (`tests/*.test.mjs`, şu an görünür alan kilidi), sonra tarayıcı testlerini sırayla koşturur: gösteri kipi, kahramanların gücü sahnesi, iki ordu sahnesi, dokunmatik, telefonda üst alan (`tests/mobil-ust-alan.mjs`), oyun içi müzik (`tests/muzik-smoke.mjs`), standart üst araç çubuğu (`tests/standart-cubuk.mjs`). Betik (`scripts/test.mjs`) **kendi kendine yeter**: oyun sunucusunu boş bir portta açar, Playwright'ı bulur (önce `PLAYWRIGHT_MODULE`, sonra bu depodaki kurulum, sonra komşu depolardaki tarayıcısı inmiş kurulum) ve bitince sunucuyu kapatır — elle kurulum gerekmez. Playwright bu depoya bilerek kurulu değildir (oyun paketine girmesin diye); hiç bulunamazsa betik ne yapılacağını yazıp düşer. Tek bir testi koşturmak için `GAME_URL` ve `PLAYWRIGHT_MODULE` verip `node tests/<ad>.mjs` yeter. Kare hızı eşikleri donanıma bağlı olduğu için `FPS_ESIK` (ortalama) ve `FPS_DIP_ESIK` (en kötü yarım saniye) ile indirilebilir.
 
 ## Çevrim içi co-op
 
@@ -299,7 +317,7 @@ geçirir, tekrar basınca izometriğe döner. Omuz üstünde:
 
 Üretim, inşa ve kahraman geliştirme **alt banttaki düğmelerle** yapılır; komut ızgarasında kısayol harfi yoktur. Klavyede
 hareket (WASD / ok tuşları), Shift (koşu), Boşluk (zıplama), V (kamera), Tab (omuz üstünde fare kilidi), F1 (kısayollar) ve
-Esc (menü / vazgeç) vardır. Bütün liste oyun içindeki **Kısayollar** penceresindedir.
+Esc (menü / vazgeç) vardır. Bütün liste oyun içindeki **Kontroller** penceresindedir.
 
 ## Tek mod: kahraman
 
@@ -360,7 +378,7 @@ başladığı noktadan 16 birimden fazla uzaklaşırsa hedefi bırakıp yoluna d
   Yapı: can, üretim sırası (ilk emirde ilerleme, tıklayınca iptal + para iadesi).
   Birim: can ve vuruş / menzil / hız. Çoklu seçim: tür sayıları.
 - **Sağ**: tamamen 2B baklava minimap (zemin, ağaçlar, sis, yapılar, birimler, kamera çerçevesi).
-  Altında Menü (Esc) / kamera (V) / Kısayollar (F1) / tam ekran düğmeleri.
+  Altında Menü (Esc) / kamera (V) / Kontroller (F1) / tam ekran düğmeleri.
 
 ## Üretim kuyruğu
 

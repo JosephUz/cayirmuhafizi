@@ -382,6 +382,32 @@ html.vv #meadow-game{--mg-h:var(--vv-h);inset:auto;top:var(--vv-top);left:var(--
 #meadow-game.touch #mg-setup fieldset label{display:inline-flex;align-items:center;min-height:44px;padding:0 10px}
 #meadow-game.touch .menu button,#meadow-game.touch .menu a.btn{min-height:44px}
 
+/**
+ * Standart Esc menüsü yedi satırdır (DEVAM ET · Kontroller · Ses · Müzik · sürgü · Grafik · Ana menü · bağlantı).
+ * Alçak ekranda (yatay telefon, 667x375) 44 px'lik dokunma hedefleriyle kart kaba sığmıyor ve sessizce kaydırmaya
+ * düşüyordu: orada başlık düşer ve hedefler 38 px'e iner (parmak için hâlâ yeterli). Bu blok dokunma kuralından
+ * **sonra** gelmeli, yoksa aynı özgüllükte olduğu için 44 px kazanır.
+ */
+@media(max-height:560px){
+#meadow-game .card.menu-card h2{display:none}
+#meadow-game .menu{gap:4px}
+#meadow-game .menu button,#meadow-game .menu a.btn{padding:6px 14px;font-size:13px}
+#meadow-game .menu .slider{font-size:12px;padding:0}
+#meadow-game #menu-perf{margin-top:6px;font-size:10px}
+#meadow-game.touch .menu button,#meadow-game.touch .menu a.btn{min-height:36px}
+}
+/**
+ * Dar ekranda (dikey telefon, 390 px) standart çubuğun dört düğmesi oyun adıyla aynı satıra sığmıyor: ad küçülür,
+ * düğmeler sıkışır ve sığmazsa çubuk **adın altına** iner (sıra ve yazılar aynı kalır). Giriş metni zaten üstten
+ * boşluklu başladığı için ikinci satır içeriğin üstüne binmez.
+ */
+@media(max-width:480px){
+#meadow-game .home-top{gap:6px;flex-wrap:wrap}
+#meadow-game .home-top .logo{font-size:15px;letter-spacing:1px}
+#meadow-game .home-actions{gap:5px;flex:1;justify-content:flex-end}
+#meadow-game .home-actions button,#meadow-game .home-actions a.btn{padding:7px 8px;font-size:10px;white-space:nowrap}
+}
+
 /* Gösteri kipi (?gosteri=1, yalnız web; bkz. src/gosteri.js): yalnız oyun dünyası görünür — alt bant, minimap, üst
    sayaçlar, skor, uyarı ve dokunmatik düğmeler gizlenir. Köşede küçük oyun adı durur. */
 #meadow-game.gosteri #mg-hud,#meadow-game.gosteri #mg-bar,#meadow-game.gosteri #mg-score,#meadow-game.gosteri #mg-hint,

@@ -53,10 +53,14 @@
     <section id="mg-home" class="home-screen" hidden>
       <header class="home-top">
         <div class="logo">ÇAYIR <span>MUHAFIZI</span><small>SANCAK SAVAŞI / 1v1 – 5v5</small></div>
+        <!-- STANDART üst araç çubuğu (bütün JosephUz oyunlarında aynı sıra ve aynı yazılar):
+             ← josephuz.com · Ses: açık/kapalı · Müzik: açık/kapalı · Kontroller F1.
+             Oyuna özgü düğmeler bu dörtlünün ardına gelir. -->
         <div class="home-actions">
           <a class="btn" href="https://www.josephuz.com/">← josephuz.com</a>
-          <button type="button" id="home-muzik" title="Oyun müziği (Esc menüsünde ses düzeyi de var)">♪ Müzik: açık</button>
-          <button type="button" data-help>Kısayollar <kbd>F1</kbd></button>
+          <button type="button" id="home-sound" aria-label="Ses efektlerini aç veya kapat">Ses: açık</button>
+          <button type="button" id="home-muzik" aria-label="Oyun müziğini aç veya kapat" title="Oyun müziği (ses düzeyi Esc menüsünde)">Müzik: açık</button>
+          <button type="button" data-help>Kontroller <kbd>F1</kbd></button>
         </div>
       </header>
       <div class="home-content">
@@ -133,10 +137,10 @@
     <!-- Bitiş: karne. -->
     <div id="mg-end" class="overlay" hidden><div class="card report" id="end-card"></div></div>
 
-    <!-- Kısayollar. -->
+    <!-- Kontroller (yardım penceresi). -->
     <div id="mg-help" class="overlay" hidden>
       <div class="card help">
-        <h2>Kısayollar</h2>
+        <h2>Kontroller</h2>
         <div class="cols">
           <section class="touch-only"><h3>Dokunmatik</h3><table>
             <tr><th>Sol yarı</th><td>joystick belirir: sürükleyerek yürü, sonuna kadar itince koş</td></tr>
@@ -181,14 +185,16 @@
     <div id="mg-menu" class="overlay" hidden>
       <div class="card menu-card">
         <h2>Menü</h2>
+        <!-- STANDART duraklatma menüsü: DEVAM ET → · Kontroller F1 · Ses · Müzik (+ ses düzeyi sürgüsü) ·
+             Ana menü / Odadan çık · josephuz.com'a dön. "Grafik" oyuna özgü ek: standart sıranın ardına gelir. -->
         <div class="menu">
-          <button type="button" id="menu-resume" class="primary">Devam</button>
-          <button type="button" data-help>Kısayollar</button>
+          <button type="button" id="menu-resume" class="primary">DEVAM ET →</button>
+          <button type="button" data-help>Kontroller <kbd>F1</kbd></button>
+          <button type="button" id="menu-sound" aria-label="Ses efektlerini aç veya kapat">Ses: açık</button>
+          <button type="button" id="menu-muzik" aria-label="Oyun müziğini aç veya kapat">Müzik: açık</button>
+          <label id="menu-muzik-row" class="slider">Müzik sesi <input type="range" id="menu-muzik-ses" min="0" max="100" step="5" aria-label="Müzik ses düzeyi"><b id="menu-muzik-yuzde">35%</b></label>
           <button type="button" id="menu-quality" title="Gölge maliyeti: kalabalık savaşta düşür">Grafik: Orta</button>
-          <button type="button" id="menu-sound">Ses: açık</button>
-          <button type="button" id="menu-muzik" title="Oyun müziği (efektlerden ayrı)">Müzik: açık</button>
-          <label id="menu-muzik-row" class="slider">Müzik sesi <input type="range" id="menu-muzik-ses" min="0" max="100" step="5" aria-label="Müzik sesi"><b id="menu-muzik-yuzde">35%</b></label>
-          <button type="button" id="menu-leave">Oyundan çık</button>
+          <button type="button" id="menu-leave">Ana menü</button>
           <a class="btn" href="https://www.josephuz.com/">josephuz.com'a dön</a>
         </div>
         <div id="menu-perf" class="status" title="Kare hızı · çizim çağrısı · çizilen birim / sahadaki birim"></div>
@@ -204,7 +210,7 @@
       <div class="minibtns">
         <button type="button" id="mg-menu-btn" title="Menü (Esc)">Menü</button>
         <button type="button" id="mg-cam" title="Kamera: izometrik ↔ omuz üstü (V)">🎥 Omuz üstü</button>
-        <button type="button" id="mg-help-btn" title="Kısayollar (F1)">?</button>
+        <button type="button" id="mg-help-btn" title="Kontroller (F1)">?</button>
         <button type="button" id="mg-full" title="Tam ekran">⛶</button>
       </div>
     </div>

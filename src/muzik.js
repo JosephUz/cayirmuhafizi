@@ -111,18 +111,22 @@ export function createMuzik(root) {
   function uygula(sure = GECIS) {
     if (gizli) return; // sekme kapalıyken çalınmaz; dönünce buraya yeniden gelinir
     const ad = istenen();
+    // Susturmada ve sahne değişiminde parça **başa sarılmaz**, yalnız durur: müzik yeniden açılınca ya da o sahneye
+    // dönülünce kaldığı yerden sürer (menüye dönünce sakin parça baştan başlamaz).
     if (!ad) {
       if (!aktif) return;
       const eski = aktif; aktif = null;
-      suz(eski, 0, sure, () => { eski.pause(); eski.currentTime = 0; });
+      suz(eski, 0, sure, () => eski.pause());
       return;
     }
     const yeni = parca(ad);
     if (aktif === yeni) { calistir(yeni); suz(yeni, hedefSes(), Math.min(sure, 0.3)); return; }
-    if (aktif) { const eski = aktif; suz(eski, 0, sure, () => { eski.pause(); eski.currentTime = 0; }); }
+    if (aktif) { const eski = aktif; suz(eski, 0, sure, () => eski.pause()); }
     aktif = yeni;
     // Tek parçalı sahne (sakin) kendi kendine döner: `ended` hiç gelmez, araya sessizlik girmez.
     yeni.loop = SAHNELER[sahneAdi].length < 2;
+    // Sonuna gelmiş bir parça yeniden seçilirse (sırası dönüp geldi) başa sarılır: yoksa açılır açılmaz sıradakine atlardı.
+    if (Number.isFinite(yeni.duration) && yeni.duration - yeni.currentTime <= GECIS + ADIM) yeni.currentTime = 0;
     yeni.volume = 0;
     calistir(yeni);
     suz(yeni, hedefSes(), sure);

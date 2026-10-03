@@ -88,10 +88,33 @@ try {
   await page.waitForFunction(() => [...document.querySelectorAll('audio')].every(a => a.paused || a.volume === 0), null, { timeout: 8000 });
   assert.equal(await page.evaluate(() => localStorage.getItem('cm.muzik')), 'off', 'ayar tarayıcıda saklanır');
 
+  // 4b) Yeniden açınca **aynı sahnenin aynı parçası kaldığı yerden** sürer (başa sarmaz).
+  const durdu = (await sesler()).find(s => s.parca === 'cayir-3-sancak-dusmeden').currentTime;
+  assert.ok(durdu > 0.5, `kapatılan parça bir yerde durdu (${durdu.toFixed(2)} sn)`);
+  await page.locator('#menu-muzik').click();
+  assert.equal(await page.locator('#menu-muzik').textContent(), 'Müzik: açık', 'düğme yeniden açıldı');
+  await page.waitForFunction(() => {
+    const a = [...document.querySelectorAll('audio')].find(x => !x.paused && x.volume > 0.3);
+    return a && a.dataset.parca === 'cayir-3-sancak-dusmeden';
+  }, null, { timeout: 10000 });
+  const surdu = await calan();
+  assert.ok(surdu.currentTime >= durdu, `kaldığı yerden sürer (${durdu.toFixed(2)} → ${surdu.currentTime.toFixed(2)} sn, başa sarmadı)`);
+
+  // 4c) Efekt sesi düğmesi müziğe dokunmaz (ikisi ayrı anahtar).
+  await page.locator('#menu-sound').click();
+  assert.equal(await page.locator('#menu-sound').textContent(), 'Ses: kapalı', 'efekt sesi kapandı');
+  await page.waitForTimeout(600);
+  assert.equal((await calan()).parca, 'cayir-3-sancak-dusmeden', 'efekt sesi kapalıyken müzik çalmaya devam eder');
+  await page.locator('#menu-sound').click();
+
+  // Yenileme sınaması için müziği yeniden kapat.
+  await page.locator('#menu-muzik').click();
+  await page.waitForFunction(() => [...document.querySelectorAll('audio')].every(a => a.paused || a.volume === 0), null, { timeout: 8000 });
+
   await page.goto(url + '/?muzik=1');
   await page.waitForFunction(() => window.__meadow && window.__meadow.muzik, null, { timeout: 20000 });
   assert.equal(await page.evaluate(() => window.__meadow.muzik.durum().acik), false, 'yenilemeden sonra müzik kapalı');
-  assert.equal(await page.locator('#home-muzik').textContent(), '♪ Müzik: kapalı', 'giriş ekranındaki düğme de kapalı yazar');
+  assert.equal(await page.locator('#home-muzik').textContent(), 'Müzik: kapalı', 'giriş ekranındaki düğme de kapalı yazar');
   await page.locator('#mg-home h1').click();
   await page.waitForTimeout(2500);
   assert.equal(await calan(), null, 'müzik kapalıyken tıklamadan sonra da hiç çalmaz');
