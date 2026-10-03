@@ -154,10 +154,6 @@ html.vv #meadow-game{--mg-h:var(--vv-h);inset:auto;top:var(--vv-top);left:var(--
 #meadow-game input[type=text]:focus{outline:2px solid #ffdf86;outline-offset:1px}
 #meadow-game .menu{display:flex;flex-direction:column;gap:8px}
 #meadow-game .menu button{padding:12px 16px;font-size:16px}
-/* Müzik ses düzeyi: Müzik düğmesinin hemen altında bir sürgü; müzik kapalıyken soluk görünür (bkz. screens.js). */
-#meadow-game .menu .slider{display:flex;align-items:center;gap:10px;font-size:13px;color:#b8c5aa;padding:0 4px}
-#meadow-game .menu .slider[hidden]{display:none}
-#meadow-game .menu .slider.off{opacity:.45}
 #meadow-game .menu .slider input[type=range]{flex:1;min-width:0;accent-color:#e6c25a}
 #meadow-game .menu .slider b{color:#f6efd9;font-weight:600;min-width:38px;text-align:right}
 #meadow-game .joinrow{margin-top:10px;align-items:stretch}
@@ -383,7 +379,7 @@ html.vv #meadow-game{--mg-h:var(--vv-h);inset:auto;top:var(--vv-top);left:var(--
 #meadow-game.touch .menu button,#meadow-game.touch .menu a.btn{min-height:44px}
 
 /**
- * Standart Esc menüsü yedi satırdır (DEVAM ET · Kontroller · Ses · Müzik · sürgü · Grafik · Ana menü · bağlantı).
+ * Standart Esc menüsü yedi satırdır (DEVAM ET · Kontroller · Ses · Müzik · Grafik · Ana menü · bağlantı).
  * Alçak ekranda (yatay telefon, 667x375) 44 px'lik dokunma hedefleriyle kart kaba sığmıyor ve sessizce kaydırmaya
  * düşüyordu: orada başlık düşer ve hedefler 38 px'e iner (parmak için hâlâ yeterli). Bu blok dokunma kuralından
  * **sonra** gelmeli, yoksa aynı özgüllükte olduğu için 44 px kazanır.

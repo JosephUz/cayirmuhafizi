@@ -3,7 +3,7 @@
 //  - Giriş ekranının sağ üstü **tam olarak** `← josephuz.com` · `Ses: açık` · `Müzik: açık` · `Kontroller F1`
 //    sırasında; eski adlar ("Kısayollar", "Nasıl oynanır") kalmamış.
 //  - Çubuk üç ekran ölçüsünde de taşmıyor ve oyun adının üstüne binmiyor.
-//  - Esc menüsü: DEVAM ET → · Kontroller F1 · Ses · Müzik (+ ses düzeyi sürgüsü) · Grafik · Ana menü ·
+//  - Esc menüsü: DEVAM ET → · Kontroller F1 · Ses · Müzik · Grafik · Ana menü ·
 //    josephuz.com'a dön; kart alçak ekranda da kaba **tamamen** sığıyor (sessizce kaydırmaya düşmüyor).
 //  - Çubuktaki ve menüdeki Ses / Müzik düğmeleri aynı durumu gösterir, biri değişince öbürü de değişir.
 // Dikey telefon dokunmatiksiz ölçülür: oyun dokunmatikte dikey tutulunca "Telefonu yan çevir" perdesi açılıyor,
@@ -88,7 +88,7 @@ try {
       const menu = await page.evaluate(() => [...document.querySelectorAll('#mg-menu .menu > *')]
         .filter(el => el.offsetParent !== null)
         .map(el => el.id === 'menu-quality' ? 'Grafik' : el.textContent.replace(/\s+/g, ' ').trim()));
-      assert.deepEqual(menu, ['DEVAM ET →', 'Kontroller F1', 'Ses: açık', 'Müzik: açık', 'Müzik sesi 35%', 'Grafik', 'Ana menü', "josephuz.com'a dön"], `${e.ad}: standart duraklatma menüsü`);
+      assert.deepEqual(menu, ['DEVAM ET →', 'Kontroller F1', 'Ses: açık', 'Müzik: açık', 'Grafik', 'Ana menü', "josephuz.com'a dön"], `${e.ad}: standart duraklatma menüsü`);
       // Kart kaba tam sığsın: alçak ekranda yedi satır sessizce kaydırmaya düşüyordu.
       const kart = await page.evaluate(() => {
         const k = document.querySelector('#mg-menu .card');

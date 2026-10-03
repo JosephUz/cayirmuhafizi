@@ -16,7 +16,7 @@ export function createScreens(root, world, app) {
     nick: $('#home-nick'), joinRow: $('#home-joinrow'), code: $('#home-code'), homeStatus: $('#home-status'), online: $('#home-online'),
     setupTitle: $('#setup-title'), lobbyCode: $('#lobby-code'), blue: $('#lobby-blue'), red: $('#lobby-red'), lobbyTeams: $('#lobby-teams'), lobbyDiff: $('#lobby-diff'), lobbyStart: $('#lobby-start'), lobbyStatus: $('#lobby-status'), lobbyMode: $('#lobby-mode'),
     endCard: $('#end-card'), helpHero: $('#help-hero'), menuResume: $('#menu-resume'), menuSound: $('#menu-sound'), menuQuality: $('#menu-quality'),
-    menuMuzik: $('#menu-muzik'), menuMuzikRow: $('#menu-muzik-row'), menuMuzikSes: $('#menu-muzik-ses'), menuMuzikYuzde: $('#menu-muzik-yuzde'),
+    menuMuzik: $('#menu-muzik'),
     homeSound: $('#home-sound'), homeMuzik: $('#home-muzik'), menuLeave: $('#menu-leave'),
   };
   const overlays = [els.home, els.setup, els.lobby, els.end, els.help, els.menu];
@@ -151,7 +151,7 @@ export function createScreens(root, world, app) {
    * **Ses ve müzik düğmeleri iki yerdedir**: giriş ekranının sağ üstündeki standart araç çubuğunda ve Esc menüsünde.
    * İkisi de aynı durumu gösterir, bu yüzden yazıyı tek bir yer (`sesYaz` / `muzikYaz`) her iki düğmeye birden
    * yazar. Ses efektleri (`cm.sound`, bkz. ui.js) ile müzik (`cm.muzik`, bkz. muzik.js) **bağımsızdır**: biri
-   * kapatılınca öbürü çalmaya devam eder. Müzik ses düzeyi sürgüsü yalnız Esc menüsündedir.
+   * kapatılınca öbürü çalmaya devam eder. Müzik ses düzeyi sabittir (menüde sürgü yok, cihazın sesinden ayarlanır).
    */
   const sesYaz = on => { for (const b of [els.menuSound, els.homeSound]) if (b) { b.textContent = `Ses: ${on ? 'açık' : 'kapalı'}`; b.classList.toggle('muted', !on); } };
   sesYaz(app.soundOn());
@@ -160,17 +160,11 @@ export function createScreens(root, world, app) {
   function muzikYaz() {
     const on = app.muzikAcik();
     for (const b of [els.menuMuzik, els.homeMuzik]) if (b) { b.textContent = `Müzik: ${on ? 'açık' : 'kapalı'}`; b.classList.toggle('muted', !on); }
-    if (els.menuMuzikRow) els.menuMuzikRow.classList.toggle('off', !on);
-    if (els.menuMuzikYuzde) els.menuMuzikYuzde.textContent = `${Math.round(app.muzikSes() * 100)}%`;
   }
-  // Gösteri kiplerinde müzik hiç kurulmaz: iki müzik düğmesi de sürgü de gizlenir, çubukta üçlü kalır.
+  // Gösteri kiplerinde müzik hiç kurulmaz: iki müzik düğmesi de gizlenir, çubukta üçlü kalır.
   if (!app.muzikVar()) {
-    for (const el of [els.menuMuzik, els.menuMuzikRow, els.homeMuzik]) if (el) el.hidden = true;
+    for (const el of [els.menuMuzik, els.homeMuzik]) if (el) el.hidden = true;
   } else {
-    if (els.menuMuzikSes) {
-      els.menuMuzikSes.value = String(Math.round(app.muzikSes() * 100));
-      els.menuMuzikSes.oninput = () => { app.setMuzikSes(Number(els.menuMuzikSes.value) / 100); muzikYaz(); };
-    }
     for (const b of [els.menuMuzik, els.homeMuzik]) if (b) b.onclick = () => { app.toggleMuzik(); muzikYaz(); };
     muzikYaz();
   }

@@ -134,12 +134,9 @@ try {
   assert.equal((await calan()).parca, 'cayir-3-sancak-dusmeden', 'efekt sesi kapalıyken müzik çalmaya devam eder');
   await page.locator('#menu-sound').click();
 
-  // 4d) Ses düzeyi sürgüsü: sonuna kadar kısmak (0) geçerli bir ayardır ve yenilemeden sonra da 0 kalır.
-  // (Daha önce okuma koşulu `v > 0` olduğu için sıfır ses yenilenince %35'e dönüyordu.)
-  await page.locator('#menu-muzik-ses').evaluate(el => { el.value = '0'; el.dispatchEvent(new Event('input')); });
-  assert.equal(await page.locator('#menu-muzik-yuzde').textContent(), '0%', 'sürgü sıfırı gösterir');
-  assert.equal(await page.evaluate(() => localStorage.getItem('cm.muzik.ses')), '0', 'sıfır ses saklanır');
-  await page.waitForFunction(() => [...document.querySelectorAll('audio')].every(a => a.volume === 0), null, { timeout: 8000 });
+  // 4d) Müzik ses düzeyi sabit (%35): menüde sürgü yok, cihazın sesinden ayarlanır.
+  assert.equal(await page.locator('#menu-muzik-ses').count(), 0, 'Esc menüsünde müzik sesi sürgüsü yok');
+  assert.ok(Math.abs((await page.evaluate(() => window.__meadow.muzik.durum().ses)) - 0.35) < 1e-9, 'müzik düzeyi sabit %35');
 
   // Yenileme sınaması için müziği yeniden kapat.
   await page.locator('#menu-muzik').click();
@@ -148,8 +145,6 @@ try {
   await page.goto(url + '/?muzik=1');
   await page.waitForFunction(() => window.__meadow && window.__meadow.muzik, null, { timeout: 20000 });
   assert.equal(await page.evaluate(() => window.__meadow.muzik.durum().acik), false, 'yenilemeden sonra müzik kapalı');
-  assert.equal(await page.evaluate(() => window.__meadow.muzik.durum().ses), 0, 'sıfıra çekilen ses düzeyi de yenilemeden sonra 0 kalır');
-  assert.equal(await page.locator('#menu-muzik-yuzde').textContent(), '0%', 'sürgünün yüzdesi de 0 açılır');
   assert.equal(await page.locator('#home-muzik').textContent(), 'Müzik: kapalı', 'giriş ekranındaki düğme de kapalı yazar');
   await page.locator('#mg-home h1').click();
   await page.waitForTimeout(2500);
@@ -174,7 +169,7 @@ try {
 
   // 6) iOS Safari taklidi: orada `audio.volume` **salt okunurdur** (yazma yutulur, okunurken hep 1 döner), bu
   // yüzden çalar Web Audio kazanç düğümüne geçer (muzik.js `yolSec`). Burada `volume` özelliği aynı şekilde
-  // salt okunur yapılır: düzey öğeden değil kazançtan verilmeli, müzik yine çalmalı ve sürgü işlemeli.
+  // salt okunur yapılır: düzey öğeden değil kazançtan verilmeli, müzik yine çalmalı ve düzey işlemeli.
   {
     const ios = await browser.newContext({ viewport: { width: 1280, height: 720 } });
     await ios.addInitScript(() => Object.defineProperty(HTMLMediaElement.prototype, 'volume', {
@@ -199,10 +194,10 @@ try {
     await ip.waitForTimeout(1200);
     const t2 = await ip.evaluate(() => document.querySelector('audio').currentTime);
     assert.ok(t2 > t + 0.5, `Web Audio yolunda parça ilerler (${t.toFixed(2)} → ${t2.toFixed(2)})`);
-    // Sürgü de işler: yarıya indirilince duyulan düzey de yarılanır.
+    // Düzey Web Audio yolunda da işler (sesAyarla iç API'si).
     await ip.evaluate(() => window.__meadow.muzik.sesAyarla(0.1));
     const kisik = await ip.evaluate(() => window.__meadow.muzik.durum().duzey);
-    assert.ok(Math.abs(kisik - 0.1) < 0.01, `sürgü Web Audio yolunda da işler (okunan: ${kisik.toFixed(3)})`);
+    assert.ok(Math.abs(kisik - 0.1) < 0.01, `düzey Web Audio yolunda da işler (okunan: ${kisik.toFixed(3)})`);
     assert.deepEqual(iosHata, [], 'iOS taklidinde sayfa hatasız');
     console.log(`  iOS taklidi (volume salt okunur): yol=${iosDurum.yol}, duyulan düzey ${iosDurum.duzey.toFixed(2)}`);
     await ios.close();

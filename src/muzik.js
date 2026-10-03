@@ -11,8 +11,8 @@ import { gosteriAcik } from './gosteri.js';
  * Çalma `<audio>` öğeleriyledir: dosya akarak iner, sahne değişince ses düzeyi karşılıklı süzülür. Dosyalar
  * **gerektiğinde** yüklenir: menüde yalnız sakin parça iner, maç parçaları maç başlarken.
  *
- * Ses düzeyi efektlerin (ui.js `ping`) altındadır: varsayılan %35. Açık/kapalı ve düzey tarayıcıda saklanır
- * (`cm.muzik`, `cm.muzik.ses`); ayarlar Esc menüsünde ve giriş ekranının üst çubuğundadır (bkz. screens.js).
+ * Ses düzeyi efektlerin (ui.js `ping`) altında, sabit %35 (menüde sürgü yok). Açık/kapalı tarayıcıda saklanır
+ * (`cm.muzik`); düğme Esc menüsünde ve giriş ekranının üst çubuğundadır (bkz. screens.js).
  *
  * Tarayıcının otomatik oynatma kuralı: ilk kullanıcı dokunuşuna / tuşuna kadar hiç `play()` çağrılmaz, engellenirse
  * sonraki dokunuşta yeniden denenir. Sekme gizlenince durur, dönünce kaldığı yerden sürer.
@@ -50,13 +50,9 @@ export function createMuzik(root) {
   const kapali = muzikKapali();
   let acik = true, ses = VARSAYILAN_SES;
   try { acik = localStorage.getItem('cm.muzik') !== 'off'; } catch { /* yok */ }
-  try {
-    // Saklanan düzey okunurken **0 da geçerlidir**: sürgüyü sonuna kadar kısan kullanıcı sayfayı yenileyince
-    // müziğin %35'e dönmesini istemez. Boş / bozuk değer `Number('')` ile 0 olmasın diye önce varlığına bakılır.
-    const ham = localStorage.getItem('cm.muzik.ses');
-    const v = ham === null || ham === '' ? NaN : Number(ham);
-    if (Number.isFinite(v) && v >= 0 && v <= 1) ses = v;
-  } catch { /* yok */ }
+  // Müzik düzeyi sabit (VARSAYILAN_SES): menüde ses sürgüsü yok, oyuncu bilgisayarın / telefonun sesinden ayarlar.
+  // Yusuf 4 Ekim: "menülerde müzik sesi olmasın, pc sesinden ayarlasınlar, standart bir ses yüksekliği belirle".
+  // Eski sürümden kalmış saklı düzey (`<oyun>.muzik.ses`) okunmaz.
   const sakla = (k, v) => { try { localStorage.setItem(k, v); } catch { /* yok */ } };
 
   /**
