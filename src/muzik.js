@@ -1,12 +1,15 @@
 import { gosteriAcik } from './gosteri.js';
 
 /**
- * Oyun içi müzik: üç parça, iki sahne, çapraz geçiş.
+ * Oyun içi müzik: üç parça, üç sahne, çapraz geçiş.
  *  - **sakin** (`Çayırda Sabah`): giriş, kurulum, lobi, bitiş karnesi — tek parça, kendi kendine döner.
  *  - **mac** (`Kahramansız Savaş Olmaz` ↔ `Sancak Düşmeden`): maç sürerken ana tema ile çatışma parçası sırayla çalar;
  *    biri bitmeye yakın öbürü üstüne açılır, araya sessizlik girmez.
- * Çalma `<audio>` öğeleriyledir (Web Audio gerekmez): dosya akarak iner, sahne değişince ses düzeyi karşılıklı
- * süzülür. Dosyalar **gerektiğinde** yüklenir: menüde yalnız sakin parça iner, maç parçaları maç başlarken.
+ *  - **doruk** (`Sancak Düşmeden`): maçın doruk anı — taraflardan birinin **sancağı düşmek üzere**. Sıra beklemeden
+ *    çatışma parçasına geçilir ve tehlike geçene kadar orada kalınır (bkz. main.js `muzikSahnesi`). Zaten o parça
+ *    çalıyorsa kesinti olmaz, yalnız kendi kendine dönmeye başlar.
+ * Çalma `<audio>` öğeleriyledir: dosya akarak iner, sahne değişince ses düzeyi karşılıklı süzülür. Dosyalar
+ * **gerektiğinde** yüklenir: menüde yalnız sakin parça iner, maç parçaları maç başlarken.
  *
  * Ses düzeyi efektlerin (ui.js `ping`) altındadır: varsayılan %35. Açık/kapalı ve düzey tarayıcıda saklanır
  * (`cm.muzik`, `cm.muzik.ses`); ayarlar Esc menüsünde ve giriş ekranının üst çubuğundadır (bkz. screens.js).
@@ -20,6 +23,7 @@ import { gosteriAcik } from './gosteri.js';
 const SAHNELER = {
   sakin: ['cayir-2-cayirda-sabah'],
   mac: ['cayir-1-kahramansiz-savas', 'cayir-3-sancak-dusmeden'],
+  doruk: ['cayir-3-sancak-dusmeden'],
 };
 /** Çapraz geçiş süresi (sn): sahne değişiminde ve parça bitmeden önce. */
 const GECIS = 1.8;
@@ -46,8 +50,49 @@ export function createMuzik(root) {
   const kapali = muzikKapali();
   let acik = true, ses = VARSAYILAN_SES;
   try { acik = localStorage.getItem('cm.muzik') !== 'off'; } catch { /* yok */ }
-  try { const v = Number(localStorage.getItem('cm.muzik.ses')); if (Number.isFinite(v) && v > 0 && v <= 1) ses = v; } catch { /* yok */ }
+  try {
+    // Saklanan düzey okunurken **0 da geçerlidir**: sürgüyü sonuna kadar kısan kullanıcı sayfayı yenileyince
+    // müziğin %35'e dönmesini istemez. Boş / bozuk değer `Number('')` ile 0 olmasın diye önce varlığına bakılır.
+    const ham = localStorage.getItem('cm.muzik.ses');
+    const v = ham === null || ham === '' ? NaN : Number(ham);
+    if (Number.isFinite(v) && v >= 0 && v <= 1) ses = v;
+  } catch { /* yok */ }
   const sakla = (k, v) => { try { localStorage.setItem(k, v); } catch { /* yok */ } };
+
+  /**
+   * Ses düzeyi iki yoldan verilebilir:
+   *  - **oge**: olağan yol, `audio.volume`. Masaüstü tarayıcıları, Android ve Capacitor burada.
+   *  - **web**: Web Audio `GainNode`. **iOS Safari'de `audio.volume` salt okunurdur** — yazma sessizce yutulur,
+   *    öğe hep tam sesle çalar. Orada müzik efektlerin üstüne çıkar, sürgü işlemez ve çapraz geçişte iki parça
+   *    birden tam sesle duyulurdu; bu yüzden ilk öğe kurulurken `volume`'un gerçekten yazılabildiği ölçülür ve
+   *    yazılamıyorsa her öğe kendi kazanç düğümünden geçirilir.
+   * Web Audio da yoksa `oge` yoluna düşülür (bilinen kısıt, bkz. README "Müzik").
+   */
+  let yol = null, ac = null;
+  const kazanclar = new WeakMap();
+  function yolSec(a) {
+    if (yol) return yol;
+    const eski = a.volume;
+    try { a.volume = 0.5; } catch { /* iOS yazmayı yutar, hata da atabilir */ }
+    const yazilabilir = Math.abs(a.volume - 0.5) < 0.01;
+    try { a.volume = eski; } catch { /* yok */ }
+    const AC = globalThis.AudioContext || globalThis.webkitAudioContext;
+    yol = yazilabilir || !AC ? 'oge' : 'web';
+    if (yol === 'web') { try { ac = new AC(); } catch { yol = 'oge'; ac = null; } }
+    return yol;
+  }
+  /** Öğenin kazanç düğümü (yalnız `web` yolunda); zincir ilk istendiğinde kurulur, öğe artık buradan duyulur. */
+  function kazanc(a) {
+    let g = kazanclar.get(a);
+    if (g) return g;
+    g = ac.createGain();
+    g.gain.value = 0;
+    ac.createMediaElementSource(a).connect(g).connect(ac.destination);
+    kazanclar.set(a, g);
+    return g;
+  }
+  const sesOku = a => (yol === 'web' ? kazanc(a).gain.value : a.volume);
+  const sesVer = (a, v) => { if (yol === 'web') kazanc(a).gain.value = kis(v); else a.volume = kis(v); };
 
   const parcalar = new Map();
   /** Süren süzülmeler: öğe -> { bas, hedef, t, sure, bitince }. Tek bir sayaç hepsini yürütür. */
@@ -60,15 +105,15 @@ export function createMuzik(root) {
     for (const [a, f] of suzulme) {
       f.t += ADIM;
       const k = Math.min(1, f.t / f.sure);
-      a.volume = kis(f.bas + (f.hedef - f.bas) * k);
+      sesVer(a, f.bas + (f.hedef - f.bas) * k);
       if (k >= 1) { suzulme.delete(a); f.bitince?.(); }
     }
     if (!suzulme.size && saat !== null) { clearInterval(saat); saat = null; }
   }
   /** Öğenin sesini `sure` saniyede `hedef`e süzer; `sure` 0 ise anında. */
   function suz(a, hedef, sure, bitince) {
-    if (sure <= 0) { suzulme.delete(a); a.volume = kis(hedef); bitince?.(); return; }
-    suzulme.set(a, { bas: a.volume, hedef, t: 0, sure, bitince });
+    if (sure <= 0) { suzulme.delete(a); sesVer(a, hedef); bitince?.(); return; }
+    suzulme.set(a, { bas: sesOku(a), hedef, t: 0, sure, bitince });
     saat = saat ?? setInterval(tik, ADIM * 1000);
   }
 
@@ -78,11 +123,12 @@ export function createMuzik(root) {
     if (a) return a;
     a = new Audio();
     a.preload = 'auto';
-    a.volume = 0;
     a.hidden = true;
     a.dataset.parca = ad;
     // Göreli yol: hem web sunucusunda hem Capacitor'da (https://localhost/) aynı dosyayı bulur.
     a.src = `muzik/${ad}.mp3`;
+    yolSec(a); // ilk öğede bir kez: `audio.volume` yazılabiliyor mu, yoksa Web Audio mu gerekiyor
+    sesVer(a, 0);
     // Parça bitmeden önce öbürü üstüne açılsın: araya sessizlik girmez. `ended` yalnız yedektir (süre bilinmiyorsa).
     a.addEventListener('timeupdate', () => {
       if (a !== aktif || a.loop || !Number.isFinite(a.duration)) return;
@@ -102,9 +148,13 @@ export function createMuzik(root) {
   }
 
   function calistir(a) {
+    // Web Audio yolunda bağlam kullanıcı girdisiyle açılır; sekme uykuya dalınca yeniden askıya alınabiliyor.
+    if (ac && ac.state === 'suspended') ac.resume().catch(() => { /* yok */ });
     const s = a.play();
-    // Otomatik oynatma engellendiyse ilk dokunuş sayılmaz: bir sonraki dokunuşta yeniden denenir.
-    if (s?.catch) s.catch(() => { dokunuldu = false; });
+    // İlk dokunuş **yalnız otomatik oynatma engelinde** geri alınır. `play()` sözü başka nedenlerle de reddedilir:
+    // en sık görüleni, çalma başlar başlamaz `pause()` çağrılınca gelen `AbortError`'dur (ör. sekme hemen gizlenirse).
+    // Orada `dokunuldu` sıfırlansaydı müzik, kullanıcı ekrana yeniden dokunana kadar susardı.
+    if (s?.catch) s.catch(e => { if (e?.name === 'NotAllowedError') dokunuldu = false; });
   }
 
   /** Durumu istenene getirir: gereken parça çalar, gereksiz olan süzülerek susar. */
@@ -120,14 +170,16 @@ export function createMuzik(root) {
       return;
     }
     const yeni = parca(ad);
+    // Tek parçalı sahne (sakin, doruk) kendi kendine döner: `ended` hiç gelmez, araya sessizlik girmez. Sahne
+    // değişince **çalan parça aynı kalsa bile** yenilenmeli: maç → doruk geçişinde `Sancak Düşmeden` kesintisiz
+    // sürer ama artık sıradakine devretmek yerine döner.
+    yeni.loop = SAHNELER[sahneAdi].length < 2;
     if (aktif === yeni) { calistir(yeni); suz(yeni, hedefSes(), Math.min(sure, 0.3)); return; }
     if (aktif) { const eski = aktif; suz(eski, 0, sure, () => eski.pause()); }
     aktif = yeni;
-    // Tek parçalı sahne (sakin) kendi kendine döner: `ended` hiç gelmez, araya sessizlik girmez.
-    yeni.loop = SAHNELER[sahneAdi].length < 2;
     // Sonuna gelmiş bir parça yeniden seçilirse (sırası dönüp geldi) başa sarılır: yoksa açılır açılmaz sıradakine atlardı.
     if (Number.isFinite(yeni.duration) && yeni.duration - yeni.currentTime <= GECIS + ADIM) yeni.currentTime = 0;
-    yeni.volume = 0;
+    sesVer(yeni, 0);
     calistir(yeni);
     suz(yeni, hedefSes(), sure);
   }
@@ -176,12 +228,18 @@ export function createMuzik(root) {
     sesAyarla(v) {
       ses = kis(Number(v) || 0);
       sakla('cm.muzik.ses', String(ses));
-      if (aktif && !suzulme.has(aktif)) aktif.volume = hedefSes();
+      if (aktif && !suzulme.has(aktif)) sesVer(aktif, hedefSes());
       return ses;
     },
-    /** Testler ve hata ayıklama için: hangi parça, hangi sahne, çalıyor mu. */
+    /**
+     * Testler ve hata ayıklama için: hangi parça, hangi sahne, çalıyor mu. `duzey` **duyulan** düzeydir —
+     * `oge` yolunda `audio.volume`, `web` yolunda kazanç düğümü (iOS'ta `audio.volume` hep 1 okunur).
+     */
     durum() {
-      return { kapali, acik, ses, sahne: sahneAdi, parca: aktif?.dataset.parca || null, caliyor: Boolean(aktif && !aktif.paused), ogeler: parcalar.size };
+      return {
+        kapali, acik, ses, yol, sahne: sahneAdi, parca: aktif?.dataset.parca || null,
+        duzey: aktif ? sesOku(aktif) : 0, caliyor: Boolean(aktif && !aktif.paused), ogeler: parcalar.size,
+      };
     },
   };
 }

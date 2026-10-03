@@ -90,10 +90,17 @@ mp3, dosya başına ~2 MB:
 | --- | --- | --- |
 | `muzik/cayir-2-cayirda-sabah.mp3` | Çayırda Sabah | **sakin**: giriş, kurulum, lobi, bitiş karnesi (tek parça, kendi kendine döner) |
 | `muzik/cayir-1-kahramansiz-savas.mp3` | Kahramansız Savaş Olmaz | **maç**: ana tema |
-| `muzik/cayir-3-sancak-dusmeden.mp3` | Sancak Düşmeden | **maç**: çatışma; ana temayla sırayla çalar |
+| `muzik/cayir-3-sancak-dusmeden.mp3` | Sancak Düşmeden | **maç**: çatışma; ana temayla sırayla çalar · **doruk**: tek başına döner |
 
-Çalar `src/muzik.js`'tedir ve `<audio>` kullanır (Web Audio yalnızca efekt "ping"leri içindir, bkz. `ui.js`). Sahne her
-karede dünyanın durumundan okunur (`main.js`: maç sürüyorsa `mac`, değilse `sakin`), aynı sahne verilince hiçbir şey
+Üç sahne vardır: **sakin**, **maç** ve **doruk**. Doruk, oyunun kendi yenilgi koşuludur — maç sancak düşünce bittiği
+için (`world.js` `onStructureDestroyed`) taraflardan birinin sancağı eriyorsa maç bıçak sırtındadır: o anda sıra
+beklenmeden "Sancak Düşmeden"e geçilir ve tehlike geçene kadar orada kalınır. Giriş ve çıkış eşikleri ayrıdır
+(**can %50'nin altına inince girilir, %65'in üstüne çıkınca çıkılır**, `main.js` `muzikSahnesi`): can eşiğin iki
+yanında gezinirken müzik sürekli geçiş yapmaz. Zaten o parça çalıyorsa geçişte kesinti olmaz, yalnız kendi kendine
+dönmeye başlar.
+
+Çalar `src/muzik.js`'tedir ve `<audio>` kullanır (Web Audio yalnızca efekt "ping"leri ile aşağıdaki iOS kısıtı
+içindir). Sahne her karede dünyanın durumundan okunur, aynı sahne verilince hiçbir şey
 olmaz — ekran geçişlerini tek tek kancalamaya gerek yoktur. Sahne değişiminde ve parça bitmeden **1,8 sn çapraz
 geçiş** yapılır, araya sessizlik girmez. Dosyalar gerektiğinde iner: menüde yalnız sakin parça, maç parçaları maç
 başlarken. Yollar **görelidir** (`muzik/...`), bu yüzden aynı dosyalar Capacitor'ın `https://localhost/` kökünde de
@@ -101,8 +108,16 @@ başlarken. Yollar **görelidir** (`muzik/...`), bu yüzden aynı dosyalar Capac
 
 Ses düzeyi efektlerin altındadır (**varsayılan %35**). Açık / kapalı iki yerdedir — giriş ekranının üst çubuğunda ve
 Esc menüsünde; ses düzeyi sürgüsü yalnız Esc menüsündedir. İkisi de `localStorage`'da saklanır (`cm.muzik`,
-`cm.muzik.ses`) ve efekt sesinden (`cm.sound`) bağımsızdır. Tarayıcının otomatik oynatma kuralı gereği müzik **ilk
-dokunuş / tuştan sonra** başlar (engellenirse sonraki dokunuşta yeniden denenir); sekme gizlenince durur, dönünce sürer.
+`cm.muzik.ses`) ve efekt sesinden (`cm.sound`) bağımsızdır; sürgü **sıfıra** çekilebilir ve sıfır da saklanır
+(yenilemeden sonra varsayılana dönmez). Tarayıcının otomatik oynatma kuralı gereği müzik **ilk dokunuş / tuştan
+sonra** başlar; sekme gizlenince durur, dönünce sürer. İlk dokunuş yalnız tarayıcı `NotAllowedError` ile
+engellerse geri alınır — `play()` bir `pause()` ile kesilince gelen `AbortError`'da müzik susup kalmaz.
+
+**iOS Safari'de `audio.volume` salt okunurdur**: yazma sessizce yutulur, öğe hep tam sesle çalar. Orada ses düzeyi
+sürgüsü ve çapraz geçiş işlemez, müzik efektlerin üstüne çıkardı. Bu yüzden ilk öğe kurulurken `volume`'un gerçekten
+yazılabildiği ölçülür (`muzik.js` `yolSec`) ve yazılamıyorsa her öğe kendi Web Audio **`GainNode`**'undan geçirilir —
+düzey oradan verilir. `durum().yol` hangi yolun seçildiğini (`oge` / `web`), `durum().duzey` de duyulan düzeyi söyler.
+Web Audio'nun da olmadığı çok eski bir tarayıcıda öğe yoluna düşülür: müzik tam sesle çalar (bilinen kısıt).
 
 **Müziğin hiç kurulmadığı yerler**: gösteri kipleri (`?gosteri=...` — klibin müziğini video betiği ekler) ve otomatik
 tarayıcılar (`navigator.webdriver`: dumanı testleri 6 MB ses indirmesin). `?muzik=0` elle kapatır, `?muzik=1` otomatik
@@ -704,7 +719,7 @@ Simülasyon ile görünüm ayrıdır: `src/world.js` ve ona bağlı modüller re
 | `src/gosteri-savas.js` | Sahnelenmiş gösteri (`?gosteri=savas`): 1000'er kişilik iki ordu, ucuz ordu beyni, iki Kılıçlı Atlı kahramanın düellosu, geniş izometrik kamera |
 | `src/view/ordu.js` | Kalabalık ordu çizimi (yalnız `?gosteri=savas`): taraf başına tek InstancedMesh, birleşik asker geometrisi |
 | `src/screens.js`, `src/report.js` | Ekran akışı (giriş / kurulum / lobi / menü / kısayollar) ve bitiş karnesi (sekmeler, grafik, kopyala) |
-| `src/muzik.js`, `muzik/` | Oyun içi müzik: sahne seçimi (sakin / maç), çapraz geçiş, ayar ve saklama; parçalar ve lisans notu |
+| `src/muzik.js`, `muzik/` | Oyun içi müzik: sahne seçimi (sakin / maç / doruk), çapraz geçiş, ayar ve saklama; parçalar ve lisans notu |
 | `src/environment.js` | Arena verisi (tohumlu: sunucu ve istemci aynı araziyi kurar) ve dekor görünümü (InstancedMesh) |
 | `src/players.js` | Oyuncular (insanlar + botlar): takım, sahip, kasa, bot durumu, sınırlar |
 | `src/structures.js` | Yapılar (veri): kurma, yerleştirme denetimi, inşa, yıkım |

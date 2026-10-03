@@ -1,6 +1,7 @@
 // Oyun içi müzik dumanı testi (bkz. src/muzik.js). Denetlenenler: ilk tıklamadan önce hiç çalmaz, tıklayınca menüde
 // sakin parça (`cayir-2-cayirda-sabah`) çalar ve ilerler, maç başlayınca maç parçasına (`cayir-1-kahramansiz-savas`)
-// geçer, "Müzik kapalı" ayarı sayfa yenilenince korunur ve `?gosteri=1`'de hiç ses öğesi kurulmaz.
+// geçer, sancak erimeye başlayınca doruk parçasına (`cayir-3-sancak-dusmeden`) geçer, "Müzik kapalı" ve sıfıra
+// çekilmiş ses düzeyi ayarları sayfa yenilenince korunur ve `?gosteri=1`'de hiç ses öğesi kurulmaz.
 // Tarayıcı sesi `--mute-audio` ile kısılır: ölçüm `audio.currentTime` / `paused` üzerinden yapılır.
 // Oyunun kendisi otomatik tarayıcıda müziği kapatır (navigator.webdriver), bu yüzden `?muzik=1` ile açılır.
 // Adres: GAME_URL (varsayılan http://127.0.0.1:5173). Playwright yolu: PLAYWRIGHT_MODULE.
@@ -68,6 +69,32 @@ try {
   const sakin = (await sesler()).find(s => s.parca === 'cayir-2-cayirda-sabah');
   assert.ok(sakin.paused, 'sakin parça maçta susar');
 
+  // 3a) Doruk: taraflardan birinin sancağı yarıdan çoğunu yiyince (maç sancak düşünce bittiği için bu an maçın
+  // doruğudur) sıra beklenmeden "Sancak Düşmeden"e geçilir ve tehlike geçene kadar orada kalınır.
+  await page.evaluate(() => {
+    const b = window.__meadow.players.map(p => p.banner).find(x => x && x.alive);
+    window.__muzikTestSancak = { b, hp: b.hp };
+    b.hp = b.maxHp * 0.3;
+  });
+  await page.waitForFunction(() => window.__meadow.muzik.durum().sahne === 'doruk', null, { timeout: 10000 });
+  await page.waitForFunction(() => {
+    const a = [...document.querySelectorAll('audio')].find(x => !x.paused && x.volume > 0.3);
+    return a && a.dataset.parca === 'cayir-3-sancak-dusmeden';
+  }, null, { timeout: 15000 });
+  const dorukDurum = await page.evaluate(() => window.__meadow.muzik.durum());
+  assert.equal(dorukDurum.parca, 'cayir-3-sancak-dusmeden', 'doruk anında çatışma parçası çalar');
+  assert.equal(await page.evaluate(() => [...document.querySelectorAll('audio')]
+    .find(a => a.dataset.parca === 'cayir-3-sancak-dusmeden').loop), true, 'doruk tek parçalıdır: kendi kendine döner');
+
+  // Sancak onarılınca (giriş 0,5 / çıkış 0,65 eşikleri) maç müziğine, yani ana temaya dönülür.
+  await page.evaluate(() => { const s = window.__muzikTestSancak; s.b.hp = s.hp; });
+  await page.waitForFunction(() => window.__meadow.muzik.durum().sahne === 'mac', null, { timeout: 10000 });
+  await page.waitForFunction(() => {
+    const a = [...document.querySelectorAll('audio')].find(x => !x.paused && x.volume > 0.3);
+    return a && a.dataset.parca === 'cayir-1-kahramansiz-savas';
+  }, null, { timeout: 15000 });
+  console.log('  doruk: sancak %30 → cayir-3 (döner), onarılınca → mac / cayir-1');
+
   // 3b) Maç sahnesinde parça bitmeden öbürü üstüne açılır: ana tema ↔ çatışma sırayla gider. Parçalar iki dakikalık
   // olduğu için ana tema sonuna sarılır; geçişin kendisi (çapraz süzülme) olağan akıştaki gibi çalışır.
   await page.evaluate(() => {
@@ -107,6 +134,13 @@ try {
   assert.equal((await calan()).parca, 'cayir-3-sancak-dusmeden', 'efekt sesi kapalıyken müzik çalmaya devam eder');
   await page.locator('#menu-sound').click();
 
+  // 4d) Ses düzeyi sürgüsü: sonuna kadar kısmak (0) geçerli bir ayardır ve yenilemeden sonra da 0 kalır.
+  // (Daha önce okuma koşulu `v > 0` olduğu için sıfır ses yenilenince %35'e dönüyordu.)
+  await page.locator('#menu-muzik-ses').evaluate(el => { el.value = '0'; el.dispatchEvent(new Event('input')); });
+  assert.equal(await page.locator('#menu-muzik-yuzde').textContent(), '0%', 'sürgü sıfırı gösterir');
+  assert.equal(await page.evaluate(() => localStorage.getItem('cm.muzik.ses')), '0', 'sıfır ses saklanır');
+  await page.waitForFunction(() => [...document.querySelectorAll('audio')].every(a => a.volume === 0), null, { timeout: 8000 });
+
   // Yenileme sınaması için müziği yeniden kapat.
   await page.locator('#menu-muzik').click();
   await page.waitForFunction(() => [...document.querySelectorAll('audio')].every(a => a.paused || a.volume === 0), null, { timeout: 8000 });
@@ -114,6 +148,8 @@ try {
   await page.goto(url + '/?muzik=1');
   await page.waitForFunction(() => window.__meadow && window.__meadow.muzik, null, { timeout: 20000 });
   assert.equal(await page.evaluate(() => window.__meadow.muzik.durum().acik), false, 'yenilemeden sonra müzik kapalı');
+  assert.equal(await page.evaluate(() => window.__meadow.muzik.durum().ses), 0, 'sıfıra çekilen ses düzeyi de yenilemeden sonra 0 kalır');
+  assert.equal(await page.locator('#menu-muzik-yuzde').textContent(), '0%', 'sürgünün yüzdesi de 0 açılır');
   assert.equal(await page.locator('#home-muzik').textContent(), 'Müzik: kapalı', 'giriş ekranındaki düğme de kapalı yazar');
   await page.locator('#mg-home h1').click();
   await page.waitForTimeout(2500);
@@ -123,6 +159,7 @@ try {
   // Ayarı geri aç: sonraki testler (ve elle açanlar) aynı tarayıcı profilinde kalmasın.
   await page.locator('#home-muzik').click();
   assert.equal(await page.evaluate(() => localStorage.getItem('cm.muzik')), 'on', 'ayar geri açılabilir');
+  await page.evaluate(() => window.__meadow.muzik.sesAyarla(0.35));
 
   // 5) Gösteri kipi: video betiği müziğini kendi ekler, oyun hiç ses öğesi kurmaz.
   await page.goto(url + '/?gosteri=1');
@@ -134,6 +171,43 @@ try {
   assert.ok(await page.locator('#home-muzik').isHidden(), 'gösteride müzik düğmesi gizli');
 
   assert.deepEqual(errors, [], 'sayfa hatasız');
+
+  // 6) iOS Safari taklidi: orada `audio.volume` **salt okunurdur** (yazma yutulur, okunurken hep 1 döner), bu
+  // yüzden çalar Web Audio kazanç düğümüne geçer (muzik.js `yolSec`). Burada `volume` özelliği aynı şekilde
+  // salt okunur yapılır: düzey öğeden değil kazançtan verilmeli, müzik yine çalmalı ve sürgü işlemeli.
+  {
+    const ios = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+    await ios.addInitScript(() => Object.defineProperty(HTMLMediaElement.prototype, 'volume', {
+      get() { return 1; }, set() { /* iOS yazmayı yutar */ }, configurable: true,
+    }));
+    const ip = await ios.newPage(), iosHata = [];
+    ip.on('pageerror', e => iosHata.push(e.message));
+    await ip.goto(url + '/?muzik=1');
+    await ip.waitForFunction(() => window.__meadow && window.__meadow.muzik, null, { timeout: 20000 });
+    await ip.locator('#mg-home h1').click();
+    await ip.waitForFunction(() => {
+      const d = window.__meadow.muzik.durum();
+      // Çapraz geçiş bitene kadar düzey tırmanır; ölçüm süzülme oturduktan sonra yapılır.
+      return d.parca === 'cayir-2-cayirda-sabah' && d.caliyor && d.duzey > 0.345;
+    }, null, { timeout: 15000 });
+    const iosDurum = await ip.evaluate(() => window.__meadow.muzik.durum());
+    assert.equal(iosDurum.yol, 'web', 'volume yazılamayan tarayıcıda Web Audio yoluna geçilir');
+    assert.ok(Math.abs(iosDurum.duzey - 0.35) < 0.01, `düzey kazançtan verilir (okunan: ${iosDurum.duzey.toFixed(3)})`);
+    assert.equal(await ip.evaluate(() => document.querySelector('audio').volume), 1, 'öğenin kendi volume değeri 1 kalır (yazılamıyor)');
+    // Parça gerçekten akıyor mu (kazanç zinciri çalmayı durdurmamış)?
+    const t = await ip.evaluate(() => document.querySelector('audio').currentTime);
+    await ip.waitForTimeout(1200);
+    const t2 = await ip.evaluate(() => document.querySelector('audio').currentTime);
+    assert.ok(t2 > t + 0.5, `Web Audio yolunda parça ilerler (${t.toFixed(2)} → ${t2.toFixed(2)})`);
+    // Sürgü de işler: yarıya indirilince duyulan düzey de yarılanır.
+    await ip.evaluate(() => window.__meadow.muzik.sesAyarla(0.1));
+    const kisik = await ip.evaluate(() => window.__meadow.muzik.durum().duzey);
+    assert.ok(Math.abs(kisik - 0.1) < 0.01, `sürgü Web Audio yolunda da işler (okunan: ${kisik.toFixed(3)})`);
+    assert.deepEqual(iosHata, [], 'iOS taklidinde sayfa hatasız');
+    console.log(`  iOS taklidi (volume salt okunur): yol=${iosDurum.yol}, duyulan düzey ${iosDurum.duzey.toFixed(2)}`);
+    await ios.close();
+  }
+
   console.log('Müzik dumanı testi geçti.');
 } finally {
   await browser.close();

@@ -128,6 +128,25 @@ export async function start(root) {
   // Oyun içi müzik (bkz. muzik.js): sahnesi her karede dünyanın durumundan okunur, gösteri kiplerinde hiç kurulmaz.
   const muzik = createMuzik(root);
   world.muzik = muzik;
+  /**
+   * Müzik sahnesi (bkz. muzik.js): maç dışında **sakin**, maçta **mac**, maçın doruk anında **doruk**.
+   * Doruk, oyunun kendi yenilgi koşuludur: maç sancak düşünce biter (bkz. world.js `onStructureDestroyed`), yani
+   * taraflardan birinin sancağı eriyorsa maç bıçak sırtındadır — "Sancak Düşmeden" o anda devreye girer.
+   * Giriş ve çıkış eşikleri **ayrıdır**: can eşiğin iki yanında gezinirken müzik sürekli geçiş yapmasın diye
+   * doruktan çıkmak için sancağın belirgin biçimde onarılmış olması gerekir.
+   */
+  const DORUK_GIR = 0.5, DORUK_CIK = 0.65;
+  let doruk = false;
+  function muzikSahnesi() {
+    if (!world.running || world.ended) { doruk = false; return 'sakin'; }
+    let enDusuk = 1;
+    for (const p of world.players) {
+      const b = p.banner;
+      if (b && b.alive && b.maxHp > 0) enDusuk = Math.min(enDusuk, b.hp / b.maxHp);
+    }
+    doruk = enDusuk <= (doruk ? DORUK_CIK : DORUK_GIR);
+    return doruk ? 'doruk' : 'mac';
+  }
   globalThis.__meadow = world;
 
   // İşaretler: seçim halkaları, inşa hayaleti, kahraman inşa halkası.
@@ -432,9 +451,10 @@ export async function start(root) {
     if (ms - fpsSince >= 500) { fps = Math.round((fpsFrames * 1000) / (ms - fpsSince)); fpsFrames = 0; fpsSince = ms; }
     // ölçüm: oyuncu 60 sn oynayınca bir kez "bir_dakika" (bayrak dolunca anında döner); gösteride hiç ölçüm gitmez
     if (world.running && !world.ended && !gosteri) macKontrol();
-    // Müzik sahnesi: maç sürerken savaş parçaları, menüde / lobide / karnede sakin parça. Aynı sahne verilirse
-    // hiçbir şey olmaz, bu yüzden her kareden sorulabilir: ekran geçişlerini tek tek kancalamaya gerek kalmaz.
-    muzik.sahne(world.running && !world.ended ? 'mac' : 'sakin');
+    // Müzik sahnesi: maç sürerken savaş parçaları (sancak erirse doruk), menüde / lobide / karnede sakin parça.
+    // Aynı sahne verilirse hiçbir şey olmaz, bu yüzden her kareden sorulabilir: ekran geçişlerini tek tek
+    // kancalamaya gerek kalmaz.
+    muzik.sahne(muzikSahnesi());
     const replicated = world.replicated;
     // Gösteri kipi: girdi yok, simülasyon iki kat hızda koşar, maç biterse yenisi başlar (bkz. gosteri.js).
     if (gosteri) gosteri.guncelle(dt);

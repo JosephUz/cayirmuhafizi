@@ -26,6 +26,9 @@ const EKRANLAR = [
   { ad: 'masaustu', w: 1280, h: 720, dokunmatik: false, menu: true },
   { ad: 'telefon-yatay', w: 844, h: 390, dokunmatik: true, menu: true },
   { ad: 'telefon-dikey', w: 390, h: 844, dokunmatik: false, menu: false },
+  // En dar yaygın telefon (Galaxy A / iPhone SE sınıfı): dört düğmeli çubuk burada taşmaya en yakındır. JOS-700'de
+  // düzeltilen üst alan yeniden bozulmasın diye giriş şeridi de bütünüyle görünür alanda mı diye ölçülür.
+  { ad: 'telefon-dar', w: 360, h: 640, dokunmatik: false, menu: false },
 ];
 
 try {
@@ -48,10 +51,17 @@ try {
     const kutu = await page.evaluate(() => {
       const c = document.querySelector('#mg-home .home-actions').getBoundingClientRect();
       const l = document.querySelector('#mg-home .home-top .logo').getBoundingClientRect();
-      return { c: { l: c.left, r: c.right, t: c.top, b: c.bottom }, logoR: l.right, logoB: l.bottom, w: innerWidth, h: innerHeight };
+      const s = document.querySelector('#mg-home .home-top').getBoundingClientRect();
+      return {
+        c: { l: c.left, r: c.right, t: c.top, b: c.bottom }, logoR: l.right, logoB: l.bottom,
+        serit: { l: s.left, r: s.right, t: s.top, b: s.bottom }, w: innerWidth, h: innerHeight,
+      };
     });
     assert.ok(kutu.c.l >= 0 && kutu.c.r <= kutu.w + 0.5, `${e.ad}: çubuk yatayda taşmıyor (${Math.round(kutu.c.l)}..${Math.round(kutu.c.r)} / ${kutu.w})`);
     assert.ok(kutu.c.t >= 0 && kutu.c.b <= kutu.h, `${e.ad}: çubuk dikeyde görünür alanda`);
+    // Çubuğun kendisi sığsa bile şerit (ad + çubuk) taşabilirdi: 360 px'te dört düğme ikinci satıra iner.
+    assert.ok(kutu.serit.l >= -0.5 && kutu.serit.r <= kutu.w + 0.5 && kutu.serit.t >= 0 && kutu.serit.b <= kutu.h,
+      `${e.ad}: giriş şeridi görünür alanda (${Math.round(kutu.serit.l)}..${Math.round(kutu.serit.r)} / ${kutu.w}, ${Math.round(kutu.serit.t)}..${Math.round(kutu.serit.b)} / ${kutu.h})`);
     // Çakışma yok: ya adın sağında (geniş ekran) ya da tamamen altında (dar ekranda ikinci satıra iner).
     assert.ok(kutu.c.l >= kutu.logoR || kutu.c.t >= kutu.logoB, `${e.ad}: çubuk oyun adının üstüne binmiyor (ad ${Math.round(kutu.logoR)}x${Math.round(kutu.logoB)}, çubuk ${Math.round(kutu.c.l)}x${Math.round(kutu.c.t)})`);
 
