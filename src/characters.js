@@ -309,33 +309,38 @@ function setDetail(v, on) {
   if (v.eyes && lodGoz) v.eyes.visible = on;
 }
 
-/** Tamamen prosedürel canlandırma: yürüyüş sinüs, saldırı tek eğri, ölüm devrilip gömülme. */
+/**
+ * Tamamen prosedürel canlandırma: yürüyüş sinüs, saldırı tek eğri, ölüm devrilip gömülme.
+ * `e.viewOlcek` yalnızca sahnelenmiş gösterilerin kullandığı çizim boyu çarpanıdır (bkz. gosteri-savas.js:
+ * kalabalık askerlerin yanında kahraman küçük kalmasın); normal oyunda hiç tanımlanmaz, yani 1'dir.
+ */
 export function animateView(e, dt, camQuat, far = false) {
   const v = e.view; if (!v) return;
+  const olcek = e.viewOlcek || 1;
   v.g.position.x = e.pos.x; v.g.position.z = e.pos.z; v.g.rotation.y = e.facing;
   setDetail(v, !far);
   if (far) {
     // Uzakta: yalnızca konum, yön, zıplama yüksekliği ve can çubuğu. Uzuv animasyonu ve savurma yok.
     v.g.position.y = e.jumpY;
-    v.g.rotation.x = 0; v.g.rotation.z = 0; v.g.scale.setScalar(1);
-    if (!e.alive) animateDeath(e, v);
-    setHpBar(v.bars, e.hp, e.stats.maxHp, e.pos.x, (v.mounted ? 3.3 : 2.35) + e.jumpY, e.pos.z, camQuat, e.alive);
+    v.g.rotation.x = 0; v.g.rotation.z = 0; v.g.scale.setScalar(olcek);
+    if (!e.alive) animateDeath(e, v, olcek);
+    setHpBar(v.bars, e.hp, e.stats.maxHp, e.pos.x, ((v.mounted ? 3.3 : 2.35) + e.jumpY) * olcek, e.pos.z, camQuat, e.alive);
     return;
   }
 
-  if (!e.alive) { animateDeath(e, v); }
+  if (!e.alive) { animateDeath(e, v, olcek); }
   else {
     v.g.rotation.x = 0; v.g.rotation.z = 0; v.g.visible = true;
     animateAlive(e, v, dt);
     // Yeni basılan birim yerden büyüyerek belirir.
-    if (e.spawnTimer > 0) { e.spawnTimer -= dt; const k = 1 - Math.max(0, e.spawnTimer) / 0.5; const s = 0.2 + 0.8 * (1 - Math.pow(1 - k, 3)) * (1 + 0.25 * Math.sin(k * Math.PI)); v.g.scale.setScalar(s); }
-    else v.g.scale.setScalar(1);
+    if (e.spawnTimer > 0) { e.spawnTimer -= dt; const k = 1 - Math.max(0, e.spawnTimer) / 0.5; const s = 0.2 + 0.8 * (1 - Math.pow(1 - k, 3)) * (1 + 0.25 * Math.sin(k * Math.PI)); v.g.scale.setScalar(s * olcek); }
+    else v.g.scale.setScalar(olcek);
   }
   updateSwing(e, v);
   const f = e.hitFlash > 0 ? e.hitFlash / COMBAT.hitFlash : 0;
   v.tunicMat.emissive.setRGB(f * 0.9, f * 0.1, f * 0.05);
   // Canı tamsa çubuk hiç görünmez; darbe alınca yeşil → sarı → kırmızı dolgu çıkar.
-  setHpBar(v.bars, e.hp, e.stats.maxHp, e.pos.x, (v.mounted ? 3.3 : 2.35) + e.jumpY, e.pos.z, camQuat, e.alive);
+  setHpBar(v.bars, e.hp, e.stats.maxHp, e.pos.x, ((v.mounted ? 3.3 : 2.35) + e.jumpY) * olcek, e.pos.z, camQuat, e.alive);
 }
 
 function animateAlive(e, v, dt) {
@@ -383,14 +388,14 @@ function applyAttackPose(e, v) {
   v.body.rotation.y = twist;
 }
 
-function animateDeath(e, v) {
+function animateDeath(e, v, olcek = 1) {
   const t = clamp(e.deathTimer / COMBAT.deathDuration, 0, 1);
   const ease = 1 - Math.pow(1 - t, 2);
   v.g.rotation.x = -Math.PI * 0.5 * ease; v.g.rotation.z = 0.25 * ease;
   if (!v.mounted) { v.legs[0].rotation.x = 0.4 * ease; v.legs[1].rotation.x = -0.3 * ease; }
   v.arms[0].rotation.x = -0.9 * ease; v.arms[1].rotation.x = -1.2 * ease;
   const sink = clamp((e.deathTimer - COMBAT.deathDuration) / COMBAT.sinkDuration, 0, 1);
-  v.g.position.y = -sink * 2.2;
+  v.g.position.y = -sink * 2.2 * olcek;
   v.g.visible = sink < 1;
 }
 
