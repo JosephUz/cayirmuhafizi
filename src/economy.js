@@ -4,7 +4,7 @@ import { ANTI, BANDITS, BUILD, BUILDINGS, CAMPS, ECONOMY, ENEMY_AI, ENEMY_HERO, 
 import { giveOrder, inEnemyTowerRange } from './ai.js';
 import { armyCount, bestProducer, enqueue, queuedOf, queuedSoldiers, workerTotal } from './production.js';
 import { rrand } from './rng.js';
-import { canPlace, createStructure, placementError, reviveCamp, structureCount } from './structures.js';
+import { baseRuleFor, canPlace, createStructure, heroInBase, placementError, reviveCamp, structureCount } from './structures.js';
 import { enemyOf, nearestEnemyBanner, resourceMult, teamOf } from './players.js';
 import { statBuilt, statGathered, statSpent, statUnitMade, structureValue } from './stats.js';
 
@@ -389,6 +389,7 @@ export function buildError(world, kind, owner, x, z, instant = false) {
   if (!instant) {
     const hero = owner.hero;
     if (!hero || !hero.alive) return 'Kahraman yerde, inşa edilemez';
+    if (kind !== 'tower' && baseRuleFor(owner) && !heroInBase(owner)) return 'Bina yalnızca sancak çemberinin içindeyken dikilir: sancağına dön';
     if (Math.hypot(hero.pos.x - x, hero.pos.z - z) > BUILD.heroRadius) return `Kahramandan uzak: bina kahramanın ${BUILD.heroRadius} birim yakınına dikilir`;
     const why = placementError(world, kind, x, z, owner);
     if (why) return why;

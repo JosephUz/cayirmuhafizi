@@ -1,4 +1,4 @@
-import { BUILDINGS, DIFFICULTY, HERO_UPGRADE, LEVEL, QUEUE, SOLDIER_TYPES, TOWER, antiInfo, heroConvertCost, loadoutKey, respawnDelay } from './config.js';
+import { BUILD, BUILDINGS, DIFFICULTY, HERO_UPGRADE, LEVEL, QUEUE, SOLDIER_TYPES, TOWER, antiInfo, heroConvertCost, loadoutKey, respawnDelay } from './config.js';
 import { clearSelection, selectStructureGroup, setSelection, unlockPointer } from './input.js';
 import { bannerShielded, structureCount } from './structures.js';
 import { bestProducer, queuedSoldiers, unitClass, workerTotal } from './production.js';
@@ -89,6 +89,19 @@ export function createUI(root, world, actions) {
     return c;
   };
 
+  /**
+   * Sancak çemberi kuralı (bkz. structures.js heroInBase): kahraman çemberin dışındayken bina dikilmez, asker basılmaz,
+   * çemberin içindeki yapı (sancak, binalar, içerideki kuleler) seçili kalmaz; çember dışındaki kule kahraman
+   * yanındayken (heroRadius) seçilebilir. Kahraman yerdeyken (doğmayı beklerken) seçim olduğu gibi kalır.
+   */
+  const inCircle = (x, z) => { const b = world.me && world.me.banner; return Boolean(b && b.alive && Math.hypot(x - b.pos.x, z - b.pos.z) <= BUILD.bannerRadius); };
+  const heroInBase = () => { const p = world.player; return Boolean(p && p.alive && inCircle(p.pos.x, p.pos.z)); };
+  const reachable = s => {
+    const p = world.player;
+    if (!p || !p.alive) return true;
+    return inCircle(s.pos.x, s.pos.z) ? heroInBase() : Math.hypot(p.pos.x - s.pos.x, p.pos.z - s.pos.z) <= BUILD.heroRadius + (s.radius || 1);
+  };
+  const outOfReach = s => (inCircle(s.pos.x, s.pos.z) ? 'Sancak çemberinin dışındasın: yapıları yönetmek için sancağına dön' : 'Kuleye yaklaş: uzaktaki kule seçilemez');
   const heroNearBanner = () => { const p = world.player, b = world.me && world.me.banner; return Boolean(p && b && p.alive && b.alive && Math.hypot(p.pos.x - b.pos.x, p.pos.z - b.pos.z) <= HERO_UPGRADE.range); };
   const heroTypeLabel = p => { const t = SOLDIER_TYPES.find(x => !x.worker && x.weapon === p.loadout.weapon && x.shield === p.loadout.shield && x.horse === p.loadout.horse); return t ? t.label : 'Kılıçlı'; };
 
@@ -145,15 +158,17 @@ export function createUI(root, world, actions) {
     const off = (el, why) => { el.classList.toggle('off', Boolean(why)); el.dataset.why = why || ''; };
     const busyWhy = () => (heroDown() ? 'Kahraman yerde: doğmasını bekle' : world.paused ? 'Oyun duraklatıldı' : world.ended ? 'Oyun bitti' : 'Şu an komut verilemez');
     const gold = (n, what) => `Yetersiz altın: ${what} ${n.toLocaleString('tr-TR')} altın (sende ${Math.floor(eco.gold).toLocaleString('tr-TR')})`;
+    const home = heroInBase();
     for (const el of els.cmd.querySelectorAll('button[data-soldier]')) {
       const t = typeOf(el.dataset.soldier);
-      off(el, b ? busyWhy() : eco.gold < t.cost ? gold(t.cost, t.label) : eco.food < t.food ? `Yetersiz yiyecek: ${t.label} ${t.food} yiyecek (sende ${Math.floor(eco.food)})` : '');
+      off(el, b ? busyWhy() : !home ? 'Asker yalnızca sancak çemberinin içinde basılır: sancağına dön' : eco.gold < t.cost ? gold(t.cost, t.label) : eco.food < t.food ? `Yetersiz yiyecek: ${t.label} ${t.food} yiyecek (sende ${Math.floor(eco.food)})` : '');
     }
     for (const el of els.cmd.querySelectorAll('button[data-build]')) {
       const kind = el.dataset.build, spec = BUILDINGS[kind], tower = kind === 'tower';
       const cap = tower ? world.limits.towers : world.limits.buildings;
       const capped = structureCount(world, world.me, tower) >= cap;
       off(el, b ? busyWhy()
+        : !tower && !home ? 'Bina yalnızca sancak çemberinin içinde dikilir: sancağına dön'
         : capped ? (tower ? `Kule sınırı dolu (en fazla ${cap}) · birini yıkabilirsin` : `Bina sınırı dolu (en fazla ${cap}) · birini yıkabilirsin`)
         : eco.gold < spec.cost ? gold(spec.cost, spec.label)
         : eco.wood < spec.wood ? `Yetersiz odun: ${spec.label} ${spec.wood} odun (sende ${Math.floor(eco.wood)})` : '');
@@ -309,6 +324,9 @@ export function createUI(root, world, actions) {
     select(s, group = false) {
       if (s && s.owner !== world.me) return;
       if (deadBlock()) return;
+      if (s && !reachable(s)) { ui.hint(outOfReach(s), 2.2); ping('error'); return; }
+      // Her seçim (aynı yapıya yeniden dokunuş dahil) sayılır: dokunmatikte kapalı çekmece yeniden açılır (main.js touchFrame).
+      world.selTap = (world.selTap || 0) + 1;
       if (group && s) selectStructureGroup(world, s);
       else setSelection(world, [], s);
       world.placing = null; world.heroMenu = false; ping('select'); ui.update();
@@ -316,6 +334,7 @@ export function createUI(root, world, actions) {
     toggleHeroMenu() {
       if (deadBlock()) return;
       if (!sel().structure || sel().structure.kind !== 'banner') { ui.select(world.me.banner); }
+      if (!sel().structure || sel().structure.kind !== 'banner') return; // çember dışında: seçim reddedildi, sebebi yazıldı
       world.heroMenu = !world.heroMenu; world.placing = null;
       if (world.heroMenu && !heroNearBanner()) ping('error');
       ping('select'); ui.update();
@@ -396,6 +415,9 @@ export function createUI(root, world, actions) {
       if (!eco) return;
       for (const u of [...world.sel.units]) if (!u.alive) world.sel.units.delete(u);
       if (world.sel.structure && !world.sel.structure.alive) world.sel.structure = null;
+      // Kahraman uzaklaşınca seçim kalkar, sol menü ana (inşa) menüsüne döner; çember dışında bina yerleştirme de biter.
+      if (world.sel.structure && !reachable(world.sel.structure)) { clearSelection(world); world.heroMenu = false; }
+      if (world.placing && world.placing !== 'tower' && world.player && world.player.alive && !heroInBase()) world.placing = null;
       const c = countUnits();
       const own = world.me.banner;
       const foes = world.players.filter(q => q.faction !== world.side), allies = world.players.filter(q => q.faction === world.side && q !== world.me);

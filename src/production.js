@@ -1,6 +1,7 @@
 import { giveOrder } from './ai.js';
 import { BUILDINGS, QUEUE, RALLY, SOLDIER_TYPES } from './config.js';
 import { botRally, spawnUnit } from './economy.js';
+import { baseRuleFor, heroInBase } from './structures.js';
 import { statSpent } from './stats.js';
 
 /**
@@ -64,6 +65,7 @@ export function enqueueError(world, owner, building, typeKey) {
   if (!building.ready) return `${BUILDINGS[building.kind].label} henüz inşa ediliyor`;
   if (building.kind !== type.building) return `${type.label} ${BUILDINGS[type.building].from} basılır`;
   if (building.queue.length >= QUEUE.max) return `Sıra dolu (en fazla ${QUEUE.max} emir)`;
+  if (baseRuleFor(owner) && !heroInBase(owner)) return 'Asker yalnızca sancak çemberinin içindeyken basılır: sancağına dön';
   // Nüfus sınırı emri **geri çevirmez** (Age of tarzı): asker sınırı doluyken de sıraya alınır ve ücreti şimdi düşer;
   // sahada yer açılınca sıradaki hemen çıkar (bkz. updateProduction). İşçide de sınır engellemez (bkz. economy.js trimWorkers).
   const bag = owner.eco, wood = type.wood || 0;

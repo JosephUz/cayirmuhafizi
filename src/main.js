@@ -418,7 +418,7 @@ export async function start(root) {
    * düğmeler gizlenir, sahanın sağ altındaki ✕ kapatır. Üstte 🎥 kamera, ☰ menü. Kendi yapına dokununca çekmece açılır;
    * inşa yeri seçerken kapanır ki saha görünsün.
    */
-  let drawer = false, lastSel = null, lastPlacing = null, wasPlaying = false;
+  let drawer = false, lastTap = 0, lastPlacing = null, wasPlaying = false;
   const tbar = root.querySelector('#mg-tbar'), drawerClose = root.querySelector('#mg-drawer-close'), placeTap = root.querySelector('#mg-place-tap');
   const setDrawer = on => { drawer = on; root.classList.toggle('drawer', on); };
   if (touch) {
@@ -436,9 +436,11 @@ export async function start(root) {
     world.input.touch.show(playing);
     tbar.hidden = !playing; drawerClose.hidden = !playing;
     const sel = world.sel.structure;
-    if (sel && sel !== lastSel) setDrawer(true);
+    // Yapıya her dokunuşta (aynı yapı yeniden dahil) çekmece açılır: ui.select world.selTap sayacını artırır.
+    if (sel && (world.selTap || 0) !== lastTap) setDrawer(true);
+    lastTap = world.selTap || 0;
     if (world.placing && world.placing !== lastPlacing) { setDrawer(false); world.ui.hint('Yeri seçmek için sahaya dokun · ⚒ vazgeç', 4); }
-    lastSel = sel; lastPlacing = world.placing;
+    lastPlacing = world.placing;
     root.classList.toggle('placing-touch', !!world.placing);
     // İnşa: hayalet sahaya konunca (ilk dokunuş) tepesinde zıplayan ⚒: "aynı yere bir daha dokun, dikilsin".
     // Yer uygun değilse (kırmızı hayalet) gösterilmez: ikinci dokunuş dikmez, sebebi ipucu yazısında.

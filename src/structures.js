@@ -53,6 +53,18 @@ export function bannerShielded(world, s) {
 }
 
 /**
+ * Kahraman kendi sancağının çemberinde mi (BUILD.bannerRadius). İnsan oyuncu bina dikmek ve asker basmak için
+ * çemberin içinde olmalıdır (bkz. production.js enqueueError, economy.js buildError); kule çember dışına da dikilir.
+ * Botlar ve otopilot koltuğu bu kurala bağlı değildir (rakip bot komutanı ordusunu her yerden yönetir).
+ */
+export function heroInBase(owner) {
+  const h = owner && owner.hero, b = owner && owner.banner;
+  return Boolean(h && b && h.alive && b.alive && Math.hypot(h.pos.x - b.pos.x, h.pos.z - b.pos.z) <= BUILD.bannerRadius);
+}
+/** Kural insan oyuncuya mı işler (bot ve otopilot koltuğu hariç). */
+export const baseRuleFor = owner => Boolean(owner && owner.human && !owner.otopilot);
+
+/**
  * Yapı kuralı: kule dışındaki binalar kendi sancağının çemberi içine; kuleler yalnızca yollara, başka kulelere
  * en az TOWER.minGap = **menzilin iki katı** uzağa (kendi ve rakip kuleleri dahil; böylece atış alanları çakışmaz)
  * ve **rakibin sancak çemberinin dışına** dikilir. Uygunsa null, değilse sebep döner.

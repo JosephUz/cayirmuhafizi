@@ -456,6 +456,13 @@ kahramanın 14 birim yakınına dikilir. **Kuleler** kendi çemberine bağlı de
 **54 birim** uzağa ve **rakibin sancak çemberinin (30 birim) dışına** dikilir; kimse düşman üssünün dibine kule dikemez.
 Bu aralık **menzilin (27) tam iki katıdır**: hiçbir kulenin atış alanı bir başkasınınkiyle **çakışmaz**, kule yığmak yoktur,
 her kule kendi bölgesini korur. İnşa hayaletindeki menzil halkası yer uygunsa yeşil, çakışma varsa kırmızı yanar.
+
+**Sancak çemberi kuralı (insan oyuncu)**: kahraman kendi sancak çemberinin **dışındayken** kule dışındaki binalar ve asker /
+işçi basma düğmeleri kapalıdır (dokununca "yalnızca sancak çemberinin içinde" yazar), sunucu da bu emirleri reddeder
+(`structures.js heroInBase`). Kahraman çemberden çıkınca seçili sancak / bina bırakılır, sol menü ana (inşa) menüsüne
+döner; çember dışındaki bir kule kahraman 14 birim yanındayken seçilebilir, uzaklaşınca bırakılır. Sıradaki üretim
+sürer. Botlar ve otopilot koltuğu bu kurala bağlı değildir. Dokunmatikte yapıya **her dokunuş** (aynı yapı yeniden dahil)
+çekmeceyi açar.
 Aynı kural bot'un ilerleyen kule zinciri için de geçerlidir (adımı bu aralıktan biraz büyüktür); zincir rakip çemberinin
 kenarında durur. Oyunun her oyuncuya kurduğu **başlangıç kulesi** bu kuraldan muaftır.
 
