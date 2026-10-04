@@ -11,15 +11,24 @@ import { setupGame, step } from './world.js';
 /**
  * **Otopilot** (`?otopilot=1`, yalnız tarayıcı): içerik videoları için **gerçek bir maç**, ama oyuncunun kahramanını
  * bir bot oynar. Gösteri kiplerinden (gosteri.js) farkı, bunun bir gösteri değil **oyunun kendisi** olmasıdır:
- *  - Maç normal kurallarla kurulur (setupGame, bir insan koltuğu + botlar); hile, hazır ordu ya da kasa yoktur.
+ *  - Maç normal kurallarla kurulur (setupGame, bir insan koltuğu + botlar) ve **bütün oyunculara eşit** bir
+ *    "çatışma başlangıcı" verilir: dolu kasa (O.kasa), kurulu üretim binaları (O.binalar), cephe hattına dizilmiş bir
+ *    bölük (O.birlikler) ve seviye O.seviye kahraman. Bu bir hile değildir — otopilot koltuğu da rakipleri de aynısını
+ *    alır, kurallar değişmez; video ekonomi kurulmasını beklemeden muharebeyle başlasın diyedir (bkz. `basla`).
  *  - Oyuncunun kasası ve ordusu bot komutan kararlarıyla sürülür (bkz. economy.js updateBots → `p.otopilot`): işçi
- *    basılır, bina dikilir, asker üretilir, ordu saldırıya kalkar. Yani ekranda gerçek bir maç akar.
+ *    basılır, asker üretilir, ordu saldırıya kalkar. Yani ekranda gerçek bir maç akar.
  *  - **Kahraman girdiyle oynanır**: bu dosya her karede oyuncunun girdisini (bkz. hero.js createHeroInput) doldurur —
  *    hareket yönü, koşu, nişan, sol tık, basılı tutulan şarj, sağ tık atılma, zıplama. Simülasyon tarafında hiçbir
  *    ayrıcalık yoktur: kahraman oyuncunun bastığı tuşların aynısını "basar", menzil, bekleme ve şarj süreleri aynıdır.
- *  - Karar sırası bir oyuncunun yaptığına yakındır: canı azaldıysa sancağına çekilip iyileşir, bina yeri bekliyorsa
- *    (hero.errand) oraya gider, görüşünde düşman varsa dövüşür (kalabalıkta şarjlı vuruş, mesafe varsa atılma),
- *    ortalık boşsa yerdeki ganimeti toplar, o da yoksa ordusunun ilerlediği cepheye / en yakın rakip sancağa yürür.
+ *  - Karar sırası bir oyuncunun yaptığına yakındır: canı azaldıysa sancağına çekilip iyileşir, görüşünde düşman varsa
+ *    dövüşür (kalabalıkta şarjlı vuruş, mesafe varsa atılma), ortalık boşsa yerdeki ganimeti toplar, o da yoksa
+ *    ordusunun ilerlediği cepheye yürür, ordusu toplanmadıysa üssünde kaynak çıkarır.
+ *  - **İnşaat yapmaz**: bot komutan binayı kahramanın yanına diktirmek için ona şantiye görevi (`hero.errand`) verir,
+ *    otopilot bu görevi her karede siler (bkz. `girdi`). Üretim binaları maç başında kurulu geldiği için geriye yalnız
+ *    kule istekleri kalır; yani otopilot koltuğu maç içinde **kule dikmez** (rakip bot kahramanlar diker) ve kuşatma
+ *    gerektiğinde o turda atölyeye sıra gelmez. Kabul edilen bir denge: kahramanın videoyu cepheden uzakta,
+ *    şantiye gezerek geçirmesindense kule kurmaması yeğlendi. Asker üretimi bundan etkilenmez (bkz. economy.js
+ *    updateBotEconomy: `tryBuild` 'wait' dönünce döngü kırılır ama asker üretimi aynı turda devam eder).
  *  - Duvara / ağaca takılırsa (konumu ilerlemiyorsa) yana kaçar; ölünce oyunun kendi yeniden doğma süresiyle doğar ve
  *    oynamaya devam eder (bkz. world.js updateLifecycle).
  * Kamera **normal oyun kamerasıdır** (izometrik, kahramanı izler; bkz. main.js): sahne yerleştirme yoktur.

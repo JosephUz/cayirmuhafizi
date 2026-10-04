@@ -37,6 +37,14 @@ try {
   assert.ok(await game(() => window.__meadow.player && window.__meadow.player.isPlayer === true), 'kamera oyuncunun kahramanını izler');
   assert.ok(await game(() => !document.getElementById('meadow-game').classList.contains('gosteri')), 'gösteri kipi değil: arayüz normal oyundaki gibi durur');
 
+  // Otopilot koltuğunun **maç başındaki** sayaçları: 4. adım bunların üstüne gerçekten üretim geldiğini sınar.
+  // Maç "çatışma başlangıcı"ndan açıldığı için herkese bir bölük basılıyor (bkz. otopilot.js cepheyeDiz) ve bu da
+  // soldiersSpawned'ı artırıyor; mutlak sayıya ya da rakiple orana bakmak üretim hiç olmasa da geçerdi.
+  const bas = await game(() => {
+    const w = window.__meadow;
+    return { asker: w.me.eco.soldiersSpawned, isci: w.entities.filter(e => e.alive && e.owner === w.me && e.isWorker).length };
+  });
+
   // 2) Kahramanın girdisi gerçekten üretiliyor: hareket eder ve yer değiştirir.
   const yer0 = await game(() => ({ x: window.__meadow.player.pos.x, z: window.__meadow.player.pos.z }));
   await page.waitForTimeout(6000);
@@ -65,9 +73,17 @@ try {
   assert.ok(say.vurus + say.sarj > 0, `kahraman saldırır (vuruş ${say.vurus}, şarj ${say.sarj})`);
   assert.ok(say.atilma + say.ziplama > 0, `kahraman yeteneklerini kullanır (atılma ${say.atilma}, zıplama ${say.ziplama})`);
 
-  // 4) Bot komutan insanın kasasını da sürer: maç başındaki bölüğün üstüne yeni asker üretilmiş olmalı.
-  assert.ok(await game(() => window.__meadow.me.eco.soldiersSpawned > window.__meadow.players[1].eco.soldiersSpawned * 0.5),
-    'otopilot koltuğu da asker üretir');
+  // 4) Bot komutan insanın kasasını da sürer (economy.js updateBots → `p.otopilot`): maç başındaki bölüğün **üstüne**
+  // yeni asker ve işçi gelmiş olmalı. Ölçü maç başına göre artış: başlangıç bölüğü ikisinde de aynı olduğu için
+  // mutlak sayı ya da rakiple oran, üretim hiç koşmasa da geçerdi.
+  const son = await game(() => {
+    const w = window.__meadow;
+    return { asker: w.me.eco.soldiersSpawned, isci: w.entities.filter(e => e.alive && e.owner === w.me && e.isWorker).length, kuyruk: w.structures.filter(s => s.alive && s.owner === w.me).reduce((n, s) => n + (s.queue ? s.queue.length : 0), 0) };
+  });
+  assert.ok(son.asker > bas.asker,
+    `otopilot koltuğu maç içinde asker üretir (başlangıç ${bas.asker} → ${son.asker})`);
+  assert.ok(son.isci > bas.isci || son.kuyruk > 0,
+    `otopilot koltuğu işçi de basar (işçi ${bas.isci} → ${son.isci}, kuyrukta ${son.kuyruk})`);
   assert.ok(await game(() => window.__meadow.entities.length > 40), 'sahada gerçek bir maç kadrosu var');
 
   // 5) Kamera kahramanı izler (ölü değilse): bakılan nokta kahramanın birkaç birim yakınında.
