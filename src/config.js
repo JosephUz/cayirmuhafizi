@@ -490,8 +490,12 @@ export const CAMERA = {
   tps: { dist: 9, height: 2.4, shoulder: 0.9, fov: 62, sens: 0.0022, pitch: 0.42, pitchMin: -0.3, pitchMax: 1.15, minY: 0.9, follow: 18, aimFar: 40,
     /** Omuz üstünde savaş sisi düzlemi yok: düşman birim / yapı kahramana bu uzaklıktan yakınsa görünür, sahne pusu bu uzaklıkta tam kapanır. */
     viewDist: 90, fogNear: 30 },
-  /** Ölüm kamerası: kahramanın ölümünden sonra katile odaklanılan süre (sn). */
-  killcam: 3.5,
+  /**
+   * Ölüm kamerası: kahramanın ölümünden sonra katile odaklanılan süre (sn). Ardından kamera kendi sancağına geçer ve
+   * yeniden doğuş geri sayımı orada akar; sancakta en az killcamBanner sn kalsın diye ölüm kamerası gerekirse kısalır
+   * (en az killcamMin): ilk ölümde (5 sn) 2 sn katil + 3 sn sancak. Toplam bekleme değişmez.
+   */
+  killcam: 3.5, killcamMin: 1.5, killcamBanner: 3,
 };
 
 /**

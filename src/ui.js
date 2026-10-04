@@ -262,15 +262,20 @@ export function createUI(root, world, actions) {
       if (!p || p.alive || world.ended || !banner || !banner.alive) { el.hidden = true; el.dataset.n = ''; return; }
       const left = Math.max(0, respawnDelay(p.deaths) - p.deathTimer), n = Math.ceil(left);
       el.hidden = false;
+      // Ölüm kamerası sürerken (katile bakılırken) yalnız kimin öldürdüğü yazar; geri sayım kamera sancağa geçince akar.
+      const kc = world.killcam, key = kc ? 'k' : String(n);
+      el.classList.toggle('killcam', Boolean(kc));
       const num = el.querySelector('.num');
-      if (el.dataset.n !== String(n)) {
-        el.dataset.n = String(n); num.textContent = n; num.classList.toggle('final', n <= 1);
-        num.style.animation = 'none'; void num.offsetWidth; num.style.animation = '';
-        const kc = world.killcam;
-        const who = kc && kc.target ? ui.killerLabel(kc.target) : '';
-        el.querySelector('.sub').textContent = who
-          ? `Seni ${who} öldürdü · sancakta yeniden doğarsın`
-          : `${p.deaths}. ölüm · sancakta yeniden doğarsın`;
+      if (el.dataset.n !== key) {
+        el.dataset.n = key;
+        if (kc) {
+          const who = kc.target ? ui.killerLabel(kc.target) : '';
+          el.querySelector('.sub').textContent = who ? `Seni ${who} öldürdü` : `${p.deaths}. ölüm`;
+        } else {
+          num.textContent = n; num.classList.toggle('final', n <= 1);
+          num.style.animation = 'none'; void num.offsetWidth; num.style.animation = '';
+          el.querySelector('.sub').textContent = `saniye sonra sancakta doğarsın · ${p.deaths}. ölüm`;
+        }
       }
     },
     updateCharge() {

@@ -450,6 +450,7 @@ export async function start(root) {
     if (sp) placeTap.style.transform = `translate(${sp.x}px,${sp.y}px)`;
   }
 
+  const deathFocus = new T.Vector3();
   const look = new T.Vector3().copy(gosteri ? gosteri.odak(0) : world.player.pos);
   let prev = 0, mapTick = 0, prevAlive = true;
   // Sahnenin kendi çizim ayarları (yalnız gösteride): kalite, kadraj elemesi ve birim sadeleştirme uzaklığı.
@@ -490,20 +491,24 @@ export async function start(root) {
      */
     let kc = world.killcam;
     if (kc && (!kc.target || !hero || hero.alive || world.ended || world.clock > kc.until)) { kc = world.killcam = null; }
+    // Ölüm kamerasından sonra, kahraman doğmayı beklerken kamera kendi sancağına bakar (geri sayım orada akar, kahraman
+    // orada doğar). Omuz üstünde de ölüm kamerası gibi izometrik kadrajla çizilir. Sancak yıkıldıysa doğuş yok: bakılmaz.
+    const ownBanner = world.me && world.me.banner;
+    const deathCam = !kc && !gosteri && hero && !hero.alive && !world.ended && ownBanner && ownBanner.alive ? ownBanner : null;
     updateEffects(world, dt);
     const animDt = world.paused ? 0 : dt;
     const fog = world.fog;
     // Uzaklık ölçümünün merkezi (sadeleştirme ve omuz üstü görüş): normalde kahraman, gösteride kameranın baktığı yer.
-    const hx = gosteri ? look.x : hero ? hero.pos.x : 0, hz = gosteri ? look.z : hero ? hero.pos.z : 0;
+    const hx = gosteri || deathCam ? look.x : hero ? hero.pos.x : 0, hz = gosteri || deathCam ? look.z : hero ? hero.pos.z : 0;
     const vd2 = CAMERA.tps.viewDist * CAMERA.tps.viewDist;
     const lod2 = lodDist * lodDist;
     let seen = 0;
     // Gösteride sis kapalıdır (fog.enabled = false): kamera nereye giderse gitsin iki tarafın da birlikleri görünür.
-    const sees = world.cam === 'tps' && !kc ? (x, z) => (x - hx) ** 2 + (z - hz) ** 2 <= vd2 : (x, z) => fog.isVisible(x, z);
+    const sees = world.cam === 'tps' && !kc && !deathCam ? (x, z) => (x - hx) ** 2 + (z - hz) ** 2 <= vd2 : (x, z) => fog.isVisible(x, z);
     // 3B gösteride kadraj elemesini sahne verir (izometrik köşe izdüşümü perspektif kamerada işlemez).
     const bounds = gosteriGorus ? (world.inView = gosteriGorus) : updateViewBounds(world, hero);
     // Ölüm kamerasında kadraj kahramanın değil katilin çevresidir: kırpma kapanır, katil her hâlükârda görünür.
-    const inView = kc ? always : bounds;
+    const inView = kc || (deathCam && world.cam === 'tps') ? always : bounds;
     for (const e of world.entities) {
       const v = e.view; if (!v) continue;
       const shown = (kc && kc.target === e) || (inView(e.pos.x, e.pos.z, 0) && (e.faction === world.side || sees(e.pos.x, e.pos.z)));
@@ -542,12 +547,15 @@ export async function start(root) {
 
     // Ölüm kamerası omuz üstünde de izometrik kadrajla çizer: ölüyken bakış kahramanda değil katildedir.
     let frameCam = camera;
-    if (world.cam === 'tps' && hero && !kc) {
+    if (world.cam === 'tps' && hero && !kc && !deathCam) {
       world.camTarget.copy(hero.pos); look.copy(hero.pos);
       updateTpsCamera(world, tpsCamera, animDt);
     } else {
       // Gösteride kamera kahramanı değil en kalabalık çatışmayı izler; yumuşatmayı gosteri.js yapar.
-      const focus = kc ? kc.target.pos : gosteri ? gosteri.odak(dt) : (hero ? hero.pos : null);
+      // Sancağa bakarken bakış noktası sancağın biraz arkasına kayar: sancak ekranın alt yarısında, ortadaki büyük
+      // geri sayım sayısının altında görünür (kadraj boyuyla orantılı, telefonun yakın kadrajında da tutar).
+      if (deathCam) { const off = isoCamera.top * 0.6; deathFocus.set(deathCam.pos.x - off, 0, deathCam.pos.z - off); }
+      const focus = kc ? kc.target.pos : deathCam ? deathFocus : gosteri ? gosteri.odak(dt) : (hero ? hero.pos : null);
       if (focus) { world.camTarget.copy(focus); if (gosteri) look.copy(focus); else look.lerp(focus, 1 - Math.exp(-dt * 5)); }
       // Sahnelenmiş gösteri (?gosteri=kahraman) izometrik değil 3B bakar: perspektif kamerayı sahnenin kendisi yerleştirir.
       if (!kc && gosteri && gosteri.kamera3b) { gosteri.bakis(dt, tpsCamera, look); frameCam = tpsCamera; }

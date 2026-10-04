@@ -1,5 +1,5 @@
 import { buildView, rebuildSwing, removeView } from '../characters.js';
-import { CAMERA } from '../config.js';
+import { CAMERA, respawnDelay } from '../config.js';
 import { completeFx } from '../fx.js';
 import { markKnown } from '../structures.js';
 import { burst, healBubble, ring, strip } from './effects.js';
@@ -17,7 +17,9 @@ import { attachZoneView, detachZoneView } from './zones.js';
  * olsa da** çizilir (bkz. main.js). Katil bir yapıysa (kule) kalıcı olarak açılır: bir daha o kulenin yerini bilirsin.
  */
 function setKillcam(world, src) {
-  world.killcam = { target: src, until: world.clock + CAMERA.killcam };
+  const h = world.player, left = h ? respawnDelay(h.deaths) - (h.deathTimer || 0) : CAMERA.killcam + CAMERA.killcamBanner;
+  const dur = Math.max(CAMERA.killcamMin, Math.min(CAMERA.killcam, left - CAMERA.killcamBanner));
+  world.killcam = { target: src, until: world.clock + dur };
   if (src.kind) markKnown(src, world.side);
 }
 

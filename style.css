@@ -58,6 +58,7 @@ html.vv #meadow-game{--mg-h:var(--vv-h);inset:auto;top:var(--vv-top);left:var(--
 #meadow-game #mg-respawn .title{font-size:22px;letter-spacing:3px;font-weight:600;color:#ff9f8c;text-transform:uppercase}
 #meadow-game #mg-respawn .num{font-size:150px;line-height:1;font-weight:800;font-variant-numeric:tabular-nums;color:#ffd12e;animation:mgCount 1s ease-out infinite}
 #meadow-game #mg-respawn .num.final{color:#bfe59a}
+#meadow-game #mg-respawn.killcam .num{display:none}
 #meadow-game #mg-respawn .sub{font-size:16px;color:#f6efd9cc;margin-top:6px}
 @keyframes mgCount{0%{transform:scale(1.35);opacity:1}55%{transform:scale(1);opacity:.95}100%{transform:scale(.9);opacity:.75}}
 /* Şarj çubuğu: kahramanın üstünde, sol tık basılıyken dolar. */
