@@ -1,6 +1,6 @@
 // Oyun içi müzik dumanı testi (bkz. src/muzik.js). Denetlenenler: ilk tıklamadan önce hiç çalmaz, tıklayınca menüde
-// sakin parça (`cayir-2-cayirda-sabah`) çalar ve ilerler, maç başlayınca maç parçasına (`cayir-1-kahramansiz-savas`)
-// geçer, sancak erimeye başlayınca doruk parçasına (`cayir-3-sancak-dusmeden`) geçer, "Müzik kapalı" ve sıfıra
+// sakin parça (`cayir-6-ates-basinda`) çalar ve ilerler, maç başlayınca maç parçasına (`cayir-5-sancak-golgesinde`)
+// geçer, sancak erimeye başlayınca doruk parçasına (`cayir-4-cayir-ruzgari`) geçer, "Müzik kapalı" ve sıfıra
 // çekilmiş ses düzeyi ayarları sayfa yenilenince korunur ve `?gosteri=1`'de hiç ses öğesi kurulmaz.
 // Tarayıcı sesi `--mute-audio` ile kısılır: ölçüm `audio.currentTime` / `paused` üzerinden yapılır.
 // Oyunun kendisi otomatik tarayıcıda müziği kapatır (navigator.webdriver), bu yüzden `?muzik=1` ile açılır.
@@ -40,10 +40,10 @@ try {
   await page.locator('#mg-home h1').click();
   await page.waitForFunction(() => {
     const a = [...document.querySelectorAll('audio')].find(x => !x.paused);
-    return a && a.dataset.parca === 'cayir-2-cayirda-sabah' && a.currentTime > 0.2;
+    return a && a.dataset.parca === 'cayir-6-ates-basinda' && a.currentTime > 0.2;
   }, null, { timeout: 15000 });
   const menu = await calan();
-  assert.equal(menu.parca, 'cayir-2-cayirda-sabah', 'menüde sakin parça çalar');
+  assert.equal(menu.parca, 'cayir-6-ates-basinda', 'menüde sakin parça çalar');
   assert.equal(menu.loop, true, 'tek parçalı sahne kendi kendine döner');
   const t0 = menu.currentTime;
   await page.waitForTimeout(1200);
@@ -57,20 +57,20 @@ try {
   await page.waitForFunction(() => window.__meadow.running, null, { timeout: 20000 });
   await page.waitForFunction(() => {
     const a = [...document.querySelectorAll('audio')].find(x => !x.paused && x.volume > 0.3);
-    return a && a.dataset.parca === 'cayir-1-kahramansiz-savas' && a.currentTime > 0.2;
+    return a && a.dataset.parca === 'cayir-5-sancak-golgesinde' && a.currentTime > 0.2;
   }, null, { timeout: 15000 });
   const mac = await calan();
-  assert.equal(mac.parca, 'cayir-1-kahramansiz-savas', 'maç başlayınca ana temaya geçilir');
+  assert.equal(mac.parca, 'cayir-5-sancak-golgesinde', 'maç başlayınca ana temaya geçilir');
   assert.equal(await page.evaluate(() => window.__meadow.muzik.durum().sahne), 'mac', 'müzik sahnesi: maç');
   await page.waitForFunction(() => {
-    const s = [...document.querySelectorAll('audio')].find(x => x.dataset.parca === 'cayir-2-cayirda-sabah');
+    const s = [...document.querySelectorAll('audio')].find(x => x.dataset.parca === 'cayir-6-ates-basinda');
     return s && (s.paused || s.volume === 0);
   }, null, { timeout: 10000 });
-  const sakin = (await sesler()).find(s => s.parca === 'cayir-2-cayirda-sabah');
+  const sakin = (await sesler()).find(s => s.parca === 'cayir-6-ates-basinda');
   assert.ok(sakin.paused, 'sakin parça maçta susar');
 
   // 3a) Doruk: taraflardan birinin sancağı yarıdan çoğunu yiyince (maç sancak düşünce bittiği için bu an maçın
-  // doruğudur) sıra beklenmeden "Sancak Düşmeden"e geçilir ve tehlike geçene kadar orada kalınır.
+  // doruğudur) sıra beklenmeden "Çayır Rüzgârı"e geçilir ve tehlike geçene kadar orada kalınır.
   await page.evaluate(() => {
     const b = window.__meadow.players.map(p => p.banner).find(x => x && x.alive);
     window.__muzikTestSancak = { b, hp: b.hp };
@@ -79,34 +79,34 @@ try {
   await page.waitForFunction(() => window.__meadow.muzik.durum().sahne === 'doruk', null, { timeout: 10000 });
   await page.waitForFunction(() => {
     const a = [...document.querySelectorAll('audio')].find(x => !x.paused && x.volume > 0.3);
-    return a && a.dataset.parca === 'cayir-3-sancak-dusmeden';
+    return a && a.dataset.parca === 'cayir-4-cayir-ruzgari';
   }, null, { timeout: 15000 });
   const dorukDurum = await page.evaluate(() => window.__meadow.muzik.durum());
-  assert.equal(dorukDurum.parca, 'cayir-3-sancak-dusmeden', 'doruk anında çatışma parçası çalar');
+  assert.equal(dorukDurum.parca, 'cayir-4-cayir-ruzgari', 'doruk anında çatışma parçası çalar');
   assert.equal(await page.evaluate(() => [...document.querySelectorAll('audio')]
-    .find(a => a.dataset.parca === 'cayir-3-sancak-dusmeden').loop), true, 'doruk tek parçalıdır: kendi kendine döner');
+    .find(a => a.dataset.parca === 'cayir-4-cayir-ruzgari').loop), true, 'doruk tek parçalıdır: kendi kendine döner');
 
   // Sancak onarılınca (giriş 0,5 / çıkış 0,65 eşikleri) maç müziğine, yani ana temaya dönülür.
   await page.evaluate(() => { const s = window.__muzikTestSancak; s.b.hp = s.hp; });
   await page.waitForFunction(() => window.__meadow.muzik.durum().sahne === 'mac', null, { timeout: 10000 });
   await page.waitForFunction(() => {
     const a = [...document.querySelectorAll('audio')].find(x => !x.paused && x.volume > 0.3);
-    return a && a.dataset.parca === 'cayir-1-kahramansiz-savas';
+    return a && a.dataset.parca === 'cayir-5-sancak-golgesinde';
   }, null, { timeout: 15000 });
   console.log('  doruk: sancak %30 → cayir-3 (döner), onarılınca → mac / cayir-1');
 
   // 3b) Maç sahnesinde parça bitmeden öbürü üstüne açılır: ana tema ↔ çatışma sırayla gider. Parçalar iki dakikalık
   // olduğu için ana tema sonuna sarılır; geçişin kendisi (çapraz süzülme) olağan akıştaki gibi çalışır.
   await page.evaluate(() => {
-    const a = [...document.querySelectorAll('audio')].find(x => x.dataset.parca === 'cayir-1-kahramansiz-savas');
+    const a = [...document.querySelectorAll('audio')].find(x => x.dataset.parca === 'cayir-5-sancak-golgesinde');
     a.currentTime = Math.max(0, a.duration - 2.4);
   });
   await page.waitForFunction(() => {
     const el = ad => [...document.querySelectorAll('audio')].find(x => x.dataset.parca === ad);
-    const yeni = el('cayir-3-sancak-dusmeden'), eski = el('cayir-1-kahramansiz-savas');
+    const yeni = el('cayir-4-cayir-ruzgari'), eski = el('cayir-5-sancak-golgesinde');
     return yeni && !yeni.paused && yeni.currentTime > 0.1 && (eski.paused || eski.volume === 0);
   }, null, { timeout: 20000 });
-  assert.equal((await calan()).parca, 'cayir-3-sancak-dusmeden', 'ana tema bitince çatışma parçası devralır');
+  assert.equal((await calan()).parca, 'cayir-4-cayir-ruzgari', 'ana tema bitince çatışma parçası devralır');
 
   // 4) "Müzik kapalı" ayarı: Esc menüsünden kapat, sayfa yenilenince korunsun.
   await page.keyboard.press('Escape');
@@ -116,13 +116,13 @@ try {
   assert.equal(await page.evaluate(() => localStorage.getItem('cm.muzik')), 'off', 'ayar tarayıcıda saklanır');
 
   // 4b) Yeniden açınca **aynı sahnenin aynı parçası kaldığı yerden** sürer (başa sarmaz).
-  const durdu = (await sesler()).find(s => s.parca === 'cayir-3-sancak-dusmeden').currentTime;
+  const durdu = (await sesler()).find(s => s.parca === 'cayir-4-cayir-ruzgari').currentTime;
   assert.ok(durdu > 0.5, `kapatılan parça bir yerde durdu (${durdu.toFixed(2)} sn)`);
   await page.locator('#menu-muzik').click();
   assert.equal(await page.locator('#menu-muzik').textContent(), 'Müzik: açık', 'düğme yeniden açıldı');
   await page.waitForFunction(() => {
     const a = [...document.querySelectorAll('audio')].find(x => !x.paused && x.volume > 0.3);
-    return a && a.dataset.parca === 'cayir-3-sancak-dusmeden';
+    return a && a.dataset.parca === 'cayir-4-cayir-ruzgari';
   }, null, { timeout: 10000 });
   const surdu = await calan();
   assert.ok(surdu.currentTime >= durdu, `kaldığı yerden sürer (${durdu.toFixed(2)} → ${surdu.currentTime.toFixed(2)} sn, başa sarmadı)`);
@@ -131,7 +131,7 @@ try {
   await page.locator('#menu-sound').click();
   assert.equal(await page.locator('#menu-sound').textContent(), 'Ses: kapalı', 'efekt sesi kapandı');
   await page.waitForTimeout(600);
-  assert.equal((await calan()).parca, 'cayir-3-sancak-dusmeden', 'efekt sesi kapalıyken müzik çalmaya devam eder');
+  assert.equal((await calan()).parca, 'cayir-4-cayir-ruzgari', 'efekt sesi kapalıyken müzik çalmaya devam eder');
   await page.locator('#menu-sound').click();
 
   // 4d) Müzik ses düzeyi sabit (%35): menüde sürgü yok, cihazın sesinden ayarlanır.
@@ -183,7 +183,7 @@ try {
     await ip.waitForFunction(() => {
       const d = window.__meadow.muzik.durum();
       // Çapraz geçiş bitene kadar düzey tırmanır; ölçüm süzülme oturduktan sonra yapılır.
-      return d.parca === 'cayir-2-cayirda-sabah' && d.caliyor && d.duzey > 0.345;
+      return d.parca === 'cayir-6-ates-basinda' && d.caliyor && d.duzey > 0.345;
     }, null, { timeout: 15000 });
     const iosDurum = await ip.evaluate(() => window.__meadow.muzik.durum());
     assert.equal(iosDurum.yol, 'web', 'volume yazılamayan tarayıcıda Web Audio yoluna geçilir');

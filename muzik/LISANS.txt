@@ -1,10 +1,10 @@
 © 2026 JosephUz. Tüm hakları saklıdır. Beste JosephUz; enstrüman örnekleri VSCO 2 Community Edition (CC0).
 
-Çayır Muhafızı oyun içi müzikleri (128 kbps mp3, -14 LUFS):
+Çayır Muhafızı oyun içi müzikleri (sakin / dinlendirici / odaklandırıcı; 128 kbps mp3, -16 LUFS):
 
-  cayir-2-cayirda-sabah.mp3    "Çayırda Sabah"            sakin  · menü, lobi, kurulum, bitiş karnesi
-  cayir-1-kahramansiz-savas.mp3 "Kahramansız Savaş Olmaz"  ana tema · maç
-  cayir-3-sancak-dusmeden.mp3  "Sancak Düşmeden"           çatışma · maç (ana temayla sırayla)
+  cayir-6-ates-basinda.mp3      "Ateş Başında"       · menü, lobi, oda bekleme, sonuç
+  cayir-5-sancak-golgesinde.mp3 "Sancak Gölgesinde"  · maç
+  cayir-4-cayir-ruzgari.mp3     "Çayır Rüzgârı"      · maç (sırayla) ve sancak eriyince doruk
 
 Besteler JosephUz'a aittir ve yalnızca JosephUz oyunlarında / içeriklerinde kullanılır.
 Seslendirmede kullanılan enstrüman örnekleri: VSCO 2 Community Edition (Versilian Studios, CC0-1.0).

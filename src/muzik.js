@@ -2,10 +2,10 @@ import { gosteriAcik } from './gosteri.js';
 
 /**
  * Oyun içi müzik: üç parça, üç sahne, çapraz geçiş.
- *  - **sakin** (`Çayırda Sabah`): giriş, kurulum, lobi, bitiş karnesi — tek parça, kendi kendine döner.
- *  - **mac** (`Kahramansız Savaş Olmaz` ↔ `Sancak Düşmeden`): maç sürerken ana tema ile çatışma parçası sırayla çalar;
+ *  - **sakin** (`Ateş Başında`): giriş, kurulum, lobi, bitiş karnesi — tek parça, kendi kendine döner.
+ *  - **mac** (`Sancak Gölgesinde` ↔ `Çayır Rüzgârı`): maç sürerken ana tema ile çatışma parçası sırayla çalar;
  *    biri bitmeye yakın öbürü üstüne açılır, araya sessizlik girmez.
- *  - **doruk** (`Sancak Düşmeden`): maçın doruk anı — taraflardan birinin **sancağı düşmek üzere**. Sıra beklemeden
+ *  - **doruk** (`Çayır Rüzgârı`): maçın doruk anı — taraflardan birinin **sancağı düşmek üzere**. Sıra beklemeden
  *    çatışma parçasına geçilir ve tehlike geçene kadar orada kalınır (bkz. main.js `muzikSahnesi`). Zaten o parça
  *    çalıyorsa kesinti olmaz, yalnız kendi kendine dönmeye başlar.
  * Çalma `<audio>` öğeleriyledir: dosya akarak iner, sahne değişince ses düzeyi karşılıklı süzülür. Dosyalar
@@ -21,9 +21,9 @@ import { gosteriAcik } from './gosteri.js';
  * bir sonraki APK'ya kendiliğinden girer (bkz. scripts/build-web.mjs).
  */
 const SAHNELER = {
-  sakin: ['cayir-2-cayirda-sabah'],
-  mac: ['cayir-1-kahramansiz-savas', 'cayir-3-sancak-dusmeden'],
-  doruk: ['cayir-3-sancak-dusmeden'],
+  sakin: ['cayir-6-ates-basinda'],
+  mac: ['cayir-5-sancak-golgesinde', 'cayir-4-cayir-ruzgari'],
+  doruk: ['cayir-4-cayir-ruzgari'],
 };
 /** Çapraz geçiş süresi (sn): sahne değişiminde ve parça bitmeden önce. */
 const GECIS = 1.8;
@@ -167,7 +167,7 @@ export function createMuzik(root) {
     }
     const yeni = parca(ad);
     // Tek parçalı sahne (sakin, doruk) kendi kendine döner: `ended` hiç gelmez, araya sessizlik girmez. Sahne
-    // değişince **çalan parça aynı kalsa bile** yenilenmeli: maç → doruk geçişinde `Sancak Düşmeden` kesintisiz
+    // değişince **çalan parça aynı kalsa bile** yenilenmeli: maç → doruk geçişinde `Çayır Rüzgârı` kesintisiz
     // sürer ama artık sıradakine devretmek yerine döner.
     yeni.loop = SAHNELER[sahneAdi].length < 2;
     if (aktif === yeni) { calistir(yeni); suz(yeni, hedefSes(), Math.min(sure, 0.3)); return; }
