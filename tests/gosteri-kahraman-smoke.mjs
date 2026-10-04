@@ -139,8 +139,17 @@ try {
    * **ortalama** (25 sn, kabul ölçütündeki süre) ve **en kötü yarım saniye** — "takılma yok" asıl bunun sözüdür,
    * ortalama tek bir dalışı gizler. Eşikler bilerek düşük: bu bir başarım ölçütü değil, **ağır gerileme** alarmıdır —
    * sayı donanıma bağlıdır. Zayıf makinede `FPS_ESIK` / `FPS_DIP_ESIK` ile indirilebilir.
+   *
+   * Dip eşiği neden 28 değil 15: sahnenin en kötü yarım saniyesi **gürültü değil, turun kendi doruk anıdır** —
+   * 400+ asker kahramana koşarken ve ok yağmuru inerken her tur bir dip olur. Pencereler ölçülüp turla eşleştirildi:
+   * dipler tur uzunluğu kadar (24 pencere = 12 sn) aralıklarla tekrar ediyor, tur **başlangıcı** ise tersine hızlı
+   * (52-56 fps, kalabalık daha beyinsiz dururken). Yani dip her ölçümde 2-3 kez örnekleniyor; "en kötü yerine ikinci
+   * en kötü" demek de bu yüzden çare değildi. Ölçülen dip bu makinede 11 koşuda 21-35 fps arasında oynadı ve
+   * **`main` de 5 koşunun 3'ünde 28'in altına indi** (23.2 / 24.3 / 26.7) — yani 28 bu sahneyi hiç anlatmıyordu,
+   * eşik sahne atlı okçuya dönmeden önceki (bkz. 9ef37ef) ağırlıktan kalmıştı. 15, gözlenen en kötüden (21.2) belirgin
+   * aşağıda: sürekli takılmayı (yarım saniye boyunca 15 fps altı) yine yakalar, ortalama eşiği (45) de yerinde durur.
    */
-  const esik = Number(process.env.FPS_ESIK || 45), dipEsik = Number(process.env.FPS_DIP_ESIK || 28);
+  const esik = Number(process.env.FPS_ESIK || 45), dipEsik = Number(process.env.FPS_DIP_ESIK || 15);
   let k0 = await game(() => window.__kare), t0 = Date.now(), toplamKare = 0, toplamSure = 0, dip = Infinity;
   for (let i = 0; i < 50; i++) {
     await page.waitForTimeout(500);

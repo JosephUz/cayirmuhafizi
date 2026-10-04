@@ -1,7 +1,7 @@
 import * as T from 'three';
 import { pickHostile } from './ai.js';
 import { animateView, applyUnitShadows, rebuildSwing, setUnitShadows } from './characters.js';
-import { BUILD, BUILDINGS, CAMERA, GOSTERI, PERF, QUALITY, TOWER } from './config.js';
+import { BUILD, BUILDINGS, CAMERA, GOSTERI, OTOPILOT, PERF, QUALITY, TOWER } from './config.js';
 import { buildError } from './economy.js';
 import { buildEnvironmentView } from './environment.js';
 import { gorunurAlanaKilitle } from './gorunur-alan.js';
@@ -11,6 +11,7 @@ import { createSavasGosteri } from './gosteri-savas.js';
 import { attachInput, attachKeyboardLock, clearSelection, createInput, lockPointer, resolveHeroInput, unlockPointer, updateTpsCamera } from './input.js';
 import { createMinimap } from './minimap.js';
 import { createMuzik } from './muzik.js';
+import { createOtopilot, otopilotAcik } from './otopilot.js';
 import { createNetClient } from './net/client.js';
 import { macBasladi, macBitti, macKontrol } from './olcum.js';
 import { isApp, onlineEnabled } from './platform.js';
@@ -322,6 +323,12 @@ export async function start(root) {
     : gosteriKipi() === 'kahraman' ? createKahramanGosteri(world, { arenaReady, root })
       : gosteriKipi() === 'savas' ? createSavasGosteri(world, { arenaReady })
         : createGosteri(world, { arenaReady });
+  /**
+   * Otopilot (`?otopilot=1`, bkz. otopilot.js): gösteri değil **gerçek maç**; kahramanı girdiyle bir bot oynar.
+   * Arayüz, kamera ve kurallar normal oyunun aynısıdır — yalnız menüler açılmaz ve girdiyi fare / klavye değil
+   * otopilot üretir. Gösteri kipiyle birlikte açılmaz (gösteri önceliklidir).
+   */
+  const otopilot = gosteri || !otopilotAcik() ? null : createOtopilot(world, { arenaReady });
   // 3B gösteride etkin kamera perspektiftir: can çubukları ve dünya işaretleri ona göre döner (bkz. animateView).
   if (gosteri && gosteri.kamera3b) { camera = tpsCamera; world.camera = tpsCamera; }
   attachKeyboardLock();
@@ -329,7 +336,7 @@ export async function start(root) {
   // sayfaya gelmeden sekmeyi kapatıyordu. Giriş ekranında, maç bitince, gösteride ve uygulamada sormaz.
   let reloading = false;
   window.addEventListener('beforeunload', e => {
-    if (reloading || gosteri || isApp() || !world.running || world.ended) return;
+    if (reloading || gosteri || otopilot || isApp() || !world.running || world.ended) return;
     e.preventDefault(); e.returnValue = '';
   });
 
@@ -358,7 +365,7 @@ export async function start(root) {
   function resize() {
     const w = view.clientWidth, h = view.clientHeight;
     // Telefonda izometrik kadraj daha yakın: küçük ekranda kahraman ve birimler seçilebilsin. Gösteride biraz yakın açı.
-    const half = gosteri ? GOSTERI.kadraj : touch ? 12 : 17;
+    const half = gosteri ? GOSTERI.kadraj : otopilot ? OTOPILOT.kadraj : touch ? 12 : 17;
     isoCamera.left = -half * w / h; isoCamera.right = half * w / h; isoCamera.top = half; isoCamera.bottom = -half;
     isoCamera.updateProjectionMatrix();
     tpsCamera.aspect = w / h; tpsCamera.updateProjectionMatrix();
@@ -370,9 +377,14 @@ export async function start(root) {
   setupGame(world, { teamSize: 1, humans: [{ name: 'Sen' }], run: false });
   world.me = world.players[0]; world.player = world.me.hero; world.loadout = world.player.loadout;
   arenaReady();
-  const urlCode = gosteri ? null : screens.urlCode();
-  const remembered = !gosteri && networked && net.rememberedRoom();
-  if (gosteri) {
+  const urlCode = gosteri || otopilot ? null : screens.urlCode();
+  const remembered = !gosteri && !otopilot && networked && net.rememberedRoom();
+  if (otopilot) {
+    // Otopilot: menü, lobi ve sonuç ekranı hiç açılmaz, sunucuya bağlanılmaz, ölçüm olayı gitmez; maç hemen başlar.
+    // Arayüz (HUD, minimap, alt bant) normal oyundaki gibi durur: bu bir gösteri değil, oynanan maçın kendisidir.
+    screens.show(null);
+    otopilot.basla();
+  } else if (gosteri) {
     // Gösteri: menü atlanır, sunucuya hiç bağlanılmaz, ölçüm olayı gitmez; maç hemen başlar.
     root.classList.add('gosteri');
     const ad = root.querySelector('#mg-gosteri'); if (ad) ad.hidden = false;
@@ -450,7 +462,7 @@ export async function start(root) {
     fpsFrames++;
     if (ms - fpsSince >= 500) { fps = Math.round((fpsFrames * 1000) / (ms - fpsSince)); fpsFrames = 0; fpsSince = ms; }
     // ölçüm: oyuncu 60 sn oynayınca bir kez "bir_dakika" (bayrak dolunca anında döner); gösteride hiç ölçüm gitmez
-    if (world.running && !world.ended && !gosteri) macKontrol();
+    if (world.running && !world.ended && !gosteri && !otopilot) macKontrol();
     // Müzik sahnesi: maç sürerken savaş parçaları (sancak erirse doruk), menüde / lobide / karnede sakin parça.
     // Aynı sahne verilirse hiçbir şey olmaz, bu yüzden her kareden sorulabilir: ekran geçişlerini tek tek
     // kancalamaya gerek kalmaz.
@@ -458,6 +470,8 @@ export async function start(root) {
     const replicated = world.replicated;
     // Gösteri kipi: girdi yok, simülasyon iki kat hızda koşar, maç biterse yenisi başlar (bkz. gosteri.js).
     if (gosteri) gosteri.guncelle(dt);
+    // Otopilot: fare / klavye yerine girdiyi otopilot üretir, simülasyon normal hızda koşar (bkz. otopilot.js).
+    else if (otopilot) otopilot.guncelle(dt);
     else if (!replicated) {
       const active = world.running && !world.paused && !world.ended;
       if (active) { resolveHeroInput(world, world.me.input); step(world, dt); }

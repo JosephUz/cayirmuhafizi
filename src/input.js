@@ -109,6 +109,12 @@ export function attachInput(world, canvas, camera, dragEl, touchRoot = null) {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
     if (e.target.tagName === 'BUTTON' && e.code === 'Space') { if (!world.running) return; e.preventDefault(); e.target.blur(); }
     input.shift = e.shiftKey;
+    /**
+     * Otopilot (`?otopilot=1`, bkz. otopilot.js): girdiyi otopilot üretir, klavye hiç okunmaz. Esc ve F1 de dahil —
+     * kayıt sırasında yanlışlıkla basılan bir tuş molayı ya da yardım penceresini açıp maçı dondurmasın. Normal
+     * oyunda `world.otopilot` tanımsızdır, bu dal hiç çalışmaz.
+     */
+    if (world.otopilot) return;
     // F1 / ?: kısayol penceresi (her ekranda).
     if (e.code === 'F1') { e.preventDefault(); if (world.ui) world.ui.toggleHelp(); return; }
     if (e.code === 'Escape') {
