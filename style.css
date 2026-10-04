@@ -245,6 +245,8 @@ html.vv #meadow-game{--mg-h:var(--vv-h);inset:auto;top:var(--vv-top);left:var(--
 
 /* Giriş ekranı (Yakar Gol düzeni): bütün pencereyi kaplar, sahne sağda görünür; HUD ve alt bant bu ekranda gizlenir. */
 #meadow-game.at-home #mg-hud,#meadow-game.at-home #mg-bar{display:none}
+/* 3B sahne (canvas) gelene kadar giriş ekranının arkası düz yeşil değil koyu zemin olsun; canvas gelince üstünü örter. */
+#meadow-game.at-home #mg-view{background:#1b241d}
 #meadow-game a.btn{display:inline-flex;align-items:center;justify-content:center;font:inherit;color:#f6efd9;background:#43563e;border:1px solid #718361;border-radius:6px;padding:8px 12px;text-decoration:none}
 #meadow-game a.btn:hover{filter:brightness(1.1)}
 #meadow-game a:focus-visible{outline:2px solid #ffdf86;outline-offset:2px}

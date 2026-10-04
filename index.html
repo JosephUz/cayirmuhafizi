@@ -10,7 +10,9 @@
 <script type="importmap">{ "imports": { "three": "/vendor/three.module.js" } }</script>
 </head>
 <body>
-<div id="meadow-game">
+<!-- İlk kare giriş ekranıdır (İz Peşinde gibi): at-home sınıfı ve görünür #mg-home HTML'den gelir, oyun kodu yüklenmeden
+     HUD ve alt bant hiç çizilmez. Ekranlar yüklendikten sonra screens.js show() ile değişir. -->
+<div id="meadow-game" class="at-home">
   <div id="mg-view">
     <header id="mg-hud">
       <div class="side ours">
@@ -50,7 +52,7 @@
     <div id="mg-respawn" hidden role="status"><div class="title">Kahraman düştü</div><div class="num">5</div><div class="sub">saniye sonra sancakta doğarsın</div></div>
 
     <!-- Giriş (Yakar Gol düzeni): sahne arkada, solda başlık, ad, üç düğme ve kurallar; üstte marka ve josephuz.com'a dönüş. -->
-    <section id="mg-home" class="home-screen" hidden>
+    <section id="mg-home" class="home-screen">
       <header class="home-top">
         <div class="logo">ÇAYIR <span>MUHAFIZI</span><small>SANCAK SAVAŞI / 1v1 – 5v5</small></div>
         <!-- STANDART üst araç çubuğu (bütün JosephUz oyunlarında aynı sıra ve aynı yazılar):
@@ -215,6 +217,18 @@
     </div>
   </div>
 </div>
+<script>
+  // İlk kare oyun kodu gelmeden doğru görünsün: dokunmatik kip (touch.js touchDevice ile aynı ölçüt) hemen takılır;
+  // gösteri ve otopilot kipleri giriş ekranını atlar, onlarda giriş ekranı bir an bile görünmez.
+  (function () {
+    var q = new URLSearchParams(location.search), r = document.getElementById('meadow-game');
+    var on = function (k) { var v = q.get(k); return v !== null && v !== '0'; };
+    if (q.has('touch') || matchMedia('(pointer: coarse)').matches) r.classList.add('touch');
+    if (window.Capacitor || q.has('app') || !(on('gosteri') || on('otopilot'))) return;
+    r.classList.remove('at-home'); if (on('gosteri')) r.classList.add('gosteri');
+    document.getElementById('mg-home').hidden = true;
+  })();
+</script>
 <script type="module" src="/game.js"></script>
 </body>
 </html>
