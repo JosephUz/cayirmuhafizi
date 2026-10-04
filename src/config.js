@@ -794,6 +794,100 @@ export const SCORE = {
 };
 
 /**
+ * **Otopilot** (yalnız web, `?otopilot=1`; bkz. src/otopilot.js): içerik videoları için **gerçek bir maç**, ama
+ * oyuncunun kahramanını bir bot oynar. Gösteriden (`?gosteri=1`) farkı: burada bir insan koltuğu vardır — maç
+ * normal kurallarla kurulur, kasası ve ordusu bot kararlarıyla sürülür (bkz. economy.js updateBots) ve kahramana
+ * her karede **girdi** üretilir (hareket, nişan, sol tık, şarj, atılma, zıplama; bkz. hero.js applyHeroInput), yani
+ * kahraman oyunun kendi kabiliyetlerini oyuncunun kullandığı yoldan kullanır. Kamera da normal oyun kamerasıdır:
+ * kahramanı izler. Menü, lobi, yardım ve sonuç ekranı açılmaz; maç bitince yenisi başlar. Ölçüm olayı gitmez,
+ * sunucuya bağlanılmaz, uygulamada (isApp) hiç açılmaz. Normal oyun bu ayarlardan etkilenmez.
+ */
+export const OTOPILOT = {
+  /** Maç başına takım büyüklüğü bu listeden sırayla seçilir: art arda çekilen maçlar aynı haritada geçmez. */
+  takimlar: [2, 3, 2],
+  difficulty: 'normal',
+  /** Kahraman türü maç maç değişir (bkz. HERO_UPGRADE.convertCost anahtarları): her maç başka bir oynanış. */
+  loadoutlar: [
+    { weapon: 'sword', shield: false, horse: false },
+    { weapon: 'bow', shield: false, horse: true },
+    { weapon: 'spear', shield: true, horse: false },
+    { weapon: 'sword', shield: true, horse: true },
+  ],
+  /** Maç biterse bu kadar saniye sonra yenisi başlar (sonuç ekranı hiç açılmaz). */
+  yenidenBasla: 1.5,
+  /**
+   * **Çatışma başlangıcı**: maç sıfırdan değil, ekonomisi kurulmuş bir noktadan açılır — her oyuncuya dolu kasa ve
+   * hazır bir bölük verilir, bölükler iki üssün arasındaki hatta dizilir. Kurallar değişmez (bütün oyuncular aynı
+   * şeyi alır, üretim ve savaş normal işler); yalnız videonun ilk saniyesinden itibaren sahada gerçek bir muharebe
+   * olur, kahraman üssünde ekonomi kurarken beklenmez.
+   */
+  kasa: { gold: 4000, wood: 3000, food: 2500 },
+  /** Başta her oyuncuya verilen bölük (sırayla basılır, hatta dizilir). */
+  birlikler: ['sword', 'spearshield', 'bow', 'horsesword', 'swordshield', 'spear'],
+  /** Bölük sancakla en yakın rakip sancak arasında bu oranda (0.5 = tam orta) ve bu yarıçapa dağıtılır. */
+  hat: 0.42, hatYayilma: 8,
+  /** Maç başında herkese kurulu gelen üretim binaları (kışla setupGame'de zaten kuruluyor; bkz. POSITIONS.base). */
+  binalar: ['archery', 'stable'],
+  /**
+   * Başlangıç kahraman seviyesi (**bütün** kahramanlara, otopilota da rakiplerine de eşit verilir). Maç ekonomisi
+   * kurulmuş bir noktadan açıldığı için kahramanlar da o safhanın seviyesindedir: seviye 1 kahraman kalabalık bir
+   * muharebede birkaç saniyede düşer ve video kahramanın üsse yürüyüşünden ibaret kalırdı. Seviye oyunun kendi
+   * artışlarını verir (bkz. LEVEL): can, vuruş gücü, vuruş alanı ve yayda ok sayısı.
+   */
+  seviye: 12,
+  /** Kahramanın düşman aradığı yarıçap (birim); bulduğu hedefi bu yarıçapın `birak` katına kadar kovalar. */
+  gorus: 26, birak: 1.7,
+  /**
+   * Can oranı `kac`ın altına düşünce kahraman kendi sancağına çekilir (orada iyileşir, bkz. HERO_UPGRADE), `don`a
+   * çıkınca savaşa döner. `don` yüksek tutulursa kahraman videonun yarısını sancağının dibinde geçirir: yarıdan
+   * biraz fazla cana gelince cepheye dönmesi hem oyuncu davranışına hem de klibe daha uygun.
+   */
+  kac: 0.33, don: 0.6,
+  /** Bu uzaklıktan öteye koşarak (Shift) gider. */
+  kos: 7,
+  /** Yakın dövüşte menzilin bu katına sokulur; yaylı kahraman `yayYakin` biriminden yaklaşanı geri çekilerek döver. */
+  yanas: 0.82, yayYakin: 7,
+  /** Sağ tık atılma: hedef bu aralıktaysa atılıp mesafeyi kapatır (oyunun kendi atılma mesafesi seviyeyle büyür). */
+  atilma: { enAz: 5, enCok: 16 },
+  /** Dövüşte zıplama aralığı (sn, aralıktan rastgele): kahraman yerde sabit durmaz. */
+  ziplama: [3.5, 7.5],
+  /**
+   * Şarjlı vuruş (sol tık basılı): çevrede `kalabalik` düşman varken `olasilik` ile denenir, `bekle` sn arayla.
+   * Şarj hedefe **yaklaşırken** de başlatılır (menzilin `baslaKat` katı): oyuncu da tıkı basılı tutarak girer.
+   */
+  sarj: { kalabalik: 1, yaricap: 8, olasilik: 0.7, bekle: 2, baslaKat: 1.8 },
+  /** Ganimet: dövüş yokken bu yarıçaptaki yerdeki eşyayı toplamaya gider. */
+  ganimet: 11,
+  /**
+   * Görüşünde düşman yokken avlanacak hedefin arandığı yarıçap: haydutlar ve yakındaki rakip birimler. Kahramanı
+   * meşgul eder ve seviye kazandırır; `gorus`ten geniştir ama haritayı boydan boya geçirtmez.
+   */
+  av: 55,
+  /** "Dövüşüyor" sayılan uzaklık (birim): kahraman çatışmanın içindeki düşmanı yeğler, boş çayırda dolaşmaz. */
+  temas: 11,
+  /**
+   * İzometrik kadraj yarı boyu (normal oyunda 17): otopilot biraz daha yakından bakar ki kahraman ve çevresindeki
+   * dövüş kadrajı doldursun.
+   */
+  kadraj: 15,
+  /**
+   * Cepheye yalnızca ordusu bu sayıya ulaşınca gider. Daha azken kendi üssünde **kaynak çıkarır** (bkz. economy.js
+   * updateEconomy: insan kahramanı çalışma yerinde hareketsiz durunca ürün çıkarır) — tek başına rakip üssüne
+   * koşup ölmesin, oyuncunun yaptığı gibi önce ekonomisini kursun.
+   */
+  orduAsgari: 3,
+  /**
+   * Cephe noktası: ordunun ağırlık merkezinden rakip sancağa doğru bu oranda ileride. Küçük tutulur — kahraman
+   * ordusunun önüne geçip tek başına kalmasın, onunla birlikte ilerlesin.
+   */
+  cepheIleri: 0.1,
+  /** Hedef / karar tazeleme aralığı (sn): her karede bütün sahayı taramamak için. */
+  tazele: 0.25,
+  /** Takılma: `sure` saniyede `mesafe` biriminden az ilerlediyse `kurtul` saniye yana kaçılır. */
+  takilma: { sure: 1.2, mesafe: 1.1, kurtul: 0.9 },
+};
+
+/**
  * **Gösteri kipi** (yalnız web, `?gosteri=1`; bkz. src/gosteri.js): içerik klipleri için bot-bot maç. Menü atlanır, iki
  * tarafı da bot yapay zekâsı yönetir, arayüz gizlenir, ölçüm olayı gitmez ve sunucuya bağlanılmaz. Uygulamada (isApp)
  * açılmaz. Normal oyun bu ayarlardan etkilenmez.

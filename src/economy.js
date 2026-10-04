@@ -501,8 +501,9 @@ function crowdAround(world, p, mine) {
 function updateBotStance(world, p, me, you) {
   const ai = p.ai, X = ENEMY_AI.extra[world.difficulty];
   const mine = world.entities.filter(e => e.alive && e.owner === p && !e.isHero && !e.isWorker);
-  // Gösteri kipinde (bkz. gosteri.js) botlar hep saldırıdadır: klip boyunca aksiyon çekilmeyle kesilmesin.
-  if (world.gosteri) {
+  // Gösteri (gosteri.js) ve otopilot (otopilot.js) kiplerinde botlar hep saldırıdadır: iki ordu birbirini kollayıp
+  // kendi yarısında beklemesin, video boyunca sahada gerçek bir muharebe olsun.
+  if (world.gosteri || world.otopilot) {
     ai.needSiege = !world.entities.some(e => e.alive && e.owner === p && e.isSiege)
       && world.structures.some(s => s.alive && s.kind === 'tower' && s.faction !== p.faction);
     ai.attacking = true; ai.launchSize = Math.max(ai.launchSize || 0, me.army);
@@ -635,10 +636,14 @@ function updateBotEconomy(world, p, dt) {
   enqueue(world, bestProducer(world, p, pick.building), pick.key, p);
 }
 
-/** Bütün botlar (iki takımda da): önce savunma çağrısı, sonra ekonomi / ordu kararı. */
+/**
+ * Bütün botlar (iki takımda da): önce savunma çağrısı, sonra ekonomi / ordu kararı.
+ * Otopilot koltuğu (`p.otopilot`, yalnız `?otopilot=1`; bkz. otopilot.js) insan sayılsa da komutan kararlarını buradan
+ * alır: kahramanı girdiyle bir bot oynarken kasası, binaları ve ordusu da bot gibi sürülsün — ekranda gerçek bir maç aksın.
+ */
 export function updateBots(world, dt) {
   for (const p of world.players) {
-    if (p.human) continue;
+    if (p.human && !p.otopilot) continue;
     updateBotDefense(world, p, dt);
     updateBotEconomy(world, p, dt);
   }
