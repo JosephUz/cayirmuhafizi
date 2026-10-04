@@ -126,6 +126,11 @@ html.vv #meadow-game{--mg-h:var(--vv-h);inset:auto;top:var(--vv-top);left:var(--
 #meadow-game .overlay .card{background:#242d25;border:1px solid #718361;border-radius:14px;padding:22px 26px;max-width:640px;width:100%;box-shadow:0 20px 60px #0008}
 #meadow-game .overlay .card h2{margin:0 0 6px;font-size:22px;font-weight:600;letter-spacing:.5px}
 #meadow-game .muted{color:#b8c5aa;margin:0 0 14px;line-height:1.5}
+/* Ses / Müzik düğmesi açık-kapalı değişince boyu ve eni oynamasın: "muted" paragraf boşluğu düğmeye geçmez, düğme
+   en uzun yazısı (data-w, ör. "Müzik: kapalı") kadar en tutar (görünmez, yüksekliksiz satır). */
+#meadow-game button.muted{margin:0;line-height:inherit}
+#meadow-game button[data-w]::after{content:attr(data-w);display:block;height:0;overflow:hidden;visibility:hidden}
+#meadow-game.touch .home-actions button[data-w]::after{display:none}
 #meadow-game .keys{margin:14px 0 0;font-size:12px}
 #meadow-game .presets{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
 #meadow-game .presets button{padding:6px 10px;font-size:13px}
