@@ -2,16 +2,16 @@ import { gosteriAcik } from './gosteri.js';
 
 /**
  * Oyun içi müzik: üç parça, üç sahne, çapraz geçiş.
- *  - **sakin** (`Ateş Başında`): giriş, kurulum, lobi, bitiş karnesi — tek parça, kendi kendine döner.
- *  - **mac** (`Sancak Gölgesinde` ↔ `Çayır Rüzgârı`): maç sürerken ana tema ile çatışma parçası sırayla çalar;
- *    biri bitmeye yakın öbürü üstüne açılır, araya sessizlik girmez.
- *  - **doruk** (`Çayır Rüzgârı`): maçın doruk anı — taraflardan birinin **sancağı düşmek üzere**. Sıra beklemeden
- *    çatışma parçasına geçilir ve tehlike geçene kadar orada kalınır (bkz. main.js `muzikSahnesi`). Zaten o parça
- *    çalıyorsa kesinti olmaz, yalnız kendi kendine dönmeye başlar.
+ *  - **sakin** (`Değirmen Yolu`): giriş, kurulum, lobi, bitiş karnesi — tek parça, kendi kendine döner.
+ *  - **mac** (`Çayır Türküsü` ↔ `Değirmen Yolu`): maç sürerken iki parça sırayla çalar; biri bitmeye yakın öbürü
+ *    üstüne açılır, araya sessizlik girmez.
+ *  - **doruk** (`Kalkan Duvarı`, savaş parçası): maçın doruk anı — taraflardan birinin **sancağı düşmek üzere**. Sıra
+ *    beklemeden savaş parçasına geçilir ve tehlike geçene kadar orada kalınır (bkz. main.js `muzikSahnesi`).
+ * Sıra Yusuf'un istediği akıştır (4 Ekim): başta Değirmen Yolu, ortada Çayır Türküsü, sonda Kalkan Duvarı.
  * Çalma `<audio>` öğeleriyledir: dosya akarak iner, sahne değişince ses düzeyi karşılıklı süzülür. Dosyalar
  * **gerektiğinde** yüklenir: menüde yalnız sakin parça iner, maç parçaları maç başlarken.
  *
- * Ses düzeyi efektlerin (ui.js `ping`) altında, sabit %35 (menüde sürgü yok). Açık/kapalı tarayıcıda saklanır
+ * Ses düzeyi efektlerin (ui.js `ping`) altında, sabit %20 (menüde sürgü yok). Açık/kapalı tarayıcıda saklanır
  * (`cm.muzik`); düğme Esc menüsünde ve giriş ekranının üst çubuğundadır (bkz. screens.js).
  *
  * Tarayıcının otomatik oynatma kuralı: ilk kullanıcı dokunuşuna / tuşuna kadar hiç `play()` çağrılmaz, engellenirse
@@ -21,13 +21,13 @@ import { gosteriAcik } from './gosteri.js';
  * bir sonraki APK'ya kendiliğinden girer (bkz. scripts/build-web.mjs).
  */
 const SAHNELER = {
-  sakin: ['cayir-6-ates-basinda'],
-  mac: ['cayir-5-sancak-golgesinde', 'cayir-4-cayir-ruzgari'],
-  doruk: ['cayir-4-cayir-ruzgari'],
+  sakin: ['cayir-8-degirmen-yolu'],
+  mac: ['cayir-7-cayir-turkusu', 'cayir-8-degirmen-yolu'],
+  doruk: ['cayir-9-kalkan-duvari'],
 };
 /** Çapraz geçiş süresi (sn): sahne değişiminde ve parça bitmeden önce. */
 const GECIS = 1.8;
-const VARSAYILAN_SES = 0.35;
+const VARSAYILAN_SES = 0.2;
 /** Süzülme saatinin adımı (sn). */
 const ADIM = 0.05;
 
@@ -167,8 +167,8 @@ export function createMuzik(root) {
     }
     const yeni = parca(ad);
     // Tek parçalı sahne (sakin, doruk) kendi kendine döner: `ended` hiç gelmez, araya sessizlik girmez. Sahne
-    // değişince **çalan parça aynı kalsa bile** yenilenmeli: maç → doruk geçişinde `Çayır Rüzgârı` kesintisiz
-    // sürer ama artık sıradakine devretmek yerine döner.
+    // değişince **çalan parça aynı kalsa bile** yenilenmeli: aynı parça iki sahnede
+    // birden varsa kesintisiz sürer ama artık sıradakine devretmek yerine döner.
     yeni.loop = SAHNELER[sahneAdi].length < 2;
     if (aktif === yeni) { calistir(yeni); suz(yeni, hedefSes(), Math.min(sure, 0.3)); return; }
     if (aktif) { const eski = aktif; suz(eski, 0, sure, () => eski.pause()); }

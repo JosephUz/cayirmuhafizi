@@ -4,4 +4,8 @@ Yusuf 4 Ekim: müzik videolarını izlerken bu parçalar çok gürültülü bulu
 odaklandırıcı sürümler geldi (bir üst klasör). Bunlar silinmedi: yanlış yapınca ne çıktığını göstersin diye
 burada duruyor. Oyunda çalmaz, web yayınına ve uygulamaya girmez (bkz. scripts/build-web.mjs).
 
+İkinci arşiv (4 Ekim 2026): sakin sürümler (cayir-4 Çayır Rüzgârı, cayir-5 Sancak Gölgesinde, cayir-6 Ateş Başında).
+Sakinlikleri iyiydi ama birbirinin aynısı ve oyunun temasından kopuk bulundu ("müzikler hep birbirinin aynı gibiler",
+"oyun temasına göre olmalılar"). Yerlerine oyun temalı üç parça geldi: Çayır Türküsü, Değirmen Yolu, Kalkan Duvarı.
+
 © 2026 JosephUz. Tüm hakları saklıdır.

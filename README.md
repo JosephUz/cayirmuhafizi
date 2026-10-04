@@ -88,13 +88,13 @@ mp3, dosya başına ~2 MB:
 
 | Dosya | Parça | Nerede |
 | --- | --- | --- |
-| `muzik/cayir-6-ates-basinda.mp3` | Çayırda Sabah | **sakin**: giriş, kurulum, lobi, bitiş karnesi (tek parça, kendi kendine döner) |
-| `muzik/cayir-5-sancak-golgesinde.mp3` | Kahramansız Savaş Olmaz | **maç**: ana tema |
-| `muzik/cayir-4-cayir-ruzgari.mp3` | Sancak Düşmeden | **maç**: çatışma; ana temayla sırayla çalar · **doruk**: tek başına döner |
+| `muzik/cayir-8-degirmen-yolu.mp3` | Değirmen Yolu | **sakin**: giriş, kurulum, lobi, bitiş karnesi (tek parça, kendi kendine döner) · **maç**: ikinci parça |
+| `muzik/cayir-7-cayir-turkusu.mp3` | Çayır Türküsü | **maç**: ilk parça; Değirmen Yolu ile sırayla çalar |
+| `muzik/cayir-9-kalkan-duvari.mp3` | Kalkan Duvarı | **doruk**: savaş parçası, tek başına döner |
 
 Üç sahne vardır: **sakin**, **maç** ve **doruk**. Doruk, oyunun kendi yenilgi koşuludur — maç sancak düşünce bittiği
 için (`world.js` `onStructureDestroyed`) taraflardan birinin sancağı eriyorsa maç bıçak sırtındadır: o anda sıra
-beklenmeden "Çayır Rüzgârı"e geçilir ve tehlike geçene kadar orada kalınır. Giriş ve çıkış eşikleri ayrıdır
+beklenmeden "Kalkan Duvarı"na geçilir ve tehlike geçene kadar orada kalınır. Giriş ve çıkış eşikleri ayrıdır
 (**can %50'nin altına inince girilir, %65'in üstüne çıkınca çıkılır**, `main.js` `muzikSahnesi`): can eşiğin iki
 yanında gezinirken müzik sürekli geçiş yapmaz. Zaten o parça çalıyorsa geçişte kesinti olmaz, yalnız kendi kendine
 dönmeye başlar.
