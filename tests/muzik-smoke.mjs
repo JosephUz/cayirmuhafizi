@@ -1,4 +1,4 @@
-// Oyun içi müzik dumanı testi (bkz. src/muzik.js). Denetlenenler: ilk tıklamadan önce hiç çalmaz, tıklayınca menüde
+// Oyun içi müzik dumanı testi (bkz. src/muzik.js). Denetlenenler: açılışta çalmayı dener (izinliyse dokunmadan çalar, engelliyse ilk tıklamada başlar), menüde
 // sakin parça (`cayir-8-degirmen-yolu`) çalar ve ilerler, maç başlayınca maç parçasına (`cayir-7-cayir-turkusu`)
 // geçer, sancak erimeye başlayınca doruk parçasına (`cayir-9-kalkan-duvari`) geçer, "Müzik kapalı" ve sıfıra
 // çekilmiş ses düzeyi ayarları sayfa yenilenince korunur ve `?gosteri=1`'de hiç ses öğesi kurulmaz.
@@ -16,6 +16,19 @@ const browser = await chromium.launch({
 });
 try {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  // Otomatik oynatma **engelli** (ilk ziyaret gibi): `--mute-audio` altında Chromium sessiz sayıp her oynatmaya izin
+  // verdiği için kural burada taklit edilir — kullanıcı sayfaya tıklamadan / tuşa basmadan `play()` NotAllowedError ile
+  // reddedilir. (`navigator.userActivation` kullanılamaz: Playwright'ın evaluate / waitForFunction çağrıları da etkileşim sayılır.)
+  // İzinli durum (siteyle etkileşmiş ziyaretçi) dosyanın sonunda ayrı bir sayfada ölçülür.
+  await ctx.addInitScript(() => {
+    let etkilesim = false;
+    for (const ev of ['pointerdown', 'keydown', 'touchstart']) addEventListener(ev, e => { if (e.isTrusted) etkilesim = true; }, true);
+    const asil = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function () {
+      if (!etkilesim) return Promise.reject(new DOMException('engelli', 'NotAllowedError'));
+      return asil.call(this);
+    };
+  });
   const page = await ctx.newPage(), errors = [];
   page.on('pageerror', e => errors.push(e.message));
   page.on('console', e => { if (e.type() === 'error') errors.push(e.text()); });
@@ -26,15 +39,17 @@ try {
   /** O an baskın olan parça: çapraz geçiş sırasında iki öğe birden çalar, sesi yüksek olan yeni parçadır. */
   const calan = async () => (await sesler()).filter(s => !s.paused && s.volume > 0).sort((a, b) => b.volume - a.volume)[0] || null;
 
-  // 1) Açılış: oyun kurulur, müzik açıktır ama kullanıcı daha dokunmadığı için hiçbir şey çalmaz.
+  // 1) Açılış: oyun kurulur, müzik açıktır ve hemen çalmayı dener; tarayıcı engellediği için hiçbir şey çalmaz.
   await page.goto(url + '/?muzik=1');
   await page.waitForFunction(() => window.__meadow && window.__meadow.muzik, null, { timeout: 20000 });
   const ilk = await page.evaluate(() => window.__meadow.muzik.durum());
   assert.equal(ilk.kapali, false, 'müzik açık (?muzik=1)');
   assert.equal(ilk.acik, true, 'varsayılan ayar: müzik açık');
   assert.ok(Math.abs(ilk.ses - 0.2) < 0.001, `varsayılan ses düzeyi %20 (okunan: ${ilk.ses})`);
-  assert.equal(await calan(), null, 'ilk dokunuştan önce hiçbir parça çalmaz');
-  assert.equal((await sesler()).length, 0, 'dokunulmadan ses dosyası da yüklenmez');
+  await page.waitForFunction(() => document.querySelector('audio[data-parca]'), null, { timeout: 10000 });
+  await page.waitForTimeout(800);
+  assert.equal(await calan(), null, 'otomatik oynatma engelliyken ilk dokunuştan önce hiçbir parça çalmaz');
+  assert.equal(await page.evaluate(() => window.__meadow.muzik.durum().caliyor), false, 'engellenen deneme çalıyor sayılmaz');
 
   // 2) İlk tıklamadan sonra menüde sakin parça çalar ve gerçekten ilerler.
   await page.locator('#mg-home h1').click();
@@ -201,6 +216,24 @@ try {
     assert.deepEqual(iosHata, [], 'iOS taklidinde sayfa hatasız');
     console.log(`  iOS taklidi (volume salt okunur): yol=${iosDurum.yol}, duyulan düzey ${iosDurum.duzey.toFixed(2)}`);
     await ios.close();
+  }
+
+  // 7) Otomatik oynatmaya izin veren tarayıcı (siteyle daha önce etkileşmiş ziyaretçi): menü müziği hiç dokunmadan,
+  // sayfa açılır açılmaz çalar (Yusuf: "site açılınca müzik direkt gelsin").
+  {
+    const izinli = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+    try {
+      const ap = await izinli.newPage();
+      await ap.goto(url + '/?muzik=1');
+      await ap.waitForFunction(() => {
+        const d = window.__meadow?.muzik?.durum();
+        return d && d.parca === 'cayir-8-degirmen-yolu' && d.caliyor;
+      }, null, { timeout: 20000 });
+      const t = await ap.evaluate(() => document.querySelector('audio').currentTime);
+      await ap.waitForTimeout(1200);
+      assert.ok(await ap.evaluate(() => document.querySelector('audio').currentTime) > t + 0.5, 'dokunmadan açılan müzik ilerler');
+      console.log('  otomatik oynatma izinli: menü müziği dokunuş beklemeden çalar');
+    } finally { await izinli.close(); }
   }
 
   console.log('Müzik dumanı testi geçti.');

@@ -14,8 +14,10 @@ import { gosteriAcik } from './gosteri.js';
  * Ses düzeyi efektlerin (ui.js `ping`) altında, sabit %20 (menüde sürgü yok). Açık/kapalı tarayıcıda saklanır
  * (`cm.muzik`); düğme Esc menüsünde ve giriş ekranının üst çubuğundadır (bkz. screens.js).
  *
- * Tarayıcının otomatik oynatma kuralı: ilk kullanıcı dokunuşuna / tuşuna kadar hiç `play()` çağrılmaz, engellenirse
- * sonraki dokunuşta yeniden denenir. Sekme gizlenince durur, dönünce kaldığı yerden sürer.
+ * Açılışta müzik **hemen** denenir (Yusuf 4 Ekim: "site açılınca müzik direkt gelsin, sadece oyun başlayınca
+ * gelmesin"): tarayıcı izin veriyorsa (ör. Chrome siteyle daha önce etkileşmiş ziyaretçiye) menü müziği sayfa açılır
+ * açılmaz çalar. Otomatik oynatma kuralı engellerse (`NotAllowedError`) ekranın herhangi bir yerine ilk dokunuşta /
+ * tuşta başlar; o da engellenirse sonraki dokunuşta yeniden denenir. Sekme gizlenince durur, dönünce kaldığı yerden sürer.
  *
  * Dosya yolları **görelidir** (`muzik/...`): aynı dosyalar Capacitor'ın `https://localhost/` kökünde de çalışır,
  * bir sonraki APK'ya kendiliğinden girer (bkz. scripts/build-web.mjs).
@@ -93,7 +95,7 @@ export function createMuzik(root) {
   const parcalar = new Map();
   /** Süren süzülmeler: öğe -> { bas, hedef, t, sure, bitince }. Tek bir sayaç hepsini yürütür. */
   const suzulme = new Map();
-  let saat = null, sahneAdi = null, sira = 0, aktif = null, dokunuldu = false, gizli = false;
+  let saat = null, sahneAdi = null, sira = 0, aktif = null, dokunuldu = false, gizli = false, denendi = false;
 
   const hedefSes = () => (acik ? ses : 0);
 
@@ -209,6 +211,8 @@ export function createMuzik(root) {
     sahne(ad) {
       if (kapali || ad === sahneAdi) return;
       sahneAdi = ad; sira = 0;
+      // İlk sahnede dokunuş beklemeden bir kez çalmayı dene: engellenirse `calistir` `dokunuldu`yu geri alır.
+      if (ad && !dokunuldu && !denendi) { denendi = true; dokunuldu = true; }
       uygula();
     },
     get acik() { return acik; },
