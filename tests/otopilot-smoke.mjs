@@ -81,7 +81,16 @@ try {
   assert.equal(await game(() => window.__sockets), 0, 'otopilotta sunucuya bağlanılmaz');
   assert.equal(await game(() => window.__olcum), 0, 'otopilotta ölçüm olayı gitmez');
 
-  // 7) Maç bitince sonuç ekranı açılmaz, yenisi başlar.
+  /**
+   * 7) Klavye hiç okunmaz: kayıt sırasında yanlışlıkla basılan Esc molayı, F1 de yardım penceresini açmamalı —
+   * ikisi de maçı dondurur ve videoya menü girerdi (bkz. input.js `world.otopilot` dalı).
+   */
+  for (const tus of ['Escape', 'F1']) await page.keyboard.press(tus);
+  await page.waitForTimeout(500);
+  assert.ok(await game(() => !window.__meadow.paused), 'Esc otopilotta mola açmaz');
+  assert.ok(await page.locator('#mg-help').isHidden(), 'F1 otopilotta yardım penceresini açmaz');
+
+  // 8) Maç bitince sonuç ekranı açılmaz, yenisi başlar.
   const onceki = await game(() => window.__meadow.time);
   await game(() => { window.__meadow.ended = true; window.__meadow.onEnd({}); });
   await page.waitForFunction(t => window.__meadow.running && !window.__meadow.ended && window.__meadow.time < t, onceki, { timeout: 15000 });
