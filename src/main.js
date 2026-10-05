@@ -7,6 +7,7 @@ import { buildEnvironmentView } from './environment.js';
 import { gorunurAlanaKilitle } from './gorunur-alan.js';
 import { createGosteri, gosteriAcik, gosteriKipi } from './gosteri.js';
 import { createKahramanGosteri } from './gosteri-kahraman.js';
+import { createMancinikGosteri } from './gosteri-mancinik.js';
 import { createSavasGosteri } from './gosteri-savas.js';
 import { attachInput, attachKeyboardLock, clearSelection, createInput, lockPointer, resolveHeroInput, unlockPointer, updateTpsCamera } from './input.js';
 import { createMinimap } from './minimap.js';
@@ -317,12 +318,14 @@ export async function start(root) {
   /**
    * Gösteri kipi (yalnız web, arayüzsüz): `?gosteri=1` bot-bot maç (gosteri.js), `?gosteri=kahraman` sahnelenmiş
    * kahraman gösterisi (gosteri-kahraman.js), `?gosteri=savas` iki ordu + iki kahraman gösterisi
-   * (gosteri-savas.js). Hepsi aynı kancaları verir: basla / guncelle / odak.
+   * (gosteri-savas.js), `?gosteri=mancinik` kahramansız mancınık düellosu + süvari akını
+   * (gosteri-mancinik.js). Hepsi aynı kancaları verir: basla / guncelle / odak.
    */
   const gosteri = !gosteriAcik() ? null
     : gosteriKipi() === 'kahraman' ? createKahramanGosteri(world, { arenaReady, root })
       : gosteriKipi() === 'savas' ? createSavasGosteri(world, { arenaReady })
-        : createGosteri(world, { arenaReady });
+        : gosteriKipi() === 'mancinik' ? createMancinikGosteri(world, { arenaReady })
+          : createGosteri(world, { arenaReady });
   /**
    * Otopilot (`?otopilot=1`, bkz. otopilot.js): gösteri değil **gerçek maç**; kahramanı girdiyle bir bot oynar.
    * Arayüz, kamera ve kurallar normal oyunun aynısıdır — yalnız menüler açılmaz ve girdiyi fare / klavye değil

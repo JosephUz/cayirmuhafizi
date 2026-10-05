@@ -1170,6 +1170,162 @@ export const GOSTERI_SAVAS = {
 };
 
 /**
+ * **Mancınık düellosu gösterisi** (yalnız web, `?gosteri=mancinik`; bkz. src/gosteri-mancinik.js): haritanın orta
+ * alanında, kulelerin kaldırıldığı bomboş çayırda karşılıklı dizilmiş iki mancınık sırası birbirini döver; kızıl
+ * taraf düşünce kızılın süvarisi **kanattan** mavinin mancınıklarına akın eder. Sahnede **kahraman yoktur**.
+ *
+ * Sahne **short müziğine göre** zamanlanmıştır (`short-cayir-muhafizi-mancinik-savasi`, 126 BPM → bir bar 1.9 sn):
+ * her taşın **indiği an** bir barın başına denk gelir, son kızıl mancınık `isaret.yikilis`te yıkılır, süvari
+ * `isaret.akin`de kanattan çıkar ve `isaret.sonDarbe`de mavi mancınıklara çarpar. Bu yüzden atışlar oyunun
+ * yapay zekâsına bırakılmaz, buradaki `atislar` betiğiyle verilir — ama **taşın kendisi, uçuşu, isabeti ve
+ * hasarı oyunun kendi kurallarıdır** (combat.js startAttack → shootArrow → updateArrows → damageEntity).
+ * `?gosteri=1`, `?gosteri=kahraman`, `?gosteri=savas` ve normal oyun bu ayarlardan hiç etkilenmez.
+ */
+export const GOSTERI_MANCINIK = {
+  /**
+   * Sahnenin iki ekseni (birim vektör, dünya XZ). Oyunun izometrik kamerası 45°'den baktığı için:
+   *  - `eksen` **ekranın yatayına** düşer: iki mancınık sırası bunun iki ucunda karşılıklı durur, taşlar bu
+   *    doğrultuda uçar. Dikey videoda (1080x1920) ekranın dar kenarı budur, bu yüzden sıralar arası `aralik`
+   *    kısa tutulur.
+   *  - `kanat` **ekranın dikeyine** düşer (+ yukarı): sıralar bu doğrultuda dizilir ve **süvari akını bu
+   *    doğrultuda gelir**. Dikey kadrajın uzun kenarı budur: atlılar kadrajın altından girip boydan boya
+   *    dörtnala geçer. Dünya uzunluğunun ekrandaki dikey karşılığı 0.6496 katıdır (izometrik kısalma).
+   */
+  eksen: { x: 0.7071, z: -0.7071 },
+  kanat: { x: -0.7071, z: -0.7071 },
+  /**
+   * Mancınık sıraları: `aralik` her sıranın sahne merkezine `eksen` üstündeki uzaklığı (iki sıra arası 2x9 = 18
+   * birim — mancınık menzili 36, yani rahat erişir), `yer` sıradaki mancınıkların `kanat` üstündeki yerleridir.
+   * Dört mancınık 21 birime yayılır: dikey kadrajın üst yarısını doldurur, altı süvariye kalır.
+   */
+  mancinik: { aralik: 7, yer: [-10.5, -3.5, 3.5, 10.5] },
+  /**
+   * Muhafızlar: her tarafın arka hattı — sahneye derinlik katan, dikey kadrajın alt ve üst ucunu dolduran kısa
+   * piyade sıraları. `kanat` ekseninde `b` birim ötede, **kendi tarafının karşı kanadında** dururlar (mavininki
+   * yukarıda, kızılınki aşağıda — yani kızılın piyadesi süvarisinin çıktığı kanatta). Yerleri üç kuralla
+   * belirlendi:
+   *  1. Taş yolu `eksen` doğrultusundadır ve en çok ±13.6 birim `kanat`a yayılır (bkz. `atislar` sapmaları);
+   *     muhafızlar o kuşağın dışında durur, yani karşı tarafa giden taşı yolda kesmez ve betiğin zamanlamasını
+   *     bozmaz.
+   *  2. En yakın rakip mancınığa uzaklıkları 13.5 birimdir, askerin görüşünden (VISION.soldier 10) uzak:
+   *     ai.js'e göre görüşünde düşman olmayan asker yerinde durur, yani hat **kendiliğinden** mevzisini korur.
+   *     (17 birimde denendi: muhafızlar rakip mancınık sırasını görüp üstüne yürüyor ve düelloyu kendileri
+   *     bitiriyordu.)
+   *  3. `eksen` üstünde sahnenin ortasına yayılırlar — süvari sütununun koridoru (-11.5 ... -4.5) boş kalsın,
+   *     akın kendi piyadesine takılmasın.
+   */
+  muhafiz: { b: 24, sayi: 5, yayilma: 8, tur: { blue: 'spearshield', red: 'sword' } },
+  /**
+   * Taş betiği. Her satır bir taşın **indiği an**dır (sahne saati, sn; fırlatma anı buradan geri sayılır):
+   *  `iner` inme anı · `atan` atan mancınık (`[taraf, sıra indeksi]`) · `hedef` hedef mancınık ya da `'akin'`
+   *  (o anda dörtnala gelen süvari sütunu) · `sapma` hedefin yanına kaçırma (`[eksen, kanat]` birim; sıfırdan
+   *  farklıysa taş **ıskalar** — her atış öldürmez, düello sürer).
+   * Mancınık gövdesi 40 can, taş 40 hasar: **isabet eden taş mancınığı yıkar** (oyunun kendi sayıları, bkz.
+   * SIEGE ve WEAPONS.catapult). Betik bu yüzden "kim kimi ne zaman yıkar"ı doğrudan yazar.
+   * İnme anları 1.9 sn'lik barlara oturur: 1.9 · 3.8 · 5.7 · 7.6 · 9.5 · 11.4 · 13.3 (yıkılış), sonra akın
+   * bombardımanı 17.1 · 19.0 · 20.9. Aynı mancınık en az 2.2 sn (WEAPONS.catapult.cooldown) arayla atar.
+   */
+  atislar: [
+    { iner: 1.9, atan: ['blue', 1], hedef: ['red', 2], sapma: [0, 2.6] },
+    { iner: 1.9, atan: ['red', 2], hedef: ['blue', 1], sapma: [0, -2.9] },
+    // Mavi de bir mancınık kaybeder (düello tek taraflı görünmesin) — ama **sıranın uzak ucundan** (3): yakın
+    // uç (0) ayakta kalsın ki süvari akını ona varsın ve son darbe tam `isaret.sonDarbe` saniyesine düşsün.
+    { iner: 3.8, atan: ['red', 0], hedef: ['blue', 3], sapma: [0, 0] },
+    { iner: 3.8, atan: ['blue', 0], hedef: ['red', 1], sapma: [0, 3.1] },
+    { iner: 5.7, atan: ['blue', 2], hedef: ['red', 0], sapma: [0, 0] },
+    { iner: 5.7, atan: ['red', 3], hedef: ['blue', 2], sapma: [0, 2.7] },
+    { iner: 7.6, atan: ['blue', 1], hedef: ['red', 3], sapma: [0, -2.8] },
+    { iner: 7.6, atan: ['red', 1], hedef: ['blue', 0], sapma: [0, 3.0] },
+    { iner: 9.5, atan: ['blue', 0], hedef: ['red', 1], sapma: [0, 0] },
+    { iner: 11.4, atan: ['blue', 1], hedef: ['red', 2], sapma: [0, 0] },
+    { iner: 11.4, atan: ['red', 2], hedef: ['blue', 2], sapma: [0, -3.2] },
+    { iner: 13.3, atan: ['blue', 2], hedef: ['red', 3], sapma: [0, 0] },
+    // Akın bombardımanı: kazanan mancınıklar dörtnala gelen sütunun üstüne taş yağdırır (atlı 150 canlı,
+    // 40 hasarlı taş düşürmez ama savurur ve tozu kaldırır — 15-23 sn'lik dörtnala bölümü boş kalmasın).
+    { iner: 17.1, atan: ['blue', 1], hedef: 'akin', sapma: [2.5, 0] },
+    { iner: 19.0, atan: ['blue', 2], hedef: 'akin', sapma: [-2.2, 1.5] },
+    { iner: 20.9, atan: ['blue', 0], hedef: 'akin', sapma: [1.8, -1.2] },
+  ],
+  /**
+   * Taşın yola çıkışı: `hazirlik` fırlatma kolunun hazırlık süresidir (WEAPONS.catapult.windup — `startAttack`
+   * ile taşın çıkışı arasındaki gecikme), `cikis` taşın mancınığın merkezinden ne kadar önde doğduğu,
+   * `degme` ise taşın hedefin **merkezine** değil gövdesine (yarıçap + pay) değdiği için kazanılan süredir.
+   * Fırlatma anı = `iner - hazirlik - (uzaklık - cikis) / taşHızı + degme`.
+   */
+  ucus: { hazirlik: 0.45, cikis: 0.6, degme: 0.07 },
+  /**
+   * Süvari akını (kızıl taraf, **Kılıçlı Atlı**). Atlının hızı **oyunun kendi hızıdır** (SOLDIER_BASE.speed 3.8
+   * x HORSE.speedMult 1.7 = 6.46 birim/sn) — burada ezilmez, sahne onu birimin kendi `stats.speed`inden okur ve
+   * yola **o hıza göre** dizer. `sayi` atlı sayısı, `yayilma` sütunun `eksen` üstündeki genişliği, `derinlik`
+   * arka arkaya gelen sıralar arası, `temas` atlının hedefine bu kadar yaklaşınca sahnenin elinden çıkıp
+   * **oyunun kendi yapay zekâsına** (ai.js) devredildiği uzaklık. `pay` fiziğin hızlanma payıdır (birim): atlı
+   * ilk karede tam hıza çıkmaz, yola bu kadar yakından başlar ki `isaret.sonDarbe` anında mancınığa varsın.
+   * `sutun` bir sıradaki atlı sayısı (15 atlı = 3 sıra x 5), `daginik` her atlıya **indisinden türetilen**
+   * küçük kaydırma (birim; rastgele değil — çekim kare kare tekrarlanabilir kalmalı): sütun cetvelle çizilmiş
+   * bir blok gibi değil, dalga gibi görünsün.
+   */
+  akin: { sayi: 15, sutun: 5, yayilma: 7, derinlik: 3.4, temas: 4, pay: 1.25, daginik: { a: 0.45, b: 0.8 } },
+  /**
+   * Müziğin işaretleri (sn; bkz. calisma/icerik/muzik/short/liste.json `isaretler`). Sahne bu saniyelere
+   * kilitlidir: `yikilis` son kızıl mancınığın yıkıldığı an (betiğin son düello atışı buraya iner), `akin`
+   * atlıların kanattan çıktığı an, `sonDarbe` atlıların mancınıklara vardığı an, `son` müziğin bittiği an.
+   */
+  isaret: { yikilis: 13.3, akin: 15.2, sonDarbe: 22.9, son: 25.35 },
+  /**
+   * Mavinin arka hattının savunma mevzisi: akın başlayınca (`isaret.akin`) muhafızlar buraya yürür — `a`
+   * her askerin kendi `eksen` yerine eklenen kaydırma (sıra bozulmadan mancınıkların önüne geçsinler),
+   * `b` hattın `kanat` üstündeki yeni yeri. Mevzi mancınık sırasının yanıdır: 24 birimlik yolu Mızrak
+   * Kalkanlı asker (3.8 x 0.8 = 3.04 birim/sn) akın süresi boyunca yürür ve son darbeye yetişir.
+   */
+  savunma: { a: -4, b: 0 },
+  /**
+   * Kızılın arka hattının ikinci dalgası: `basla` saniyesinde (sahne saati) piyade de yürüyüşe geçer ve
+   * `b` hattına iner. Geç başlar — süvariden **önce** varmamalı: yaya 3.8 birim/sn ile 14 birimi 3.7 sn'de
+   * alır, yani `isaret.sonDarbe`den hemen sonra yetişir ve son çarpışmayı kalabalıklaştırır. Erken
+   * başlatıldığında (akınla birlikte) piyade mancınıkları süvariden önce buluyor ve müziğin son darbesi
+   * boşa düşüyordu.
+   */
+  takip: { basla: 19.9, a: 0, b: -10 },
+  /** Müzik bittikten sonra sahne bu kadar saniye daha koşar, sonra tur baştan kurulur (gösteri döngüsü). */
+  tekrar: 2.5,
+  /**
+   * Kamera: oyunun **kendi izometrik açısı** (24, 29, 24) ve kahraman kamerasının uzaklığı (`uzaklik` 1)
+   * korunur — yani bakış "kahramanın görebildiği kadar"dır. Değişen yalnız dikey yarı kadrajdır (normal oyunda
+   * 17): `duello` 19 — iki mancınık sırası, aralarındaki taş yolu ve iki muhafız hattı kadraja ancak böyle
+   * sığar; `akin` 24 — dörtnala gelen sütun kadrajın altından görünsün; `darbe` 18 — son çarpışmada yaklaşılır.
+   *
+   * `odak` kameranın baktığı noktadır (`a` = ekranın yatayı, `b` = ekranın dikeyi). Düelloda bakış sahnenin
+   * **tam ortasındadır** (`duello` 0,0): iki mancınık sırası kadrajın iki yanında, muhafız hatları alt ve üst
+   * uçta, simetrik durur. Kızıl sıra yıkılınca sahnenin ağırlığı mavi tarafa kayar, bu yüzden bakış hem
+   * **yavaşça aşağı** iner (`akin.b` -28: atlıların kanattan girişi kadraja girsin) hem de mavi sıraya doğru
+   * kayar (`akin.a` -4: boşalan kızıl yarısı kadrajın yarısını kaplamasın). Akın boyunca `b` atlılarla
+   * birlikte yavaşça yukarı döner ve son darbede mancınıkların üstünde durur (`darbe`).
+   * Kameranın en hızlı kaydığı an saniyede ekran boyunun onda birinden azdır. `yumusatma` kadraj,
+   * `odakYumusatma` bakış noktası geçişinin sertliğidir (1/sn): ikisi de düşük, yani kamera hiç kesmez.
+   */
+  kamera: {
+    uzaklik: 1, duello: 19, akin: 24, darbe: 18, yumusatma: 0.9, odakYumusatma: 0.8,
+    odak: { duello: { a: 0, b: 0 }, akin: { a: -4, b: -28 }, darbe: { a: -5, b: -9 } },
+  },
+  /**
+   * `gorus` kadraj elemesinin yarıçapı (odaktan bu kadar uzaktaki ağaç / eşya çizilmez; en geniş kadrajda
+   * görünen yarıçap ~46 birimdir, pay bırakıldı), `kalite` sahnenin çizim ayarı — bu kadraj kahraman
+   * kadrajına yakın olduğu için **yüksek**: gölgeler ve ayrıntılı birimler açık kalır, short gerçek oyun
+   * görüntüsü gibi dursun.
+   */
+  gorus: 90, kalite: 'high',
+  /**
+   * Arazi tohumu (setupGame `seed`). Sabittir, yani aynı adresten çekilen her video kare kare aynıdır. Bu
+   * değer **taranarak** seçildi (bkz. scripts/mancinik-tohum.mjs): betik 40 tohumda mancınıkların, taş
+   * yollarının ve son çarpışma bölgesinin engellere (ağaç, kaya) uzaklığını ölçer; 47202 bu ölçütte en
+   * yükseğidir — altı mancınığın da, akının vardığı yerin de üstü açıktır, ağaçlar kadrajın kenarlarında
+   * kalır. Haritanın ortasındaki kaya öbeği tohumdan bağımsızdır (her turda aynı yerdedir) ve sahnenin
+   * ortasında duran tek engeldir: iki sıranın arasındaki doğal nişan taşı gibi durur.
+   */
+  tohum: 47202,
+};
+
+/**
  * Çevrim içi (oda kur / odaya katıl, çevrim içi sayısı): `web` tarayıcıda, `app` Android uygulamasında açık mı. Kapalıyken
  * sunucuya hiç bağlanılmaz, oda düğmeleri "Yakında" yazar; tek başına oyun aynen oynanır (bkz. src/platform.js).
  */
