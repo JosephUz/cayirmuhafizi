@@ -1326,6 +1326,213 @@ export const GOSTERI_MANCINIK = {
 };
 
 /**
+ * **"Ya Allah Hücum" gösterisi** (yalnız web, `?gosteri=hucum`; bkz. src/gosteri-hucum.js): iki ordunun geniş bir
+ * savaş alanında karşılıklı dizildiği, uzaktan bakan sahnelenmiş tek bir savaş. Dikey short için kurulmuştur:
+ * ekranda **Kuzey üstte, Güney altta**, iki kanat sağda ve solda.
+ *
+ * Sahne `short-cayir-muhafizi-ya-allah-hucum` müziğine (33.59 sn) kilitlidir; işaretler `isaret` altındadır ve
+ * calisma/icerik/muzik/short/liste.json ile birebir aynıdır. Akış:
+ *   0-3 diziliş (Güney mancınıkları uzaktan atar) → 3-15 kanat savaşı (Güney'in menzilli kanatları erir) →
+ *   15-19 Kuzey kanatları Güney'in kılıçlılarını ezer → 19 "Ya Allah" nidası, Güney merkezi hücuma kalkar →
+ *   19.74-27 mehter marşı: Mızrak Kalkan Atlıları ve seviye 100 kahraman Kuzey merkezini çiğner →
+ *   ~27 Kuzey kahramanı ölür → 27-29.6 bütün Kuzey ordusu bozulup ekran dışına kaçar.
+ *
+ * **Kanat disiplini** bu sahnenin temel kuralıdır (Yusuf: "kanatlardaki askerler merkezlere salça olmasınlar"):
+ * her bölük bir **şeride** (sol / merkez / sağ) bağlıdır ve sahne ona yalnız **kendi şeridindeki** düşmanı hedef
+ * olarak verir (bkz. gosteri-hucum.js `hedefleriTazele`). Vuruş, hasar, ok, itme ve ölüm yine oyunun kendi
+ * kurallarıdır (ai.js `engage` → combat.js); sahne yalnızca **kimin kimi hedeflediğini** söyler.
+ * `?gosteri=1`, `?gosteri=kahraman`, `?gosteri=savas`, `?gosteri=mancinik` ve normal oyun bundan etkilenmez.
+ */
+export const GOSTERI_HUCUM = {
+  /**
+   * Sahnenin iki ekseni (birim vektör, dünya XZ); oyunun izometrik kamerası 45°'den baktığı için:
+   *  - `eksen` **ekranın yatayına** düşer (dünya uzunluğu ekranda birebir): **kanatlar** bu doğrultuda ayrılır.
+   *    1080x1920'de ekranın dar kenarı budur, bu yüzden şerit merkezleri ±13 birimde kalır.
+   *  - `kanat` **ekranın dikeyine** düşer (+ yukarı = **Kuzey**): iki ordu bu doğrultuda karşı karşıyadır ve
+   *    hücum bu doğrultuda akar. Dünya uzunluğunun ekrandaki dikey karşılığı 0.6496 katıdır (izometrik kısalma),
+   *    yani dikey kadrajda bol yer vardır — ordular arası 50 birimlik açıklık buraya rahat sığar.
+   */
+  eksen: { x: 0.7071, z: -0.7071 },
+  kanat: { x: -0.7071, z: -0.7071 },
+  /**
+   * **Şeritler**: bölüklerin `eksen` üstündeki merkezleri ve bir şeridin yarı genişliği. Bir birim yalnız kendi
+   * şeridindeki düşmanı hedefler; `yari` şeritler arasındaki sınırdır (13 - 6.5 = 6.5, yani sol şerit
+   * [-19.5, -6.5], merkez [-6.5, 6.5], sağ [6.5, 19.5] bandıdır); `pay` hedefsiz kalan birimin şeridin içine
+   * çekildiği emniyet payıdır. Merkezle kanat arasındaki boşluk askerin görüşünden (VISION.soldier 10)
+   * küçüktür, bu yüzden disiplin **kadrajla değil hedeflemeyle** sağlanır — üstüne de `sahayaSigdir`in koridor
+   * duvarı biner, yani kanat birimi merkez bandına fiziksel olarak da giremez.
+   */
+  serit: { sol: -13, merkez: 0, sag: 13, yari: 6.5, pay: 1.5 },
+  /**
+   * **Saha**: sahnenin oynandığı dikdörtgen (`a` yarı genişlik, `kuzey` / `guney` `kanat` sınırları). Dizilişin
+   * tamamı buna rahat sığar (a ±17, b -34 ... +28) ve kadrajın içindedir.
+   *
+   * Sahanın bir de **işlevi** var: sahanın dışına çıkan birim ne hedeflenir ne de hedefler, sahaya geri yürür.
+   * Bu kural olmadan oyunun kendi itmesi (WEAPONS.sword.knockback 12) sahneyi bozuyordu: vuruşla geri savrulan
+   * bir piyadeyi kovalayan atlı, her vuruşta onu biraz daha iterek **haritanın ucuna kadar** sürüklüyor ve
+   * ikisi de kadrajın dışında, bitmeyen bir kovalamacada takılı kalıyordu. Sınır o kovalamacayı keser: piyade
+   * sahanın kenarına sıkışır ve dövüş sahnenin içinde biter. (Normal oyunda bu sorun yok: oradaki asker
+   * ARMY.chase ile kendiliğinden vazgeçer, bu sahnede ise hedefi sahne veriyor.)
+   */
+  saha: { a: 24, kuzey: 40, guney: -44 },
+  /**
+   * **Kanat cephesi**: kanat bölüklerinin dövüştüğü `kanat` ekseni bandı, evreye göre. `taban` iki tarafın da
+   * geçemediği güney sınırı, `tavan` Güney birimlerinin geçemediği kuzey sınırıdır (Kuzey birimlerinin kuzeye
+   * gitmesi serbesttir — zaten geri çekilmezler).
+   *  - `kanatlar` (3-15 sn): kanat savaşı **yolun iki yanında**, sahanın ortasında geçer.
+   *  - `ezme` (15 sn sonrası): taban Güney'in Kılıçlı hattına kadar iner — "Kuzey kanatları Güney'in Kılıçlı
+   *    bölüklerine dikine saldırır".
+   *
+   * **İki sınır da gerekli.** Tavan olmasa Güney'in menzilli bölükleri Kuzey'in okçu hattına kadar çıkardı.
+   * Taban olmasa iki ayrı sorun çıkıyordu: (1) Kuzey'in kanatları, geri çekilen menzilli bölükleri kovalaya
+   * kovalaya Güney'in mancınıklarının dibine iniyor ve Yusuf'un istemediği şey oluyordu — kanat askeri
+   * merkezdeki çatışmanın içinde; (2) tek taraflı bir taban konunca da menzilli bölükler tabanın bir tık
+   * güneyine çekilip yay menzilinden (9 birim) dövüşü dondurdu — piyade onlara yetişemedi, dövüş 9. saniyede
+   * kilitlendi. Ortak taban ikisini birden çözer: menzilli bölük duvara sıkışır, piyade yetişir, dövüş biter.
+   */
+  cephe: { kanatlar: { taban: -12, tavan: 4 }, ezme: { taban: -18, tavan: 4 } },
+  /**
+   * Diziliş (Yusuf'un çizimi: calisma/icerik/short-dizilis-ya-allah-hucum.png). Her satır bir **bölük**tür:
+   *  `taraf` kuzey / güney · `serit` sol / merkez / sağ · `tur` oyunun kendi asker türü (SOLDIER_TYPES anahtarı) ·
+   *  `sayi` asker · `b` bölüğün **ön safının** `kanat` üstündeki yeri (+ = kuzey) · `sutun` bir saftaki asker ·
+   *  `aralik` yan yana mesafe · `sira` saflar arası mesafe. Arka saflar hep **düşmandan uzağa** dizilir.
+   * `uyanma` bölüğün **beyninin açıldığı** müzik işaretidir (o ana kadar bölük yerinde durur, hiçbir şeye
+   * karışmaz — merkezin kanat savaşına karışmamasını sağlayan ilk kural budur):
+   *  `kanatlar` 3. sn'de kanat savaşı başlar · `enKotu` 15. sn'de Güney'in kılıçlıları öne çıkar ·
+   *  `hucumda` Kuzey'in okçuları yalnız hücum dibine gelince (bkz. `hucum.okcuUyan`) uyanır ·
+   *  `nida` 19. sn'de Güney merkezi hücuma kalkar · `null` bölüğü hep sahne sürer (mancınıklar).
+   * `hedefAcilir` bölüğün **hedef olarak görünür olduğu** işarettir (yoksa baştan görünür). Güney'in Kılıçlı
+   * bölükleri 15. sn'ye kadar hedef değildir: kanat savaşının ilk dalgası (müzikte 3-11 sn) menzilli
+   * bölüklerin dövüşüdür, 11-15 arası iki kanat da soluklanır ("karanlık koyulaşır") ve 15'teki tek darbeyle
+   * Kuzey kanatları kılıçlıların üstüne yürür. Kılıçlılar bu sırada zaten 20 birim geridedir, yani kapı
+   * yalnızca sahnenin sırasını müziğin sırasına kilitler.
+   * `menzilli` olan bölükler kanat savaşının ilk dalgasıdır (müzikte 3-11 sn: "öne çıkıp saldırır, sonra erir").
+   */
+  boluk: [
+    // Kuzey (mavi): merkezde iki okçu bölüğü (kahraman aralarında), kanatlarda Mızrak Kalkan + atlı.
+    { taraf: 'kuzey', serit: 'merkez', tur: 'bow', sayi: 15, b: 14, sutun: 5, aralik: 2.0, sira: 2.2, uyanma: 'hucumda' },
+    { taraf: 'kuzey', serit: 'merkez', tur: 'bow', sayi: 15, b: 24, sutun: 5, aralik: 2.0, sira: 2.2, uyanma: 'hucumda' },
+    { taraf: 'kuzey', serit: 'sol', tur: 'spearshield', sayi: 16, b: 8, sutun: 5, aralik: 2.0, sira: 2.2, uyanma: 'kanatlar' },
+    { taraf: 'kuzey', serit: 'sol', tur: 'horsespear', sayi: 14, b: 16, sutun: 5, aralik: 2.4, sira: 2.6, uyanma: 'kanatlar' },
+    { taraf: 'kuzey', serit: 'sag', tur: 'spearshield', sayi: 16, b: 8, sutun: 5, aralik: 2.0, sira: 2.2, uyanma: 'kanatlar' },
+    { taraf: 'kuzey', serit: 'sag', tur: 'horsesword', sayi: 16, b: 16, sutun: 5, aralik: 2.4, sira: 2.6, uyanma: 'kanatlar' },
+    // Güney (kızıl): merkezde mancınık + Mızrak Kalkan Atlısı (kahraman en arkada), kanatlarda menzilli + Kılıçlı.
+    { taraf: 'guney', serit: 'merkez', tur: 'catapult', sayi: 4, b: -20, sutun: 4, aralik: 4.2, sira: 4.0, uyanma: null },
+    { taraf: 'guney', serit: 'merkez', tur: 'horsespearshield', sayi: 16, b: -26, sutun: 4, aralik: 2.8, sira: 3.0, uyanma: 'nida', akinci: true },
+    { taraf: 'guney', serit: 'sol', tur: 'horsebow', sayi: 12, b: -8, sutun: 4, aralik: 2.8, sira: 3.0, uyanma: 'kanatlar', menzilli: true },
+    { taraf: 'guney', serit: 'sol', tur: 'sword', sayi: 10, b: -15, sutun: 5, aralik: 2.0, sira: 2.2, uyanma: 'enKotu', hedefAcilir: 'enKotu' },
+    { taraf: 'guney', serit: 'sag', tur: 'bow', sayi: 12, b: -8, sutun: 5, aralik: 2.0, sira: 2.2, uyanma: 'kanatlar', menzilli: true },
+    { taraf: 'guney', serit: 'sag', tur: 'sword', sayi: 10, b: -15, sutun: 5, aralik: 2.0, sira: 2.2, uyanma: 'enKotu', hedefAcilir: 'enKotu' },
+  ],
+  /**
+   * Kahramanlar. Kuzeyinki **seviye 1** ve okçudur (iki okçu bölüğünün arasında durur, nidadan sonra kendi
+   * okçularının **arkasına kaçar**); Güney'inki **seviye 100** Mızrak Kalkan Atlısıdır (merkez bölüğünün en
+   * arkasında başlar, hücumun önünde gider). `b` tur başındaki yeri, `kacis` Kuzey kahramanının sığınacağı yer.
+   * Seviye oyunun kendi seviye sistemidir (characters.js applyLevelUp): can ve vuruş alanı seviyeyle büyür.
+   */
+  kahraman: {
+    kuzey: { loadout: { weapon: 'bow', shield: false, horse: false }, seviye: 1, b: 20, kacis: 30 },
+    guney: { loadout: { weapon: 'spear', shield: true, horse: true }, seviye: 100, b: -34 },
+  },
+  /**
+   * Müziğin işaretleri (sn; calisma/icerik/muzik/short/liste.json `isaretler` ile birebir). Sahne bunlara
+   * kilitlidir:
+   *  `kanatlar` kanat bölüklerinin harekete geçtiği an · `menzilliEriyor` Güney'in menzilli kanat bölüklerinin
+   *  tükendiği an · `enKotu` Kuzey kanatlarının Güney'in kılıçlılarına yüklendiği an · `nida` "Ya Allah" nidası,
+   *  Güney merkezi hücuma kalkar · `marsBaslar` mehter marşının girdiği an (hücum dörtnala) · `carpisma`
+   *  atlıların Kuzey okçu hattına vardığı an · `kahramanOlur` Kuzey kahramanının düştüğü an · `kapanis` oyun
+   *  görüntüsünün bittiği an (sonrası josephuz.com kapanışı) · `son` müziğin bittiği an.
+   */
+  isaret: {
+    kanatlar: 3, menzilliEriyor: 11, enKotu: 15, nida: 19, marsBaslar: 19.74,
+    carpisma: 23.7, kahramanOlur: 27, kapanis: 29.59, son: 33.59,
+  },
+  /**
+   * Hedefleme: `tazele` sahnenin hedefleri yenileme aralığı (sn; ai.js'in kendi `retarget`i 0.3 sn, bundan sık
+   * yenilemek boşuna), `menzil` bir birimin **şeridindeki** düşmanı hedef kabul ettiği en uzak mesafe — kanatta
+   * geniştir (bölükler birbirine yürüsün), merkezde okçular için dardır (`okcuMenzil`: yay menzili 9 + pay, yani
+   * okçu hücum dibine gelmeden yerinden kıpırdamaz).
+   */
+  hedef: { tazele: 0.25, menzil: 46, okcuMenzil: 11, cephePayi: 6 },
+  /**
+   * Güney mancınıklarının **atış pencereleri** (sahne saati, sn). Mancınık oyunun kendi kuşatma birimidir
+   * (menzil 36, hasar 40, bekleme 2.2) ve sahne yalnız **ne zaman, kime** nişan aldığını söyler. İki pencere
+   * var: açılış bombardımanı (karamsar girişte uzaktan atılan taşlar) ve hücum bombardımanı ("arkadan yetişen
+   * mancınıklar da atış yapar"). Arada susarlar: kanat savaşı boyunca durmadan atsalardı Kuzey'in okçu hattını
+   * 19. saniyeden önce eritirlerdi. `ilerleme` hücumda mancınıkların kendi hızıyla (SIEGE.speed 2.4) kuzeye
+   * yürüdüğü mesafedir.
+   */
+  mancinik: { pencere: [[0.4, 7], [20.2, 27.5]], ilerleme: 14 },
+  /**
+   * Hücum (Güney merkezi). `sprint` atlıların ve kahramanın koşusu oyunun kendi koşusudur (SPRINT_MULT 1.65):
+   * Mızrak Kalkan Atlısı 3.8 x 1.7 x 0.8 x 1.65 = 8.53 birim/sn. `temas` atlının hedefine bu kadar yaklaşınca
+   * sahnenin yol sürüşünden çıkıp **oyunun dövüşüne** bırakıldığı uzaklık. `okcuUyan` Kuzey okçularının beyni
+   * açılan an (hücum bu kadar yaklaşınca): daha erken açılsaydı okçular mancınıklara yürür, merkez dağılırdı.
+   */
+  hucum: { sprint: true, temas: 3.2, okcuUyan: 16 },
+  /**
+   * **Bozgun** (oyunda yoktur, sahneye özeldir): Kuzey kahramanı düşünce bütün Kuzey birlikleri beyinlerini
+   * bırakır, dönüp kuzeye ve yanlara kaçar. `hiz` kaçış hız çarpanı (oyunun kendi koşusu), `yan` kaçarken
+   * `eksen` üstünde dışa açılma payı, `sil` birimin bu kadar `kanat` birimi kuzeye geçince sahadan kaldırıldığı
+   * sınır (bozgun evresinde kadrajın üstü ~+59 birimdedir, yani silinme ekran dışında olur).
+   */
+  bozgun: { hiz: 2.1, yan: 0.55, sil: 62 },
+  /**
+   * Kuzey kahramanının canı müziğin `kahramanOlur` işaretine kadar **her karede tazelenir** (`?gosteri=savas`
+   * kahramanlarında da aynı kural var): vurulur, kanar, sendeler ama düşmez. İşaret gelince tazeleme biter ve
+   * sahne onu Güney kahramanının vuruşuyla düşürür. Atlıların ve seviye 100 kahramanın arasında kalan seviye 1
+   * kahraman yoksa 24. saniyede ölür, marş daha yeni başlamışken bozgun kopardı; bu kural **yalnızca ölüm
+   * anını** müziğe oturtur, dövüşün başka hiçbir sayısına karışmaz.
+   */
+  kahramanKalkani: true,
+  /**
+   * Kalkan ölüm **anını** müziğe oturttuğu için "kahraman 27'de öldü" bir ölçüm değildir. Hücumun gerçekten
+   * vardığını söyleyen ölçü `kahramanYetisme`: Güney kahramanının Kuzey kahramanına bu kadar birim
+   * sokulduğu an (bkz. `olcumler` → `kahramanYetisti`, dumanı testi buna bakar). Ölçülen en kısa mesafe
+   * koşudan koşuya 3.8 - 4.3 birim — mızrak erimi (3.1) + hedefin yarıçapı (0.45) kadar değil, ama atın
+   * boyu içinde: ekranda iki kahraman üst üstedir. Sınır 6.5 konuldu, yani iki birimden çok pay var. Düştüğünde
+   * anlamı net: hücum takılmış, Kuzey kahramanı kaçmayı başarmış ya da atlılar okçu hattını aşamamıştır —
+   * o durumda mesafe 20 birimin altına inmez (iki kahraman turun başında 46 birim uzaktadır).
+   */
+  kahramanYetisme: 6.5,
+  /**
+   * Kamera: oyunun **kendi izometrik açısı** (24, 29, 24), `uzaklik` ile geriye çekilmiş. Dikey yarı kadraj
+   * (`genis` 33) normal oyunun (17) iki katıdır — Yusuf'un istediği "belirgin uzak" bakış budur: dikeyde
+   * 33 / 0.6496 = ±50.8 birim, yatayda 0.5625 x 33 = ±18.6 birim görünür, yani iki ordu ve iki kanat aynı anda
+   * kadrajdadır. Hücumda (`hucum` 29) merkeze hafifçe yaklaşılır. Kamera kahramanı izlemez: `odak` yalnız evreye
+   * göre **çok yavaş** kayar (`odakYumusatma` 0.7 → saniyede ekran boyunun onda birinden az).
+   */
+  kamera: {
+    uzaklik: 2.2, genis: 33, hucum: 29, yumusatma: 0.6, odakYumusatma: 0.7,
+    odak: { dizilis: { a: 0, b: -3 }, kanatlar: { a: 0, b: -3 }, hucum: { a: 0, b: 8 }, bozgun: { a: 0, b: 14 } },
+  },
+  /**
+   * `gorus` kadraj elemesinin yarıçapı (odaktan bu kadar uzaktaki ağaç / eşya çizilmez; kadrajın köşesi
+   * ~54 birimdedir, pay bırakıldı), `sis` sahne pusunun kameraya uzaklık aralığı (çarpan; kameranın odağa
+   * uzaklığıyla çarpılır — bu kadrajda varsayılan pus ordunun yarısını yutardı), `kalite` çizim ayarı:
+   * **orta** — gölge haritası bu genişlikte sahanın bir kısmını açıkta bırakıyor, orta kalitede gölge geçişi
+   * birkaç karede bir yenilenir ve 150 askerlik sahada kare hızı düşmez.
+   */
+  gorus: 110, sis: { yakin: 0.8, uzak: 2.0 }, kalite: 'medium',
+  /** Müzik bittikten sonra sahne bu kadar saniye daha koşar, sonra tur baştan kurulur (gösteri döngüsü). */
+  tekrar: 2.5,
+  /**
+   * Arazi tohumu (setupGame `seed`). Sabittir: arazi (ağaç, kaya, yol) her çekimde birebir aynı kurulur.
+   * **Dövüşün kendisi tekrarlanabilir değildir** — ai.js vuruş aralıklarını (`rrand`) ve karakterlerin adım
+   * evresini rastgele seçer; iki çekim arasında ölüm anları birkaç onda saniye oynar. Sahnenin müziğe kilitli
+   * dört anı bu yüzden **ölçülür ve kabul ölçütüyle denetlenir** (bkz. tests/gosteri-hucum-smoke.mjs ve
+   * ajanlar/icerik/short-uret.mjs `denetim`), sabit sayılmaz.
+   *
+   * Tohumun kendisi **taranarak** seçildi (bkz. scripts/hucum-tohum.mjs): betik 150 tohumda sahanın içindeki ağaç / kaya
+   * sayısını, bölüklerin üstünün açıklığını ve merkez şeridin hücum koridorunu ölçer; 93858 sahada yalnız
+   * 17 engel bırakır ve koridoru baştan sona açık tutar — kadraj iki orduyu birden aldığı için en kritik
+   * ölçüt budur. Haritanın ortasındaki kaya öbeği tohumdan bağımsızdır (her turda aynı yerdedir) ve iki
+   * ordunun arasında, yolun hemen altında durur: sahnenin doğal nişan taşı.
+   */
+  tohum: 93858,
+};
+
+/**
  * Çevrim içi (oda kur / odaya katıl, çevrim içi sayısı): `web` tarayıcıda, `app` Android uygulamasında açık mı. Kapalıyken
  * sunucuya hiç bağlanılmaz, oda düğmeleri "Yakında" yazar; tek başına oyun aynen oynanır (bkz. src/platform.js).
  */
