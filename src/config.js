@@ -1357,14 +1357,15 @@ export const GOSTERI_HUCUM = {
   /**
    * **Şeritler**: bölüklerin `eksen` üstündeki merkezleri ve bir şeridin yarı genişliği. Bir birim yalnız kendi
    * şeridindeki düşmanı hedefler; `yari` şeritler arasındaki sınırdır (13 - 6.5 = 6.5, yani sol şerit
-   * [-19.5, -6.5], merkez [-6.5, 6.5], sağ [6.5, 19.5] bandıdır);  hedefsiz kalan birimin şeridin içine
-   * çekildiği emniyet payıdır. Merkezle kanat arasındaki boşluk askerin
-   * görüşünden (VISION.soldier 10) küçüktür, bu yüzden disiplin **kadrajla değil hedeflemeyle** sağlanır.
+   * [-19.5, -6.5], merkez [-6.5, 6.5], sağ [6.5, 19.5] bandıdır); `pay` hedefsiz kalan birimin şeridin içine
+   * çekildiği emniyet payıdır. Merkezle kanat arasındaki boşluk askerin görüşünden (VISION.soldier 10)
+   * küçüktür, bu yüzden disiplin **kadrajla değil hedeflemeyle** sağlanır — üstüne de `sahayaSigdir`in koridor
+   * duvarı biner, yani kanat birimi merkez bandına fiziksel olarak da giremez.
    */
   serit: { sol: -13, merkez: 0, sag: 13, yari: 6.5, pay: 1.5 },
   /**
    * **Saha**: sahnenin oynandığı dikdörtgen (`a` yarı genişlik, `kuzey` / `guney` `kanat` sınırları). Dizilişin
-   * tamamı buna rahat sığar (a ±17, b -33 ... +26) ve kadrajın içindedir.
+   * tamamı buna rahat sığar (a ±17, b -34 ... +28) ve kadrajın içindedir.
    *
    * Sahanın bir de **işlevi** var: sahanın dışına çıkan birim ne hedeflenir ne de hedefler, sahaya geri yürür.
    * Bu kural olmadan oyunun kendi itmesi (WEAPONS.sword.knockback 12) sahneyi bozuyordu: vuruşla geri savrulan
@@ -1473,14 +1474,15 @@ export const GOSTERI_HUCUM = {
    * **Bozgun** (oyunda yoktur, sahneye özeldir): Kuzey kahramanı düşünce bütün Kuzey birlikleri beyinlerini
    * bırakır, dönüp kuzeye ve yanlara kaçar. `hiz` kaçış hız çarpanı (oyunun kendi koşusu), `yan` kaçarken
    * `eksen` üstünde dışa açılma payı, `sil` birimin bu kadar `kanat` birimi kuzeye geçince sahadan kaldırıldığı
-   * sınır (kadrajın üstü ~+46 birimdedir, yani silinme ekran dışında olur).
+   * sınır (bozgun evresinde kadrajın üstü ~+59 birimdedir, yani silinme ekran dışında olur).
    */
   bozgun: { hiz: 2.1, yan: 0.55, sil: 62 },
   /**
-   * Kuzey kahramanı müziğin `kahramanOlur` işaretine kadar **ayakta kalır**: canı 1'in altına düşmez, o andan
-   * sonra ilk vuruş onu düşürür (düşmezse sahne onu Güney kahramanının vuruşuyla düşürür). Atlıların ve seviye
-   * 100 kahramanın arasında kalan seviye 1 kahraman yoksa 24. saniyede ölür ve marş boşa akardı; bu kural
-   * **yalnızca ölüm anını** müziğe oturtur, dövüşün kendisine karışmaz.
+   * Kuzey kahramanının canı müziğin `kahramanOlur` işaretine kadar **her karede tazelenir** (`?gosteri=savas`
+   * kahramanlarında da aynı kural var): vurulur, kanar, sendeler ama düşmez. İşaret gelince tazeleme biter ve
+   * sahne onu Güney kahramanının vuruşuyla düşürür. Atlıların ve seviye 100 kahramanın arasında kalan seviye 1
+   * kahraman yoksa 24. saniyede ölür, marş daha yeni başlamışken bozgun kopardı; bu kural **yalnızca ölüm
+   * anını** müziğe oturtur, dövüşün başka hiçbir sayısına karışmaz.
    */
   kahramanKalkani: true,
   /**
@@ -1505,8 +1507,13 @@ export const GOSTERI_HUCUM = {
   /** Müzik bittikten sonra sahne bu kadar saniye daha koşar, sonra tur baştan kurulur (gösteri döngüsü). */
   tekrar: 2.5,
   /**
-   * Arazi tohumu (setupGame `seed`). Sabittir: aynı adresten çekilen her video kare kare aynıdır. Bu değer
-   * **taranarak** seçildi (bkz. scripts/hucum-tohum.mjs): betik 150 tohumda sahanın içindeki ağaç / kaya
+   * Arazi tohumu (setupGame `seed`). Sabittir: arazi (ağaç, kaya, yol) her çekimde birebir aynı kurulur.
+   * **Dövüşün kendisi tekrarlanabilir değildir** — ai.js vuruş aralıklarını (`rrand`) ve karakterlerin adım
+   * evresini rastgele seçer; iki çekim arasında ölüm anları birkaç onda saniye oynar. Sahnenin müziğe kilitli
+   * dört anı bu yüzden **ölçülür ve kabul ölçütüyle denetlenir** (bkz. tests/gosteri-hucum-smoke.mjs ve
+   * ajanlar/icerik/short-uret.mjs `denetim`), sabit sayılmaz.
+   *
+   * Tohumun kendisi **taranarak** seçildi (bkz. scripts/hucum-tohum.mjs): betik 150 tohumda sahanın içindeki ağaç / kaya
    * sayısını, bölüklerin üstünün açıklığını ve merkez şeridin hücum koridorunu ölçer; 93858 sahada yalnız
    * 17 engel bırakır ve koridoru baştan sona açık tutar — kadraj iki orduyu birden aldığı için en kritik
    * ölçüt budur. Haritanın ortasındaki kaya öbeği tohumdan bağımsızdır (her turda aynı yerdedir) ve iki
