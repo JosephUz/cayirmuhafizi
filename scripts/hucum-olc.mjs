@@ -103,7 +103,11 @@ try {
   console.log(satir('menzilli kanat erir', son.menzilliBitti, K.isaret.menzilliEriyor));
   console.log(satir('kılıçlı kanat biter', son.kilicliBitti, K.isaret.nida));
   console.log(satir('hücum okçu hattında', son.carpisma, K.isaret.carpisma));
-  console.log(satir('Kuzey kahramanı ölür', son.kahramanOlum, K.isaret.kahramanOlur));
+  console.log(satir('kahraman dibine varır', son.kahramanYetisti, K.isaret.kahramanOlur));
+  // Ölüm anı bir ölçüm değil: kalkan (config kahramanKalkani) onu işarete oturtur. Gerçek ölçü üstteki
+  // yetişme anı ve iki kahraman arasındaki en kısa mesafedir.
+  console.log(satir('Kuzey kahramanı ölür', son.kahramanOlum, K.isaret.kahramanOlur) + '  [kalkan oturtur]');
+  console.log(`  iki kahraman arası en kısa mesafe: ${son.kahramanAra} birim (sınır ${K.kahramanYetisme})`);
   console.log(`  Kapanışta: kadrajda ${son.kuzeyKalan} Kuzey birimi · merkezde ${son.kuzeyMerkezKalan} · hepsi kaçıyor mu: ${son.hepsiKaciyor}`);
   console.log(`\n  şerit kaçağı (en çok): ${son.seritKacagi} birim · atılan taş: ${son.tas} · yapı: ${son.yapi}`);
   console.log(`  son kadro — Kuzey ${JSON.stringify(son.kuzey)} · Güney ${JSON.stringify(son.guney)}`);

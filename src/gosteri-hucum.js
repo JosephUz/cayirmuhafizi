@@ -17,10 +17,12 @@ import { setupGame, step } from './world.js';
  * Sahnenin akışı (bir tur 33.59 sn; saniyeler config `isaret`, müziğin vuruşlarıdır):
  *  1. **dizilis** (0 - 3 sn) — iki ordu dizili bekler, kimse kıpırdamaz. Yalnız Güney'in mancınıkları uzaktan
  *     Kuzey'in okçu hattına taş atar (karamsar açılış).
- *  2. **kanatlar** (3 - 11 sn) — iki kanat harekete geçer: Güney'in solda **Atlı Okçu**, sağda **Okçu**
+ *  2. **kanatlar** (3 - 15 sn) — iki kanat harekete geçer: Güney'in solda **Atlı Okçu**, sağda **Okçu**
  *     bölükleri öne çıkar; Kuzey solda **Mızrak Kalkan + Mızraklı Atlı**, sağda **Mızrak Kalkan + Kılıçlı
  *     Atlı** ile karşılık verir. Mızrak Kalkan atlı okçunun, Kılıçlı Atlı okçunun antisidir (ANTI.table):
- *     Güney'in menzilli kanatları 11. saniyede erir — müziğin karanlığının koyulaştığı an budur.
+ *     Güney'in menzilli kanatları 11. saniyede (`isaret.menzilliEriyor`) erir — müziğin karanlığının
+ *     koyulaştığı an budur. Kalan dört saniye iki kanadın soluklanmasıdır, evre 15'te (`isaret.enKotu`)
+ *     Güney'in Kılıçlıları uyanınca biter.
  *  3. **ezme** (15 - 19 sn) — Güney'in **Kılıçlı** bölükleri öne gelir, Kuzey kanatları üstlerine yüklenir.
  *     Güney iki kanattan da ezilir: müziğin tek darbesinden sonraki neredeyse sessizlik.
  *  4. **hucum** (19 sn, "Ya Allah" nidası) — Güney merkezi kalkar. 19.74'te mehter marşıyla **Mızrak Kalkan
@@ -219,7 +221,8 @@ export function createHucumGosteri(world, { arenaReady }) {
       /** Mancınıkların kendi hızıyla kuzeye yürüdüğü yol (hücumda; bkz. `mancinikSur`). */
       mancinikYol: 0,
       /** Ölçülen anlar (sahne saati, sn; 0 = olmadı): dumanı testi ve çekim betiği bunlara bakar. */
-      menzilliBitti: 0, kilicliBitti: 0, carpisma: 0, kahramanOlum: 0, kuzeyKalan: -1, kuzeyMerkez: -1, hepsiKaciyor: false,
+      menzilliBitti: 0, kilicliBitti: 0, carpisma: 0, kahramanYetisti: 0, kahramanAra: 99, kahramanOlum: 0,
+      kuzeyKalan: -1, kuzeyMerkez: -1, hepsiKaciyor: false,
       /** Tur boyunca atılan mancınık taşı ve şeridinden çıkan birim sayısı (disiplin ölçüsü). */
       tas: 0, seritKacagi: 0, enIcerdeki: 99,
       kacis: false,
@@ -607,6 +610,15 @@ export function createHucumGosteri(world, { arenaReady }) {
     const g = guneyKanat();
     if (!sahne.menzilliBitti && !g.menzilli) sahne.menzilliBitti = sahne.saniye;
     if (!sahne.kilicliBitti && !g.kilicli) sahne.kilicliBitti = sahne.saniye;
+    // Güney kahramanının Kuzey kahramanına **gerçekten yetiştiği** an ve tur boyunca aralarındaki en kısa
+    // mesafe. `kahramanOlum` kalkan yüzünden (bkz. `kahramanKalkani`) hep işaretine oturur; bu iki ölçü
+    // kalkandan bağımsızdır: hücum merkezi gerçekten kat etti mi, onu söyler.
+    const p = taraflar.kuzey.kahraman, g2 = taraflar.guney.kahraman;
+    if (p.alive && g2.alive) {
+      const d = Math.hypot(p.pos.x - g2.pos.x, p.pos.z - g2.pos.z);
+      if (d < sahne.kahramanAra) sahne.kahramanAra = d;
+      if (!sahne.kahramanYetisti && d <= K.kahramanYetisme) sahne.kahramanYetisti = sahne.saniye;
+    }
     if (!sahne.kahramanOlum && !taraflar.kuzey.kahraman.alive) { sahne.kahramanOlum = sahne.saniye; sahne.kacis = true; }
   }
 
@@ -718,6 +730,9 @@ export function createHucumGosteri(world, { arenaReady }) {
     /** Ölçülen anlar (sahne saati, sn): video kesiti ve müziğin vuruşları bunlara göre denetlenir. */
     menzilliBitti: +sahne.menzilliBitti.toFixed(2), kilicliBitti: +sahne.kilicliBitti.toFixed(2),
     carpisma: +sahne.carpisma.toFixed(2), kahramanOlum: +sahne.kahramanOlum.toFixed(2),
+    /** Güney kahramanının Kuzey kahramanına vuruş erimine girdiği an ve tur boyunca aralarındaki en kısa
+     *  mesafe: kalkandan bağımsız, gerçek ölçüler. */
+    kahramanYetisti: +sahne.kahramanYetisti.toFixed(2), kahramanAra: +sahne.kahramanAra.toFixed(2),
     /** Kapanış karesinde kadrajda kalan Kuzey birimi (-1 = kapanışa gelinmedi): bozgunun ölçüsü. */
     kuzeyKalan: sahne.kuzeyKalan, kuzeyMerkezKalan: sahne.kuzeyMerkez, hepsiKaciyor: sahne.hepsiKaciyor,
     yapi: world.structures.length,

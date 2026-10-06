@@ -1398,14 +1398,14 @@ export const GOSTERI_HUCUM = {
    *  `aralik` yan yana mesafe · `sira` saflar arası mesafe. Arka saflar hep **düşmandan uzağa** dizilir.
    * `uyanma` bölüğün **beyninin açıldığı** müzik işaretidir (o ana kadar bölük yerinde durur, hiçbir şeye
    * karışmaz — merkezin kanat savaşına karışmamasını sağlayan ilk kural budur):
-   *  `kanatlar` 3. sn'de kanat savaşı başlar · `menzilliEriyor` 11. sn'de Güney'in kılıçlıları öne çıkar ·
+   *  `kanatlar` 3. sn'de kanat savaşı başlar · `enKotu` 15. sn'de Güney'in kılıçlıları öne çıkar ·
    *  `hucumda` Kuzey'in okçuları yalnız hücum dibine gelince (bkz. `hucum.okcuUyan`) uyanır ·
    *  `nida` 19. sn'de Güney merkezi hücuma kalkar · `null` bölüğü hep sahne sürer (mancınıklar).
    * `hedefAcilir` bölüğün **hedef olarak görünür olduğu** işarettir (yoksa baştan görünür). Güney'in Kılıçlı
-   * bölükleri 15. sn'ye kadar hedef değildir: kanat savaşının ilk 12 saniyesi menzilli bölüklerin dövüşüdür
-   * (müzikte 3-11), 11-15 arası iki kanat da soluklanır ("karanlık koyulaşır") ve 15'teki tek darbeyle Kuzey
-   * kanatları kılıçlıların üstüne yürür. Kılıçlılar bu sırada zaten 20 birim geridedir, yani kapı yalnızca
-   * sahnenin sırasını müziğin sırasına kilitler.
+   * bölükleri 15. sn'ye kadar hedef değildir: kanat savaşının ilk dalgası (müzikte 3-11 sn) menzilli
+   * bölüklerin dövüşüdür, 11-15 arası iki kanat da soluklanır ("karanlık koyulaşır") ve 15'teki tek darbeyle
+   * Kuzey kanatları kılıçlıların üstüne yürür. Kılıçlılar bu sırada zaten 20 birim geridedir, yani kapı
+   * yalnızca sahnenin sırasını müziğin sırasına kilitler.
    * `menzilli` olan bölükler kanat savaşının ilk dalgasıdır (müzikte 3-11 sn: "öne çıkıp saldırır, sonra erir").
    */
   boluk: [
@@ -1485,6 +1485,16 @@ export const GOSTERI_HUCUM = {
    * anını** müziğe oturtur, dövüşün başka hiçbir sayısına karışmaz.
    */
   kahramanKalkani: true,
+  /**
+   * Kalkan ölüm **anını** müziğe oturttuğu için "kahraman 27'de öldü" bir ölçüm değildir. Hücumun gerçekten
+   * vardığını söyleyen ölçü `kahramanYetisme`: Güney kahramanının Kuzey kahramanına bu kadar birim
+   * sokulduğu an (bkz. `olcumler` → `kahramanYetisti`, dumanı testi buna bakar). Ölçülen en kısa mesafe
+   * koşudan koşuya 3.8 - 4.3 birim — mızrak erimi (3.1) + hedefin yarıçapı (0.45) kadar değil, ama atın
+   * boyu içinde: ekranda iki kahraman üst üstedir. Sınır 6.5 konuldu, yani iki birimden çok pay var. Düştüğünde
+   * anlamı net: hücum takılmış, Kuzey kahramanı kaçmayı başarmış ya da atlılar okçu hattını aşamamıştır —
+   * o durumda mesafe 20 birimin altına inmez (iki kahraman turun başında 46 birim uzaktadır).
+   */
+  kahramanYetisme: 6.5,
   /**
    * Kamera: oyunun **kendi izometrik açısı** (24, 29, 24), `uzaklik` ile geriye çekilmiş. Dikey yarı kadraj
    * (`genis` 33) normal oyunun (17) iki katıdır — Yusuf'un istediği "belirgin uzak" bakış budur: dikeyde

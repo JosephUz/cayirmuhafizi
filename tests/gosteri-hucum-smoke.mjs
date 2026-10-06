@@ -4,8 +4,10 @@
 // WebSocket açılmaz ve ölçüm gitmez.
 // Asıl iki denetim şunlar:
 //  1. **Müziğe kilit** — sahne kare kare (sahte saatle) ilerletilir; Güney'in menzilli kanat bölüklerinin
-//     eridiği an, Kılıçlı bölüklerinin tükendiği an, hücumun Kuzey okçu hattına vardığı an ve Kuzey
-//     kahramanının düştüğü an müziğin işaretlerine (config isaret) oturmalı.
+//     eridiği an, Kılıçlı bölüklerinin tükendiği an ve hücumun Kuzey okçu hattına vardığı an müziğin
+//     işaretlerine (config isaret) oturmalı. Kuzey kahramanının ölüm anını sahne kendisi müziğe oturtur
+//     (config kahramanKalkani), bu yüzden o bir ölçüm değil **kalkan kuralının** denetimidir; kahramanla
+//     ilgili gerçek ölçüm, Güney kahramanının ona vuruş erimine girdiği andır (kahramanYetisti).
 //  2. **Kanat disiplini** — Yusuf'un isteği: "kanatlardaki askerler merkezlere salça olmasınlar". Tur boyunca
 //     hiçbir kanat birimi merkez şeridine girmemeli ve merkez bölükleri nidaya (19 sn) kadar yerinde durmalı.
 // Sonda bozgun (Kuzey kahramanı ölünce bütün Kuzey ordusunun kaçması), tur sıfırlaması ve telefonda çökmeden
@@ -87,7 +89,7 @@ try {
       grup[k].n++;
     }
     const k = window.__meadow.players.map(p => ({ f: p.faction, sv: p.hero.level, silah: p.hero.loadout.weapon, at: Boolean(p.hero.loadout.horse), can: Math.round(p.hero.stats.maxHp) }));
-    return { grup, kahraman: k, beyinsiz: e.filter(x => !x.brain).length };
+    return { grup, kahraman: k, toplam: e.length, beyinsiz: e.filter(x => !x.brain).length };
   });
   // Diziliş: Kuzey merkezde okçu, kanatlarda Mızrak Kalkan + atlı; Güney merkezde mancınık + Mızrak Kalkan
   // Atlısı, kanatlarda menzilli + Kılıçlı (bkz. config boluk ve Yusuf'un çizimi).
@@ -100,8 +102,10 @@ try {
   assert.equal(kadro.grup['red|merkez|catapult'].menzil, 36, 'mancınık menzili oyunun kendi değeri (36)');
   assert.equal(kadro.grup['blue|sol|horsespear'].hiz, 6.46, 'atlılar oyunun kendi atlı hızında (3.8 x 1.7)');
   assert.equal(kadro.grup['blue|sol|spearshield'].hiz, 3.04, 'kalkanlı piyade oyunun kendi hızında (3.8 x 0.8)');
-  assert.equal(kadro.beyinsiz, kadro.beyinsiz, 'bölükler uyanana kadar beyinsiz durur');
-  assert.ok(kadro.beyinsiz > 100, `tur başında bütün bölükler beyinsiz bekler (${kadro.beyinsiz} birim)`);
+  assert.equal(kadro.toplam, Object.values(BEKLENEN.kuzey).reduce((a, b) => a + b, 0)
+    + Object.values(BEKLENEN.guney).reduce((a, b) => a + b, 0), 'sahadaki birim sayısı dizilişin toplamı');
+  assert.equal(kadro.beyinsiz, kadro.toplam,
+    `tur başında **hiçbir** birimin beyni açık değil: bölükler uyanana kadar yerinde durur (${kadro.beyinsiz} / ${kadro.toplam})`);
   // Kahramanlar: Kuzey seviye 1 okçu, Güney seviye 100 Mızrak Kalkan Atlısı.
   const kz = kadro.kahraman.find(x => x.f === 'blue'), gy = kadro.kahraman.find(x => x.f === 'red');
   assert.equal(kz.sv, K.kahraman.kuzey.seviye, 'Kuzey kahramanı seviye 1');
@@ -156,17 +160,38 @@ try {
   assert.ok(ucuncu.tas > 0, `Güney mancınıkları daha açılışta taş atar (${ucuncu.tas} taş)`);
   assert.deepEqual(ucuncu.guney, BEKLENEN.guney, 'diziliş evresinde Güney hiç kayıp vermez (kimse kıpırdamaz)');
 
-  // **Müziğe kilit**: dört an da işaretine oturur.
+  // **Müziğe kilit**: üç ölçülen an da işaretine oturur. Hepsi oyunun kendi dövüşünün sonucudur — sahne
+  // yalnız hedefi ve uyanma anını söyler, bu saniyeleri kimse dayatmaz.
   const kilit = [
     ['Güney menzilli kanatları erir', son.menzilliBitti, K.isaret.menzilliEriyor],
     ['Güney kılıçlı kanatları ezilir', son.kilicliBitti, K.isaret.nida],
     ['hücum Kuzey okçu hattına varır', son.carpisma, K.isaret.carpisma],
-    ['Kuzey kahramanı düşer', son.kahramanOlum, K.isaret.kahramanOlur],
   ];
   for (const [ad, olculen, isaret] of kilit) {
     assert.ok(olculen > 0, `${ad}: gerçekleşir`);
     assert.ok(Math.abs(olculen - isaret) <= PAY, `${ad}: müziğin işaretine oturur (ölçülen ${olculen} sn, beklenen ${isaret} ± ${PAY})`);
   }
+  /**
+   * Kuzey kahramanının ölüm **anı** sahne tarafından müziğe oturtulur (config `kahramanKalkani`: canı
+   * `kahramanOlur`a kadar tazelenir, işaret gelince sahne onu Güney kahramanının vuruşuyla düşürür). Bu yüzden
+   * `kahramanOlum ≈ 27` denetimi bir ölçüm değil, kalkan kuralının kendisinin denetimidir — onu öyle de
+   * adlandırıyoruz. Asıl ölçüm `kahramanYetisti` / `kahramanAra`: Güney kahramanının Kuzey kahramanına
+   * `kahramanYetisme` birim kadar **gerçekten sokulduğu** an ve tur boyunca aralarındaki en kısa mesafe.
+   * Hücum takılsa, kaçan Kuzey kahramanı uzaklaşsa ya da atlılar okçu hattını aşamasa bu ölçüm düşer
+   * (iki kahraman turun başında 46 birim uzaktadır); kalkan onu kurtaramaz.
+   */
+  assert.ok(son.kahramanAra <= K.kahramanYetisme,
+    `Güney kahramanı Kuzey kahramanının dibine varır (en kısa mesafe ${son.kahramanAra}, sınır ${K.kahramanYetisme} birim)`);
+  // İki ölçü de Kuzey kahramanı **yaşarken** alınır (ölünce ölçüm durur), yani "ölüm işareti geldiğinde
+  // Güney kahramanı dibindeydi" bilgisi bunların içindedir. Buradaki asıl denetim yetişmenin **hücumla**
+  // olması: marştan önce bir yakınlaşma varsa diziliş ya da kaçış yanlış kurulmuş demektir.
+  assert.ok(son.kahramanYetisti >= K.isaret.marsBaslar,
+    `Kuzey kahramanına yetişme hücumla olur, öncesinde değil (ölçülen ${son.kahramanYetisti} sn, marş ${K.isaret.marsBaslar})`);
+  // Kalkan kuralı: işaretten önce Kuzey kahramanı ayakta kalır, işaretle birlikte düşer.
+  assert.ok(izleme.filter(d => d.saniye < K.isaret.kahramanOlur).every(d => !d.kahramanOlum),
+    'kahraman kalkanı: Kuzey kahramanı işaretten önce düşmez (vurulur, kanar, ama ayakta kalır)');
+  assert.ok(Math.abs(son.kahramanOlum - K.isaret.kahramanOlur) <= PAY,
+    `kahraman kalkanı: ölüm anı işarete oturur (ölçülen ${son.kahramanOlum} sn, beklenen ${K.isaret.kahramanOlur} ± ${PAY})`);
 
   // **Kanat disiplini**: hiçbir kanat birimi merkez şeridine girmez (Yusuf: "merkezlere salça olmasınlar").
   assert.equal(son.seritKacagi, 0, `hiçbir kanat birimi merkez şeridine girmez (en çok ${son.seritKacagi} birim girdi)`);
@@ -228,7 +253,8 @@ try {
 
   console.log('"Ya Allah Hücum" gösterisi dumanı testi geçti.');
   console.log(`  kadro: Kuzey ${JSON.stringify(BEKLENEN.kuzey)} · Güney ${JSON.stringify(BEKLENEN.guney)} · kahramanlar sv ${kz.sv} / ${gy.sv} · yapı 0`);
-  console.log(`  müziğe kilit: menzilli ${son.menzilliBitti} (${K.isaret.menzilliEriyor}) · kılıçlı ${son.kilicliBitti} (${K.isaret.nida}) · hücum ${son.carpisma} (${K.isaret.carpisma}) · kahraman ${son.kahramanOlum} (${K.isaret.kahramanOlur})`);
+  console.log(`  müziğe kilit: menzilli ${son.menzilliBitti} (${K.isaret.menzilliEriyor}) · kılıçlı ${son.kilicliBitti} (${K.isaret.nida}) · hücum ${son.carpisma} (${K.isaret.carpisma})`);
+  console.log(`  kahraman: Güney kahramanı ${son.kahramanYetisti} sn'de dibine varır, en kısa mesafe ${son.kahramanAra} (sınır ${K.kahramanYetisme}) · kalkan ölümü ${son.kahramanOlum} sn'ye oturtur (${K.isaret.kahramanOlur})`);
   console.log(`  disiplin: merkez şeridine giren kanat birimi ${son.seritKacagi} · merkeze en çok yaklaşma |a| = ${son.enIcerdeki} (sınır ${K.serit.yari})`);
   console.log(`  kapanış: kadrajda ${son.kuzeyKalan} Kuzey birimi, merkezde ${son.kuzeyMerkezKalan}, hepsi kaçıyor · ${son.tas} mancınık taşı atıldı`);
   console.log(`  kamera: izometrik, yarı kadraj ${kamera.yariKadraj} (oyunun kendi 24/29/24 yönü)`);
