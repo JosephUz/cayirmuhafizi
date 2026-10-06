@@ -2,7 +2,7 @@ import * as T from 'three';
 import { yawFromDir } from './builders.js';
 import { addEntity, applyLevelUp, createEntity, makeStats } from './characters.js';
 import { damageEntity, startAttack } from './combat.js';
-import { GOSTERI_HUCUM as K, SIEGE, SOLDIER_TYPES, VISION } from './config.js';
+import { ANTI, GOSTERI_HUCUM as K, SIEGE, SOLDIER_TYPES, VISION } from './config.js';
 import { removeStructure } from './structures.js';
 import { setupGame, step } from './world.js';
 
@@ -106,9 +106,38 @@ export function createHucumGosteri(world, { arenaReady }) {
       t.oyuncu.rally = null;
       kahramaniKur(t);
     }
+    madenleriKaldir();
     arenaReady();
     tur = 0;
     diz();
+  }
+
+  /**
+   * **Altın madenlerini söker** (Yusuf: "orta alandaki altın madenleri olmasın"). Oyunun haritasının ortasında
+   * tarafsız üç maden vardır (bkz. environment.js: `kind: 'gold'` engeli + `nodes` girdisi + `decor.mines`
+   * çizimi) ve ikisi tam kadrajın ortasına, iki ordunun arasına düşüyordu.
+   *
+   * Üç listeden birden çıkarılır — yalnız engeli silmek yetmez, maden yine çizilir ve kahraman yine vurabilir:
+   *  - `world.obstacles`: birimler artık oraya çarpmaz (`obstacleVersion` artırılır, çarpışma önbelleği tazelensin),
+   *  - `world.nodes`: kahramanın kaynak çıkarabileceği düğüm kalmaz,
+   *  - `world.env.decor.mines`: **çizim listesi**; `arenaReady`den (buildEnvironmentView) **önce** temizlenmeli,
+   *    yoksa maden sahnede görünmeye devam eder.
+   * Yalnız sahanın içindekiler kaldırılır: üslerin arkasındaki madenler kadrajın çok dışında, onlara dokunulmaz.
+   */
+  function madenleriKaldir() {
+    const icerde = (p) => !sahaDisi(p, K.maden.pay);
+    const d = world.env && world.env.decor;
+    if (d && d.mines) d.mines = d.mines.filter(m => !icerde({ x: m.x, z: m.z }));
+    if (world.nodes) for (let i = world.nodes.length - 1; i >= 0; i--) {
+      const n = world.nodes[i];
+      if (n.kind === 'gold' && icerde(n.pos)) world.nodes.splice(i, 1);
+    }
+    let silindi = 0;
+    for (let i = world.obstacles.length - 1; i >= 0; i--) {
+      const o = world.obstacles[i];
+      if (o.kind === 'gold' && icerde(o.pos)) { world.obstacles.splice(i, 1); silindi++; }
+    }
+    if (silindi) world.obstacleVersion = (world.obstacleVersion || 0) + 1;
   }
 
   /**
@@ -173,6 +202,15 @@ export function createHucumGosteri(world, { arenaReady }) {
     e.menzilli = Boolean(B.menzilli);
     e.akinci = Boolean(B.akinci);
     e.hedefMenzil = B.uyanma === 'hucumda' ? K.hedef.okcuMenzil : K.hedef.menzil;
+    /**
+     * **Kanat dayanımı** (Yusuf: "kanatlardaki askerler henüz tükenmemiş olsun savaşıyor olsunlar ... canları
+     * uzun sürsün, 100 vuruşluk canları olsun"). Kanat bölükleri aldıkları hasarın yalnız `hasarOrani` katını
+     * yer (bkz. combat.js `hitDamage`); oran `kanat.vurusDayanimi`den türetilir: oyunun en sert vuruşu olan
+     * **anti** vuruş normalde azami canın %34'ünü götürür (üç vuruşta ölüm), bu oranla `vurusDayanimi`
+     * vuruşta götürür. Merkez bölükleri ve kahramanlar dokunulmaz kalır: hücumun Kuzey okçu hattını
+     * çiğnemesi ve kahramanın düşmesi oyunun kendi hızında olmalı.
+     */
+    if (B.serit !== 'merkez') e.hasarOrani = 1 / (ANTI.soldierMult * K.kanatDayanim.vurusDayanimi);
     e.yuva = { x, z };
     addEntity(world, e);
     t.birimler.push(e);
@@ -221,7 +259,8 @@ export function createHucumGosteri(world, { arenaReady }) {
       /** Mancınıkların kendi hızıyla kuzeye yürüdüğü yol (hücumda; bkz. `mancinikSur`). */
       mancinikYol: 0,
       /** Ölçülen anlar (sahne saati, sn; 0 = olmadı): dumanı testi ve çekim betiği bunlara bakar. */
-      menzilliBitti: 0, kilicliBitti: 0, carpisma: 0, kahramanYetisti: 0, kahramanAra: 99, kahramanOlum: 0,
+      carpisma: 0, kahramanYetisti: 0, kahramanAra: 99, kahramanOlum: 0,
+      kanatEnAz: { kuzey: 1e9, guney: 1e9 }, guneyCepheEnAz: 1e9, nidaKanat: null,
       kuzeyKalan: -1, kuzeyMerkez: -1, hepsiKaciyor: false,
       /** Tur boyunca atılan mancınık taşı ve şeridinden çıkan birim sayısı (disiplin ölçüsü). */
       tas: 0, seritKacagi: 0, enIcerdeki: 99,
@@ -244,7 +283,7 @@ export function createHucumGosteri(world, { arenaReady }) {
   }
 
   /** Nokta sahnenin sahasının dışında mı (bkz. config `saha`)? */
-  const sahaDisi = (p) => Math.abs(aOf(p)) > K.saha.a || bOf(p) > K.saha.kuzey || bOf(p) < K.saha.guney;
+  const sahaDisi = (p, pay = 0) => Math.abs(aOf(p)) > K.saha.a + pay || bOf(p) > K.saha.kuzey + pay || bOf(p) < K.saha.guney - pay;
 
   /**
    * Bir kanat biriminin o anki **cephe bandı** (bkz. config `cephe`): iki taraf da `taban`ın güneyine inemez,
@@ -596,20 +635,37 @@ export function createHucumGosteri(world, { arenaReady }) {
 
   // ---- Evreler
 
-  /** Güney'in kanat bölükleri: menzilli (Atlı Okçu + Okçu) ve Kılıçlı ayakta sayıları. */
-  const guneyKanat = () => {
-    let menzilli = 0, kilicli = 0;
-    for (const e of taraflar.guney.birimler) {
+  /**
+   * Kanat savaşının durumu. Yusuf'un isteği gereği (bkz. config `kanat`) **burada kimse tükenmemeli**: ölçüler
+   * "kaç kişi kaldı"yı değil "savaş sürüyor mu"yu söyler.
+   *  `kuzey` / `guney` iki tarafın ayakta kanat askeri · `dovusen` o an hedefi olan (yani dövüşen) kanat
+   *  askeri · `guneyCephe` Güney'in kanat askerlerinin **ortalama** `kanat` yeri: Kuzey bastırdıkça güneye
+   *  kayar, "kanatları baskı altına almış" görüntüsünün sayısal karşılığı budur.
+   */
+  const kanatSavasi = () => {
+    let kuzey = 0, guney = 0, dovusen = 0, gb = 0;
+    for (const t of Object.values(taraflar)) for (const e of t.birimler) {
       if (!e.alive || e.serit === 'merkez') continue;
-      if (e.menzilli) menzilli++; else kilicli++;
+      if (t.ad === 'kuzey') kuzey++; else { guney++; gb += bOf(e.pos); }
+      if (e.brain && e.brain.order && e.brain.order.kind === 'attack') dovusen++;
     }
-    return { menzilli, kilicli };
+    return { kuzey, guney, dovusen, guneyCephe: guney ? +(gb / guney).toFixed(1) : 0 };
   };
 
   function olcumler() {
-    const g = guneyKanat();
-    if (!sahne.menzilliBitti && !g.menzilli) sahne.menzilliBitti = sahne.saniye;
-    if (!sahne.kilicliBitti && !g.kilicli) sahne.kilicliBitti = sahne.saniye;
+    const k = kanatSavasi();
+    // Kanat savaşının **en zayıf anı**: iki taraftan hangisi en aza düştüyse o. Kabul ölçütü buna bakar —
+    // kanatların tükenmediğini kanıtlayan sayı budur. Yalnız **bozgundan önce** ölçülür: bozgunda Kuzey'in
+    // kanat bölükleri dağılıp kadrajın dışına koşar ve sahadan kaldırılır (bkz. `bozgunuSur`), o azalma
+    // senaryonun kendisidir — kanat savaşının tükenmesi değil.
+    if (!sahne.kacis) {
+      if (k.kuzey < sahne.kanatEnAz.kuzey) sahne.kanatEnAz.kuzey = k.kuzey;
+      if (k.guney < sahne.kanatEnAz.guney) sahne.kanatEnAz.guney = k.guney;
+    }
+    // Güney kanadının en güneye itildiği yer: Kuzey'in baskısının ölçüsü.
+    if (k.guney && k.guneyCephe < sahne.guneyCepheEnAz) sahne.guneyCepheEnAz = k.guneyCephe;
+    // Nida anında (hücum kalkarken) kanatlarda hâlâ dövüşen asker var mı: senaryonun can alıcı noktası.
+    if (!sahne.nidaKanat && sahne.saniye >= K.isaret.nida) sahne.nidaKanat = { ...k };
     // Güney kahramanının Kuzey kahramanına **gerçekten yetiştiği** an ve tur boyunca aralarındaki en kısa
     // mesafe. `kahramanOlum` kalkan yüzünden (bkz. `kahramanKalkani`) hep işaretine oturur; bu iki ölçü
     // kalkandan bağımsızdır: hücum merkezi gerçekten kat etti mi, onu söyler.
@@ -715,7 +771,7 @@ export function createHucumGosteri(world, { arenaReady }) {
   /** Sahnenin durumu (yalnız okuma; dumanı testi, çekim betiği ve hata ayıklama için). */
   const durum = () => (!sahne ? { evre: null, tur: 0, saniye: 0 } : {
     evre: sahne.evre, tur, saniye: +sahne.saniye.toFixed(2), kadraj: Math.round(kadraj),
-    kuzey: sayim('kuzey'), guney: sayim('guney'), guneyKanat: guneyKanat(),
+    kuzey: sayim('kuzey'), guney: sayim('guney'), kanatSavasi: kanatSavasi(),
     kahraman: {
       kuzey: { sv: taraflar.kuzey.kahraman.level, can: Math.round(taraflar.kuzey.kahraman.hp), sag: taraflar.kuzey.kahraman.alive, b: +bOf(taraflar.kuzey.kahraman.pos).toFixed(1) },
       guney: { sv: taraflar.guney.kahraman.level, can: Math.round(taraflar.guney.kahraman.hp), sag: taraflar.guney.kahraman.alive, b: +bOf(taraflar.guney.kahraman.pos).toFixed(1) },
@@ -728,7 +784,10 @@ export function createHucumGosteri(world, { arenaReady }) {
     mancinik: taraflar.guney.birimler.filter(e => e.alive && e.isSiege).length,
     ucanOk: world.arrows.length, tas: sahne.tas,
     /** Ölçülen anlar (sahne saati, sn): video kesiti ve müziğin vuruşları bunlara göre denetlenir. */
-    menzilliBitti: +sahne.menzilliBitti.toFixed(2), kilicliBitti: +sahne.kilicliBitti.toFixed(2),
+    /** Kanat savaşı: tur boyunca iki tarafın en aza düştüğü sayı, Güney'in en güneye itildiği yer ve nida anındaki durum. */
+    kanatEnAz: sahne.kanatEnAz.kuzey > 1e8 ? null : sahne.kanatEnAz,
+    guneyCepheEnAz: sahne.guneyCepheEnAz > 1e8 ? null : +sahne.guneyCepheEnAz.toFixed(1),
+    nidaKanat: sahne.nidaKanat,
     carpisma: +sahne.carpisma.toFixed(2), kahramanOlum: +sahne.kahramanOlum.toFixed(2),
     /** Güney kahramanının Kuzey kahramanına vuruş erimine girdiği an ve tur boyunca aralarındaki en kısa
      *  mesafe: kalkandan bağımsız, gerçek ölçüler. */
@@ -736,6 +795,12 @@ export function createHucumGosteri(world, { arenaReady }) {
     /** Kapanış karesinde kadrajda kalan Kuzey birimi (-1 = kapanışa gelinmedi): bozgunun ölçüsü. */
     kuzeyKalan: sahne.kuzeyKalan, kuzeyMerkezKalan: sahne.kuzeyMerkez, hepsiKaciyor: sahne.hepsiKaciyor,
     yapi: world.structures.length,
+    /** Sahanın içinde kalan altın madeni (engel + düğüm + çizim): sıfır olmalı (Yusuf: "altın madenleri olmasın"). */
+    maden: {
+      engel: world.obstacles.filter(o => o.kind === 'gold' && !sahaDisi(o.pos, K.maden.pay)).length,
+      dugum: (world.nodes || []).filter(n => n.kind === 'gold' && !sahaDisi(n.pos, K.maden.pay)).length,
+      cizim: ((world.env && world.env.decor && world.env.decor.mines) || []).filter(m => !sahaDisi(m, K.maden.pay)).length,
+    },
   });
   world.gosteriDurum = durum;
   // Çekim betiği (ajanlar/icerik/short-uret.mjs) sahnenin saatini buradan okur: her kare hangi saniyede

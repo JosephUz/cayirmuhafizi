@@ -1390,7 +1390,22 @@ export const GOSTERI_HUCUM = {
    * güneyine çekilip yay menzilinden (9 birim) dövüşü dondurdu — piyade onlara yetişemedi, dövüş 9. saniyede
    * kilitlendi. Ortak taban ikisini birden çözer: menzilli bölük duvara sıkışır, piyade yetişir, dövüş biter.
    */
-  cephe: { kanatlar: { taban: -12, tavan: 4 }, ezme: { taban: -18, tavan: 4 } },
+  cephe: { kanatlar: { taban: -12, tavan: 4 }, ezme: { taban: -21, tavan: -2 } },
+  /**
+   * **Kanat dayanımı.** Yusuf'un ikinci turdaki isteği: "kanatlardaki askerler henüz tükenmemiş olsun
+   * savaşıyor olsunlar ... canları uzun sürsün, 100 vuruşluk canları olsun" — yani kanat savaşı video boyunca
+   * sürmeli, iki taraf da erimemelidir; hücum **ordular hâlâ ayaktayken** gelir ve bozgunu o yapar.
+   *
+   * `vurusDayanimi` bir kanat askerinin kaç vuruşta düştüğüdür. Can büyütmek işe yaramaz: oyunun anti vuruşu
+   * hedefin **azami canının** sabit bir oranını (ANTI.soldierMult = 0.34) götürür, yani can ne olursa olsun üç
+   * vuruşta ölüm. Bu yüzden ölçek hasarın kendisine uygulanır (bkz. gosteri-hucum.js `birimDogur` →
+   * `e.hasarOrani`, combat.js `hitDamage`): vuruş, savrulma, sersemleme ve kan aynı kalır, yalnız ölüm gelmez.
+   * Yalnız **kanat** bölükleri için geçerlidir — merkezin çiğnenmesi ve kahramanın düşmesi oyunun kendi
+   * hızında olmalı.
+   */
+  kanatDayanim: { vurusDayanimi: 100 },
+  /** Altın madeni sökümünde sahanın dışına bırakılan pay (birim): kadrajın kenarındaki maden de kalksın. */
+  maden: { pay: 12 },
   /**
    * Diziliş (Yusuf'un çizimi: calisma/icerik/short-dizilis-ya-allah-hucum.png). Her satır bir **bölük**tür:
    *  `taraf` kuzey / güney · `serit` sol / merkez / sağ · `tur` oyunun kendi asker türü (SOLDIER_TYPES anahtarı) ·
@@ -1420,9 +1435,9 @@ export const GOSTERI_HUCUM = {
     { taraf: 'guney', serit: 'merkez', tur: 'catapult', sayi: 4, b: -20, sutun: 4, aralik: 4.2, sira: 4.0, uyanma: null },
     { taraf: 'guney', serit: 'merkez', tur: 'horsespearshield', sayi: 16, b: -26, sutun: 4, aralik: 2.8, sira: 3.0, uyanma: 'nida', akinci: true },
     { taraf: 'guney', serit: 'sol', tur: 'horsebow', sayi: 12, b: -8, sutun: 4, aralik: 2.8, sira: 3.0, uyanma: 'kanatlar', menzilli: true },
-    { taraf: 'guney', serit: 'sol', tur: 'sword', sayi: 10, b: -15, sutun: 5, aralik: 2.0, sira: 2.2, uyanma: 'enKotu', hedefAcilir: 'enKotu' },
+    { taraf: 'guney', serit: 'sol', tur: 'sword', sayi: 14, b: -15, sutun: 5, aralik: 2.0, sira: 2.2, uyanma: 'menzilliEriyor' },
     { taraf: 'guney', serit: 'sag', tur: 'bow', sayi: 12, b: -8, sutun: 5, aralik: 2.0, sira: 2.2, uyanma: 'kanatlar', menzilli: true },
-    { taraf: 'guney', serit: 'sag', tur: 'sword', sayi: 10, b: -15, sutun: 5, aralik: 2.0, sira: 2.2, uyanma: 'enKotu', hedefAcilir: 'enKotu' },
+    { taraf: 'guney', serit: 'sag', tur: 'sword', sayi: 14, b: -15, sutun: 5, aralik: 2.0, sira: 2.2, uyanma: 'menzilliEriyor' },
   ],
   /**
    * Kahramanlar. Kuzeyinki **seviye 1** ve okçudur (iki okçu bölüğünün arasında durur, nidadan sonra kendi

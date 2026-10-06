@@ -83,7 +83,7 @@ try {
   if (kareSn.length) mkdirSync(klasor, { recursive: true });
   const toplam = Math.round(K.isaret.son * 30);
   const kalan = new Set(kareSn.map(s => Math.round(s * 30)));
-  console.log('sn    evre     kuzey(sol/mrk/sag)  guney(sol/mrk/sag)  G.menzilli/kılıçlı  akınÖn  kaçak  taş  dövüşen  K.kahraman');
+  console.log('sn    evre     kuzey(sol/mrk/sag)  guney(sol/mrk/sag)  kanatK/G döv  G.cephe  akınÖn  kaçak  taş  K.kahraman');
   for (let i = 1; i <= toplam; i++) {
     await sayfa.evaluate(() => window.__kare(1000 / 30));
     if (kalan.has(i)) {
@@ -94,14 +94,15 @@ try {
     if (i % 15 === 0) {
       const d = await sayfa.evaluate(() => window.__gosteri);
       const s = (o) => `${o.sol}/${o.merkez}/${o.sag}`.padEnd(10);
-      console.log(`${d.saniye.toString().padEnd(6)}${d.evre.padEnd(9)}${s(d.kuzey)}          ${s(d.guney)}          ${(d.guneyKanat.menzilli+'/'+d.guneyKanat.kilicli).padEnd(20)}${String(d.akinOn).padEnd(8)}${String(d.seritKacagi).padEnd(7)}${String(d.tas).padEnd(5)}${String(d.akinDovusen).padEnd(4)}${d.kahraman.kuzey.can} ${d.kahraman.kuzey.sag ? 'sağ' : 'ÖLÜ'} b=${d.kahraman.kuzey.b}`);
+      const k = d.kanatSavasi;
+      console.log(`${d.saniye.toString().padEnd(6)}${d.evre.padEnd(9)}${s(d.kuzey)}          ${s(d.guney)}          ${(k.kuzey + '/' + k.guney + ' d' + k.dovusen).padEnd(14)}${String(k.guneyCephe).padEnd(9)}${String(d.akinOn).padEnd(8)}${String(d.seritKacagi).padEnd(7)}${String(d.tas).padEnd(5)}${d.kahraman.kuzey.can} ${d.kahraman.kuzey.sag ? 'sağ' : 'ÖLÜ'} b=${d.kahraman.kuzey.b}`);
     }
   }
   const son = await sayfa.evaluate(() => window.__gosteri);
   const satir = (ad, olculen, isaret) => `  ${ad.padEnd(22)} ${String(olculen).padStart(6)} sn   (işaret ${isaret})   fark ${(olculen - isaret).toFixed(2)}`;
   console.log('\nÖlçülen anlar:');
-  console.log(satir('menzilli kanat erir', son.menzilliBitti, K.isaret.menzilliEriyor));
-  console.log(satir('kılıçlı kanat biter', son.kilicliBitti, K.isaret.nida));
+  console.log(`  kanatlar tükenmedi mi: en az Kuzey ${son.kanatEnAz.kuzey} · en az Güney ${son.kanatEnAz.guney} birim ayakta`);
+  console.log(`  nida anında kanatlar: Kuzey ${son.nidaKanat.kuzey} · Güney ${son.nidaKanat.guney} · dövüşen ${son.nidaKanat.dovusen} · Güney cephesi ${son.nidaKanat.guneyCephe} (en güneyi ${son.guneyCepheEnAz})`);
   console.log(satir('hücum okçu hattında', son.carpisma, K.isaret.carpisma));
   console.log(satir('kahraman dibine varır', son.kahramanYetisti, K.isaret.kahramanOlur));
   // Ölüm anı bir ölçüm değil: kalkan (config kahramanKalkani) onu işarete oturtur. Gerçek ölçü üstteki

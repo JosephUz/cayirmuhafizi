@@ -21,6 +21,8 @@ import { GOSTERI_HUCUM as K } from '../src/config.js';
 /** Bölük sayıları config'ten türetilir: diziliş değişirse test kendiliğinden yeni kadroyu bekler. */
 const kadroSay = (taraf, serit) => K.boluk.filter(B => B.taraf === taraf && (!serit || B.serit === serit))
   .reduce((n, B) => n + B.sayi, 0);
+const kanatSay = (taraf) => K.boluk.filter(B => B.taraf === taraf && B.serit !== 'merkez').reduce((n, B) => n + B.sayi, 0);
+const BEKLENEN_KANAT = { kuzey: kanatSay('kuzey'), guney: kanatSay('guney') };
 const BEKLENEN = {
   kuzey: { sol: kadroSay('kuzey', 'sol'), merkez: kadroSay('kuzey', 'merkez'), sag: kadroSay('kuzey', 'sag') },
   guney: { sol: kadroSay('guney', 'sol'), merkez: kadroSay('guney', 'merkez'), sag: kadroSay('guney', 'sag') },
@@ -160,17 +162,38 @@ try {
   assert.ok(ucuncu.tas > 0, `Güney mancınıkları daha açılışta taş atar (${ucuncu.tas} taş)`);
   assert.deepEqual(ucuncu.guney, BEKLENEN.guney, 'diziliş evresinde Güney hiç kayıp vermez (kimse kıpırdamaz)');
 
-  // **Müziğe kilit**: üç ölçülen an da işaretine oturur. Hepsi oyunun kendi dövüşünün sonucudur — sahne
-  // yalnız hedefi ve uyanma anını söyler, bu saniyeleri kimse dayatmaz.
-  const kilit = [
-    ['Güney menzilli kanatları erir', son.menzilliBitti, K.isaret.menzilliEriyor],
-    ['Güney kılıçlı kanatları ezilir', son.kilicliBitti, K.isaret.nida],
-    ['hücum Kuzey okçu hattına varır', son.carpisma, K.isaret.carpisma],
-  ];
-  for (const [ad, olculen, isaret] of kilit) {
-    assert.ok(olculen > 0, `${ad}: gerçekleşir`);
-    assert.ok(Math.abs(olculen - isaret) <= PAY, `${ad}: müziğin işaretine oturur (ölçülen ${olculen} sn, beklenen ${isaret} ± ${PAY})`);
-  }
+  // **Müziğe kilit**: hücumun Kuzey okçu hattına vardığı an işaretine oturur. Bu an oyunun kendi dövüşünün
+  // sonucudur — sahne yalnız hedefi ve uyanma anını söyler, saniyeyi kimse dayatmaz.
+  assert.ok(son.carpisma > 0, 'hücum Kuzey okçu hattına varır');
+  assert.ok(Math.abs(son.carpisma - K.isaret.carpisma) <= PAY,
+    `hücum Kuzey okçu hattına varır: müziğin işaretine oturur (ölçülen ${son.carpisma} sn, beklenen ${K.isaret.carpisma} ± ${PAY})`);
+
+  /**
+   * **Kanatlar tükenmez** — Yusuf'un ikinci turdaki isteği: "kanatlardaki askerler henüz tükenmemiş olsun
+   * savaşıyor olsunlar ... tüm ordu henüz tükenmemişken mid merkezden saldırıp kuzey ordularını bozguna
+   * uğratmış olsun." Bu yüzden **kayıp sayısına değil, hayatta kalmaya** bakılır: iki tarafın da kanat
+   * bölükleri tur boyunca ayakta kalmalı ve nida anında hâlâ dövüşüyor olmalı. Dayanım config
+   * `kanatDayanim.vurusDayanimi` ile veriliyor (hasar ölçeklenir, can değil — bkz. combat.js `hitDamage`).
+   */
+  const KANAT_ESIK = 0.8;
+  assert.ok(son.kanatEnAz.kuzey >= BEKLENEN_KANAT.kuzey * KANAT_ESIK,
+    `Kuzey'in kanatları tükenmez (en az ${son.kanatEnAz.kuzey} / ${BEKLENEN_KANAT.kuzey} ayakta kaldı)`);
+  assert.ok(son.kanatEnAz.guney >= BEKLENEN_KANAT.guney * KANAT_ESIK,
+    `Güney'in kanatları tükenmez (en az ${son.kanatEnAz.guney} / ${BEKLENEN_KANAT.guney} ayakta kaldı)`);
+  assert.ok(son.nidaKanat && son.nidaKanat.dovusen > 0,
+    `nida anında kanatlarda hâlâ dövüşen asker var (${son.nidaKanat ? son.nidaKanat.dovusen : 0} birim) — hücum, ordular ayaktayken gelir`);
+  assert.ok(son.nidaKanat.kuzey > 0 && son.nidaKanat.guney > 0,
+    `nida anında iki kanatta da asker ayakta (Kuzey ${son.nidaKanat.kuzey}, Güney ${son.nidaKanat.guney})`);
+  // **Kuzey kanatları baskı altına alır**: Güney'in kanat cephesi dizilişteki yerinden belirgin biçimde
+  // güneye itilir (Yusuf: "kuzey orduları kanatları baskı altına almışken").
+  const guneyBasla = Math.min(...K.boluk.filter(B => B.taraf === 'guney' && B.serit !== 'merkez').map(B => B.b));
+  assert.ok(son.guneyCepheEnAz < guneyBasla,
+    `Kuzey kanatları Güney'i geriye iter (Güney kanat cephesi en çok ${son.guneyCepheEnAz} birime indi, diziliş ${guneyBasla})`);
+
+  // **Altın madenleri yok** (Yusuf: "orta alandaki altın madenleri olmasın"): sahanın içinde ne engel, ne
+  // kaynak düğümü, ne de çizim kalır.
+  assert.deepEqual(son.maden, { engel: 0, dugum: 0, cizim: 0 },
+    `sahanın içinde altın madeni kalmaz (ölçülen ${JSON.stringify(son.maden)})`);
   /**
    * Kuzey kahramanının ölüm **anı** sahne tarafından müziğe oturtulur (config `kahramanKalkani`: canı
    * `kahramanOlur`a kadar tazelenir, işaret gelince sahne onu Güney kahramanının vuruşuyla düşürür). Bu yüzden
@@ -253,7 +276,9 @@ try {
 
   console.log('"Ya Allah Hücum" gösterisi dumanı testi geçti.');
   console.log(`  kadro: Kuzey ${JSON.stringify(BEKLENEN.kuzey)} · Güney ${JSON.stringify(BEKLENEN.guney)} · kahramanlar sv ${kz.sv} / ${gy.sv} · yapı 0`);
-  console.log(`  müziğe kilit: menzilli ${son.menzilliBitti} (${K.isaret.menzilliEriyor}) · kılıçlı ${son.kilicliBitti} (${K.isaret.nida}) · hücum ${son.carpisma} (${K.isaret.carpisma})`);
+  console.log(`  müziğe kilit: hücum ${son.carpisma} (${K.isaret.carpisma}) · kahraman dibine varır ${son.kahramanYetisti}, en kısa ${son.kahramanAra} birim · ölüm ${son.kahramanOlum} (${K.isaret.kahramanOlur}, kalkan)`);
+  console.log(`  kanatlar tükenmez: en az Kuzey ${son.kanatEnAz.kuzey}/${BEKLENEN_KANAT.kuzey} · Güney ${son.kanatEnAz.guney}/${BEKLENEN_KANAT.guney} · nidada dövüşen ${son.nidaKanat.dovusen} · Güney cephesi ${son.guneyCepheEnAz} birime itildi`);
+  console.log(`  altın madeni (saha içi): ${JSON.stringify(son.maden)}`);
   console.log(`  kahraman: Güney kahramanı ${son.kahramanYetisti} sn'de dibine varır, en kısa mesafe ${son.kahramanAra} (sınır ${K.kahramanYetisme}) · kalkan ölümü ${son.kahramanOlum} sn'ye oturtur (${K.isaret.kahramanOlur})`);
   console.log(`  disiplin: merkez şeridine giren kanat birimi ${son.seritKacagi} · merkeze en çok yaklaşma |a| = ${son.enIcerdeki} (sınır ${K.serit.yari})`);
   console.log(`  kapanış: kadrajda ${son.kuzeyKalan} Kuzey birimi, merkezde ${son.kuzeyMerkezKalan}, hepsi kaçıyor · ${son.tas} mancınık taşı atıldı`);
