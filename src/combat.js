@@ -42,6 +42,14 @@ export function hitDamage(attacker, target, base) {
   } else d = base * matchup(attacker, target);
   if (w && w.unitMult) d *= w.unitMult;
   if (attacker && attacker.isTower && (TOWER.lethalVsHeroes || !(target.isPlayer || target.isHero))) return Math.max(d, target.stats.maxHp * TOWER.lethalVsSoldiers);
+  /**
+   * **Sahne dayanımı** (yalnız gösteri kipleri; normal oyunda hiçbir birimde bu alan yoktur, yani bu satır
+   * oyunda hiçbir şeyi değiştirmez). Anti vuruş hedefin azami canının sabit bir oranını (ANTI.soldierMult)
+   * götürdüğü için **canı büyütmek bir birimi dayanıklı yapmaz** — üç vuruşta yine ölür. Uzun sürmesi gereken
+   * sahne dövüşlerinde (bkz. gosteri-hucum.js: "kanatlardaki askerler henüz tükenmemiş olsun") tek doğru yer
+   * hasarın kendisidir. Vuruşun geri kalanı — savrulma, sersemleme, kan, ses — olduğu gibi kalır.
+   */
+  if (target.hasarOrani) d *= target.hasarOrani;
   return d;
 }
 

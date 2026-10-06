@@ -1332,8 +1332,9 @@ export const GOSTERI_MANCINIK = {
  *
  * Sahne `short-cayir-muhafizi-ya-allah-hucum` müziğine (33.59 sn) kilitlidir; işaretler `isaret` altındadır ve
  * calisma/icerik/muzik/short/liste.json ile birebir aynıdır. Akış:
- *   0-3 diziliş (Güney mancınıkları uzaktan atar) → 3-15 kanat savaşı (Güney'in menzilli kanatları erir) →
- *   15-19 Kuzey kanatları Güney'in kılıçlılarını ezer → 19 "Ya Allah" nidası, Güney merkezi hücuma kalkar →
+ *   0-3 diziliş (Güney mancınıkları uzaktan atar) → 3-15 kanat savaşı (11. sn'de Güney'in Kılıçlıları ikinci
+ *   dalga olarak katılır) → 15-19 Kuzey kanatları yüklenir, Güney'in kanatları geriye itilir ama tükenmez
+ *   (bkz. `kanatDayanim`) → 19 "Ya Allah" nidası, Güney merkezi hücuma kalkar →
  *   19.74-27 mehter marşı: Mızrak Kalkan Atlıları ve seviye 100 kahraman Kuzey merkezini çiğner →
  *   ~27 Kuzey kahramanı ölür → 27-29.6 bütün Kuzey ordusu bozulup ekran dışına kaçar.
  *
@@ -1380,17 +1381,34 @@ export const GOSTERI_HUCUM = {
    * geçemediği güney sınırı, `tavan` Güney birimlerinin geçemediği kuzey sınırıdır (Kuzey birimlerinin kuzeye
    * gitmesi serbesttir — zaten geri çekilmezler).
    *  - `kanatlar` (3-15 sn): kanat savaşı **yolun iki yanında**, sahanın ortasında geçer.
-   *  - `ezme` (15 sn sonrası): taban Güney'in Kılıçlı hattına kadar iner — "Kuzey kanatları Güney'in Kılıçlı
-   *    bölüklerine dikine saldırır".
+   *  - `ezme` (15 sn sonrası): bant bütünüyle güneye kayar (taban -21, tavan -2) — Kuzey kanatları ileri
+   *    yüklenir, Güney'in kanatları geriye itilir. Dövüş burada **bitmez**: kanatlar `kanatDayanim` sayesinde
+   *    ayakta kalır (Yusuf: ordular tükenmemişken hücum gelsin), yalnız cephe güneye kayar.
    *
    * **İki sınır da gerekli.** Tavan olmasa Güney'in menzilli bölükleri Kuzey'in okçu hattına kadar çıkardı.
    * Taban olmasa iki ayrı sorun çıkıyordu: (1) Kuzey'in kanatları, geri çekilen menzilli bölükleri kovalaya
    * kovalaya Güney'in mancınıklarının dibine iniyor ve Yusuf'un istemediği şey oluyordu — kanat askeri
    * merkezdeki çatışmanın içinde; (2) tek taraflı bir taban konunca da menzilli bölükler tabanın bir tık
    * güneyine çekilip yay menzilinden (9 birim) dövüşü dondurdu — piyade onlara yetişemedi, dövüş 9. saniyede
-   * kilitlendi. Ortak taban ikisini birden çözer: menzilli bölük duvara sıkışır, piyade yetişir, dövüş biter.
+   * kilitlendi. Ortak taban ikisini birden çözer: menzilli bölük duvara sıkışır, piyade yetişir, kanatlar
+   * bütün video boyunca birbirine temas hâlinde kalır.
    */
-  cephe: { kanatlar: { taban: -12, tavan: 4 }, ezme: { taban: -18, tavan: 4 } },
+  cephe: { kanatlar: { taban: -12, tavan: 4 }, ezme: { taban: -21, tavan: -2 } },
+  /**
+   * **Kanat dayanımı.** Yusuf'un ikinci turdaki isteği: "kanatlardaki askerler henüz tükenmemiş olsun
+   * savaşıyor olsunlar ... canları uzun sürsün, 100 vuruşluk canları olsun" — yani kanat savaşı video boyunca
+   * sürmeli, iki taraf da erimemelidir; hücum **ordular hâlâ ayaktayken** gelir ve bozgunu o yapar.
+   *
+   * `vurusDayanimi` bir kanat askerinin kaç vuruşta düştüğüdür. Can büyütmek işe yaramaz: oyunun anti vuruşu
+   * hedefin **azami canının** sabit bir oranını (ANTI.soldierMult = 0.34) götürür, yani can ne olursa olsun üç
+   * vuruşta ölüm. Bu yüzden ölçek hasarın kendisine uygulanır (bkz. gosteri-hucum.js `birimDogur` →
+   * `e.hasarOrani`, combat.js `hitDamage`): vuruş, savrulma, sersemleme ve kan aynı kalır, yalnız ölüm gelmez.
+   * Yalnız **kanat** bölükleri için geçerlidir — merkezin çiğnenmesi ve kahramanın düşmesi oyunun kendi
+   * hızında olmalı.
+   */
+  kanatDayanim: { vurusDayanimi: 100 },
+  /** Altın madeni sökümünde sahanın dışına bırakılan pay (birim): kadrajın kenarındaki maden de kalksın. */
+  maden: { pay: 12 },
   /**
    * Diziliş (Yusuf'un çizimi: calisma/icerik/short-dizilis-ya-allah-hucum.png). Her satır bir **bölük**tür:
    *  `taraf` kuzey / güney · `serit` sol / merkez / sağ · `tur` oyunun kendi asker türü (SOLDIER_TYPES anahtarı) ·
@@ -1398,15 +1416,11 @@ export const GOSTERI_HUCUM = {
    *  `aralik` yan yana mesafe · `sira` saflar arası mesafe. Arka saflar hep **düşmandan uzağa** dizilir.
    * `uyanma` bölüğün **beyninin açıldığı** müzik işaretidir (o ana kadar bölük yerinde durur, hiçbir şeye
    * karışmaz — merkezin kanat savaşına karışmamasını sağlayan ilk kural budur):
-   *  `kanatlar` 3. sn'de kanat savaşı başlar · `enKotu` 15. sn'de Güney'in kılıçlıları öne çıkar ·
+   *  `kanatlar` 3. sn'de kanat savaşının **ilk dalgası** (Güney'in menzilli bölükleri, Kuzey'in dördü birden)
+   *  harekete geçer · `menzilliEriyor` 11. sn'de Güney'in **Kılıçlı** bölükleri ikinci dalga olarak katılır ·
    *  `hucumda` Kuzey'in okçuları yalnız hücum dibine gelince (bkz. `hucum.okcuUyan`) uyanır ·
    *  `nida` 19. sn'de Güney merkezi hücuma kalkar · `null` bölüğü hep sahne sürer (mancınıklar).
-   * `hedefAcilir` bölüğün **hedef olarak görünür olduğu** işarettir (yoksa baştan görünür). Güney'in Kılıçlı
-   * bölükleri 15. sn'ye kadar hedef değildir: kanat savaşının ilk dalgası (müzikte 3-11 sn) menzilli
-   * bölüklerin dövüşüdür, 11-15 arası iki kanat da soluklanır ("karanlık koyulaşır") ve 15'teki tek darbeyle
-   * Kuzey kanatları kılıçlıların üstüne yürür. Kılıçlılar bu sırada zaten 20 birim geridedir, yani kapı
-   * yalnızca sahnenin sırasını müziğin sırasına kilitler.
-   * `menzilli` olan bölükler kanat savaşının ilk dalgasıdır (müzikte 3-11 sn: "öne çıkıp saldırır, sonra erir").
+   * Saate bakan işaretlerin listesini gosteri-hucum.js bu diziden türetir, elle tutulan ikinci bir liste yok.
    */
   boluk: [
     // Kuzey (mavi): merkezde iki okçu bölüğü (kahraman aralarında), kanatlarda Mızrak Kalkan + atlı.
@@ -1419,10 +1433,10 @@ export const GOSTERI_HUCUM = {
     // Güney (kızıl): merkezde mancınık + Mızrak Kalkan Atlısı (kahraman en arkada), kanatlarda menzilli + Kılıçlı.
     { taraf: 'guney', serit: 'merkez', tur: 'catapult', sayi: 4, b: -20, sutun: 4, aralik: 4.2, sira: 4.0, uyanma: null },
     { taraf: 'guney', serit: 'merkez', tur: 'horsespearshield', sayi: 16, b: -26, sutun: 4, aralik: 2.8, sira: 3.0, uyanma: 'nida', akinci: true },
-    { taraf: 'guney', serit: 'sol', tur: 'horsebow', sayi: 12, b: -8, sutun: 4, aralik: 2.8, sira: 3.0, uyanma: 'kanatlar', menzilli: true },
-    { taraf: 'guney', serit: 'sol', tur: 'sword', sayi: 10, b: -15, sutun: 5, aralik: 2.0, sira: 2.2, uyanma: 'enKotu', hedefAcilir: 'enKotu' },
-    { taraf: 'guney', serit: 'sag', tur: 'bow', sayi: 12, b: -8, sutun: 5, aralik: 2.0, sira: 2.2, uyanma: 'kanatlar', menzilli: true },
-    { taraf: 'guney', serit: 'sag', tur: 'sword', sayi: 10, b: -15, sutun: 5, aralik: 2.0, sira: 2.2, uyanma: 'enKotu', hedefAcilir: 'enKotu' },
+    { taraf: 'guney', serit: 'sol', tur: 'horsebow', sayi: 12, b: -8, sutun: 4, aralik: 2.8, sira: 3.0, uyanma: 'kanatlar' },
+    { taraf: 'guney', serit: 'sol', tur: 'sword', sayi: 14, b: -15, sutun: 5, aralik: 2.0, sira: 2.2, uyanma: 'menzilliEriyor' },
+    { taraf: 'guney', serit: 'sag', tur: 'bow', sayi: 12, b: -8, sutun: 5, aralik: 2.0, sira: 2.2, uyanma: 'kanatlar' },
+    { taraf: 'guney', serit: 'sag', tur: 'sword', sayi: 14, b: -15, sutun: 5, aralik: 2.0, sira: 2.2, uyanma: 'menzilliEriyor' },
   ],
   /**
    * Kahramanlar. Kuzeyinki **seviye 1** ve okçudur (iki okçu bölüğünün arasında durur, nidadan sonra kendi
@@ -1437,8 +1451,10 @@ export const GOSTERI_HUCUM = {
   /**
    * Müziğin işaretleri (sn; calisma/icerik/muzik/short/liste.json `isaretler` ile birebir). Sahne bunlara
    * kilitlidir:
-   *  `kanatlar` kanat bölüklerinin harekete geçtiği an · `menzilliEriyor` Güney'in menzilli kanat bölüklerinin
-   *  tükendiği an · `enKotu` Kuzey kanatlarının Güney'in kılıçlılarına yüklendiği an · `nida` "Ya Allah" nidası,
+   *  `kanatlar` kanat bölüklerinin harekete geçtiği an · `menzilliEriyor` Güney'in **Kılıçlı** bölüklerinin
+   *  ikinci dalga olarak katıldığı an (ad müziğin o anki karanlığından gelir; kanatlar artık erimez, bkz.
+   *  `kanatDayanim`) · `enKotu` Kuzey kanatlarının ileri yüklendiği, cephenin güneye kaydığı an (`cephe.ezme`)
+   *  · `nida` "Ya Allah" nidası,
    *  Güney merkezi hücuma kalkar · `marsBaslar` mehter marşının girdiği an (hücum dörtnala) · `carpisma`
    *  atlıların Kuzey okçu hattına vardığı an · `kahramanOlur` Kuzey kahramanının düştüğü an · `kapanis` oyun
    *  görüntüsünün bittiği an (sonrası josephuz.com kapanışı) · `son` müziğin bittiği an.
