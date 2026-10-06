@@ -26,7 +26,8 @@ export function gosteriAcik() {
 /**
  * Hangi gösteri sahnesi açık: `?gosteri=1` bu dosyadaki bot-bot maç, `?gosteri=kahraman` sahnelenmiş kahraman
  * gösterisi (bkz. gosteri-kahraman.js), `?gosteri=savas` iki ordu + iki kahraman gösterisi (bkz. gosteri-savas.js),
- * `?gosteri=mancinik` kahramansız mancınık düellosu + kanattan süvari akını (bkz. gosteri-mancinik.js).
+ * `?gosteri=mancinik` kahramansız mancınık düellosu + kanattan süvari akını (bkz. gosteri-mancinik.js),
+ * `?gosteri=hucum` iki ordulu, uzak kameralı "Ya Allah Hücum" sahnesi (bkz. gosteri-hucum.js).
  * Kapalıysa (adres yok ya da `0`, ya da uygulama) null döner.
  */
 export function gosteriKipi() {
