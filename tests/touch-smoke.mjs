@@ -12,15 +12,25 @@ await mkdir('artifacts', { recursive: true });
 const browser = await chromium.launch({ ...(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {}), headless: true, args: [...(process.env.SWIFTSHADER ? ['--use-gl=angle', '--use-angle=swiftshader'] : ['--use-gl=angle', '--use-angle=d3d11', '--ignore-gpu-blocklist'])] });
 try {
   const ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
-  // Açılan WebSocket'ler sayılır: uygulama kipinde hiç açılmamalı.
+  // Açılan WebSocket'ler ve dışarı çıkan ölçüm istekleri sayılır: uygulama kipinde ikisi de olmamalı.
   await ctx.addInitScript(() => {
-    window.__sockets = 0;
+    window.__sockets = 0; window.__olcum = 0;
     const WS = window.WebSocket;
     window.WebSocket = class extends WS { constructor(...a) { super(...a); window.__sockets++; } };
+    const beacon = navigator.sendBeacon && navigator.sendBeacon.bind(navigator);
+    if (beacon) navigator.sendBeacon = (u, b) => { window.__olcum++; return beacon(u, b); };
+    const fetch0 = window.fetch.bind(window);
+    window.fetch = (u, o) => { if (String(u).includes('/api/olay')) window.__olcum++; return fetch0(u, o); };
   });
   const page = await ctx.newPage(), errors = [];
   page.on('pageerror', e => errors.push(e.message));
-  page.on('console', e => { if (e.type() === 'error') errors.push(e.text()); });
+  // Konsol hatasının yanına **adresi** de yaz: "Failed to load resource" metni tek başına hangi isteğin
+  // düştüğünü söylemez, düşen testten sebebi okumak imkânsızlaşır.
+  page.on('console', e => {
+    if (e.type() !== 'error') return;
+    const yer = e.location() && e.location().url;
+    errors.push(yer ? `${e.text()} [${yer}]` : e.text());
+  });
   const game = (fn, arg) => page.evaluate(fn, arg);
   const hero = () => game(() => { const p = window.__meadow.player; return { x: p.pos.x, z: p.pos.z, sprinting: p.sprinting, attackTimer: p.attackTimer }; });
   const cdp = await ctx.newCDPSession(page);
@@ -43,6 +53,10 @@ try {
   await page.waitForFunction(() => window.__meadow.running);
   await page.waitForTimeout(400);
   assert.equal(await game(() => window.__sockets), 0, 'uygulama kipinde sunucuya bağlanılmaz');
+  // Maç başlarken ölçüm olayı doğar (olcum.js macBasladi), ama `?app` yalnız uygulama kipinin **taklididir**:
+  // yerel sayfadan dışarı gerçek bir istek çıkmamalı (bkz. platform.js olcumUrl). Çıksaydı hem üretim
+  // sayıları test koşularıyla kirlenirdi hem de ağsız makinede `npm test` konsol hatasıyla düşerdi.
+  assert.equal(await game(() => window.__olcum), 0, 'yerelde uygulama kipi taklidinden ölçüm gitmez');
   assert.ok(await page.locator('.tbtn[data-t=attack]').isVisible(), 'dokunmatik düğmeler görünür');
   assert.ok(await page.locator('#mg-tbar').isVisible(), 'üst düğmeler görünür');
   assert.ok(!(await game(() => document.getElementById('meadow-game').classList.contains('drawer'))), 'çekmece kapalı başlar');

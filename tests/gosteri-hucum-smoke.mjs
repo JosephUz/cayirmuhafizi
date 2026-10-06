@@ -2,13 +2,15 @@
 // çalışıyor mu? Denetlenenler: menü atlanır, Yusuf'un çizdiği **diziliş** birebir kurulur (iki kahraman, altı
 // Kuzey bölüğü, altı Güney bölüğü, kule yok), kamera **uzaktan** izometrik bakar, arayüz gizlidir, sunucuya
 // WebSocket açılmaz ve ölçüm gitmez.
-// Asıl iki denetim şunlar:
-//  1. **Müziğe kilit** — sahne kare kare (sahte saatle) ilerletilir; Güney'in menzilli kanat bölüklerinin
-//     eridiği an, Kılıçlı bölüklerinin tükendiği an ve hücumun Kuzey okçu hattına vardığı an müziğin
-//     işaretlerine (config isaret) oturmalı. Kuzey kahramanının ölüm anını sahne kendisi müziğe oturtur
-//     (config kahramanKalkani), bu yüzden o bir ölçüm değil **kalkan kuralının** denetimidir; kahramanla
+// Asıl üç denetim şunlar:
+//  1. **Müziğe kilit** — sahne kare kare (sahte saatle) ilerletilir; hücumun Kuzey okçu hattına vardığı an
+//     müziğin işaretine (config isaret.carpisma) oturmalı. Kuzey kahramanının ölüm anını sahne kendisi müziğe
+//     oturtur (config kahramanKalkani), bu yüzden o bir ölçüm değil **kalkan kuralının** denetimidir; kahramanla
 //     ilgili gerçek ölçüm, Güney kahramanının ona vuruş erimine girdiği andır (kahramanYetisti).
-//  2. **Kanat disiplini** — Yusuf'un isteği: "kanatlardaki askerler merkezlere salça olmasınlar". Tur boyunca
+//  2. **Kanatlar tükenmez** — Yusuf'un ikinci turdaki isteği: hücum, ordular hâlâ ayaktayken gelmeli. İki
+//     tarafın kanatları da tur boyunca ayakta kalmalı (config kanatDayanim), nida anında hâlâ dövüşüyor
+//     olmalı ve Güney'in kanat cephesi dizilişteki yerinden belirgin biçimde geriye itilmiş olmalı.
+//  3. **Kanat disiplini** — Yusuf'un isteği: "kanatlardaki askerler merkezlere salça olmasınlar". Tur boyunca
 //     hiçbir kanat birimi merkez şeridine girmemeli ve merkez bölükleri nidaya (19 sn) kadar yerinde durmalı.
 // Sonda bozgun (Kuzey kahramanı ölünce bütün Kuzey ordusunun kaçması), tur sıfırlaması ve telefonda çökmeden
 // açılma denetlenir.
@@ -180,8 +182,10 @@ try {
     `Kuzey'in kanatları tükenmez (en az ${son.kanatEnAz.kuzey} / ${BEKLENEN_KANAT.kuzey} ayakta kaldı)`);
   assert.ok(son.kanatEnAz.guney >= BEKLENEN_KANAT.guney * KANAT_ESIK,
     `Güney'in kanatları tükenmez (en az ${son.kanatEnAz.guney} / ${BEKLENEN_KANAT.guney} ayakta kaldı)`);
+  // `dovusen` emir almış olanları değil, hedefine **vuruş erimi kadar** yaklaşmış olanları sayar (bkz.
+  // gosteri-hucum.js `temasta`): nida anında kanatlar gerçekten birbirine değiyor olmalı, yürüyor değil.
   assert.ok(son.nidaKanat && son.nidaKanat.dovusen > 0,
-    `nida anında kanatlarda hâlâ dövüşen asker var (${son.nidaKanat ? son.nidaKanat.dovusen : 0} birim) — hücum, ordular ayaktayken gelir`);
+    `nida anında kanatlarda hedefiyle temasta asker var (${son.nidaKanat ? son.nidaKanat.dovusen : 0} birim, emir almış ${son.nidaKanat ? son.nidaKanat.emirli : 0}) — hücum, ordular ayaktayken gelir`);
   assert.ok(son.nidaKanat.kuzey > 0 && son.nidaKanat.guney > 0,
     `nida anında iki kanatta da asker ayakta (Kuzey ${son.nidaKanat.kuzey}, Güney ${son.nidaKanat.guney})`);
   // **Kuzey kanatları baskı altına alır**: Güney'in kanat cephesi dizilişteki yerinden belirgin biçimde
@@ -191,8 +195,9 @@ try {
     `Kuzey kanatları Güney'i geriye iter (Güney kanat cephesi en çok ${son.guneyCepheEnAz} birime indi, diziliş ${guneyBasla})`);
 
   // **Altın madenleri yok** (Yusuf: "orta alandaki altın madenleri olmasın"): sahanın içinde ne engel, ne
-  // kaynak düğümü, ne de çizim kalır.
-  assert.deepEqual(son.maden, { engel: 0, dugum: 0, cizim: 0 },
+  // kaynak düğümü, ne çizim listesi girdisi, ne de **ekranda duran** kaya kalır (`sahnede` kurulmuş
+  // görünümü gezer, listeyi değil — bkz. gosteri-hucum.js `madenKayalari`).
+  assert.deepEqual(son.maden, { engel: 0, dugum: 0, cizim: 0, sahnede: 0 },
     `sahanın içinde altın madeni kalmaz (ölçülen ${JSON.stringify(son.maden)})`);
   /**
    * Kuzey kahramanının ölüm **anı** sahne tarafından müziğe oturtulur (config `kahramanKalkani`: canı
@@ -277,7 +282,7 @@ try {
   console.log('"Ya Allah Hücum" gösterisi dumanı testi geçti.');
   console.log(`  kadro: Kuzey ${JSON.stringify(BEKLENEN.kuzey)} · Güney ${JSON.stringify(BEKLENEN.guney)} · kahramanlar sv ${kz.sv} / ${gy.sv} · yapı 0`);
   console.log(`  müziğe kilit: hücum ${son.carpisma} (${K.isaret.carpisma}) · kahraman dibine varır ${son.kahramanYetisti}, en kısa ${son.kahramanAra} birim · ölüm ${son.kahramanOlum} (${K.isaret.kahramanOlur}, kalkan)`);
-  console.log(`  kanatlar tükenmez: en az Kuzey ${son.kanatEnAz.kuzey}/${BEKLENEN_KANAT.kuzey} · Güney ${son.kanatEnAz.guney}/${BEKLENEN_KANAT.guney} · nidada dövüşen ${son.nidaKanat.dovusen} · Güney cephesi ${son.guneyCepheEnAz} birime itildi`);
+  console.log(`  kanatlar tükenmez: en az Kuzey ${son.kanatEnAz.kuzey}/${BEKLENEN_KANAT.kuzey} · Güney ${son.kanatEnAz.guney}/${BEKLENEN_KANAT.guney} · nidada temasta ${son.nidaKanat.dovusen} (emirli ${son.nidaKanat.emirli}) · Güney cephesi ${son.guneyCepheEnAz} birime itildi`);
   console.log(`  altın madeni (saha içi): ${JSON.stringify(son.maden)}`);
   console.log(`  kahraman: Güney kahramanı ${son.kahramanYetisti} sn'de dibine varır, en kısa mesafe ${son.kahramanAra} (sınır ${K.kahramanYetisme}) · kalkan ölümü ${son.kahramanOlum} sn'ye oturtur (${K.isaret.kahramanOlur})`);
   console.log(`  disiplin: merkez şeridine giren kanat birimi ${son.seritKacagi} · merkeze en çok yaklaşma |a| = ${son.enIcerdeki} (sınır ${K.serit.yari})`);

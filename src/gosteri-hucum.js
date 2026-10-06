@@ -19,12 +19,12 @@ import { setupGame, step } from './world.js';
  *     Kuzey'in okçu hattına taş atar (karamsar açılış).
  *  2. **kanatlar** (3 - 15 sn) — iki kanat harekete geçer: Güney'in solda **Atlı Okçu**, sağda **Okçu**
  *     bölükleri öne çıkar; Kuzey solda **Mızrak Kalkan + Mızraklı Atlı**, sağda **Mızrak Kalkan + Kılıçlı
- *     Atlı** ile karşılık verir. Mızrak Kalkan atlı okçunun, Kılıçlı Atlı okçunun antisidir (ANTI.table):
- *     Güney'in menzilli kanatları 11. saniyede (`isaret.menzilliEriyor`) erir — müziğin karanlığının
- *     koyulaştığı an budur. Kalan dört saniye iki kanadın soluklanmasıdır, evre 15'te (`isaret.enKotu`)
- *     Güney'in Kılıçlıları uyanınca biter.
- *  3. **ezme** (15 - 19 sn) — Güney'in **Kılıçlı** bölükleri öne gelir, Kuzey kanatları üstlerine yüklenir.
- *     Güney iki kanattan da ezilir: müziğin tek darbesinden sonraki neredeyse sessizlik.
+ *     Atlı** ile karşılık verir. Mızrak Kalkan atlı okçunun, Kılıçlı Atlı okçunun antisidir (ANTI.table), ama
+ *     kanatlar **tükenmez** (bkz. config `kanatDayanim`): 11. saniyede (`isaret.menzilliEriyor`) Güney'in
+ *     **Kılıçlı** bölükleri ikinci dalga olarak katılır — müziğin karanlığının koyulaştığı an budur.
+ *  3. **ezme** (15 - 19 sn, `isaret.enKotu`) — Kuzey kanatları ileri yüklenir: cephe bandının tabanı iner
+ *     (config `cephe.ezme`) ve Güney'in kanatları geriye itilir, ama ayakta kalıp dövüşmeyi sürdürür.
+ *     Müziğin tek darbesinden sonraki neredeyse sessizlik buraya denk gelir.
  *  4. **hucum** (19 sn, "Ya Allah" nidası) — Güney merkezi kalkar. 19.74'te mehter marşıyla **Mızrak Kalkan
  *     Atlıları** ve **seviye 100 kahraman** mancınıkları geçip Kuzey merkezine dörtnala koşar; Kuzey'in
  *     **seviye 1** kahramanı kendi okçularının arkasına kaçar, atlılar okçuları çiğner, mancınıklar arkadan
@@ -57,6 +57,13 @@ export function createHucumGosteri(world, { arenaReady }) {
   const bOf = (p) => p.x * kanat.x + p.z * kanat.z;
   /** Kuzey'in merkez okçu hattının ön safı: hücumun "vardı" sayıldığı çizgi (bkz. `hucumuSur`). */
   const OKCU_HATTI = Math.min(...K.boluk.filter(B => B.taraf === 'kuzey' && B.serit === 'merkez').map(B => B.b));
+  /**
+   * Saate bakan `uyanma` işaretleri, erkenden geçe sıralı (bkz. `uyanmalar`). Liste config `boluk`tan
+   * türetilir ki diziliş değişince burada unutulmuş bir işaret adı kalmasın. `hucumda` dışarıda: o bölükler
+   * saate değil **mesafeye** bakar, `null` olanlar (mancınıklar) hiç uyumaz.
+   */
+  const UYANMA_ISARETLERI = [...new Set(K.boluk.map(B => B.uyanma))]
+    .filter(ad => ad && ad !== 'hucumda').sort((a, b) => K.isaret[a] - K.isaret[b]);
   /**
    * Kadrajın üst kenarının `kanat` üstündeki yeri (bozgun ölçüsü): dikey yarı kadraj ekran birimidir, dünya
    * karşılığı izometrik kısalmayla (0.6496) bölünür; üstüne bozgun evresinin bakış noktası eklenir.
@@ -141,6 +148,23 @@ export function createHucumGosteri(world, { arenaReady }) {
   }
 
   /**
+   * Sahanın içinde **ekranda duran** maden kayası sayısı (tarayıcı dışında 0). Çizim listesini değil kurulmuş
+   * görünümü (`world.envView.root`) gezer: maden kayaları sahnedeki tek `DodecahedronGeometry`dir
+   * (environment.js), her madende üç tane. Bir maden sayılır, kaya değil.
+   */
+  function madenKayalari() {
+    const kok = world.envView && world.envView.root;
+    if (!kok) return 0;
+    const yerler = new Set();
+    kok.traverse((n) => {
+      if (!n.isMesh || !n.geometry || n.geometry.type !== 'DodecahedronGeometry') return;
+      const p = n.parent ? n.parent.position : n.position;
+      if (!sahaDisi({ x: p.x, z: p.z }, K.maden.pay)) yerler.add(`${p.x.toFixed(1)},${p.z.toFixed(1)}`);
+    });
+    return yerler.size;
+  }
+
+  /**
    * Kahraman: tarafının seti ve sahne seviyesi (Kuzey sv 1 okçu, Güney sv 100 Mızrak Kalkan Atlısı).
    * Seviye oyunun kendi seviye sistemidir (characters.js applyLevelUp): her seviye +10 can, +%8 vuruş gücü ve
    * daha geniş vuruş alanı verir. Seviye 100 kahramanın 1090 canı ve en geniş vuruş alanı vardır.
@@ -198,8 +222,6 @@ export function createHucumGosteri(world, { arenaReady }) {
     e.hucumGosteri = true;
     e.serit = B.serit; e.taraf = t.ad;
     e.uyanma = B.uyanma;
-    e.hedefAcilir = B.hedefAcilir ? K.isaret[B.hedefAcilir] : 0;
-    e.menzilli = Boolean(B.menzilli);
     e.akinci = Boolean(B.akinci);
     e.hedefMenzil = B.uyanma === 'hucumda' ? K.hedef.okcuMenzil : K.hedef.menzil;
     /**
@@ -349,15 +371,13 @@ export function createHucumGosteri(world, { arenaReady }) {
   /**
    * Birimin **kendi şeridindeki** en yakın yaşayan düşmanı (`menzil` içinde). Kahraman da sayılır: hücumda
    * Kuzey'in okçuları Güney kahramanını da hedefler. Başka şeritteki düşman hiç bakılmaz — "salça olmama"
-   * kuralı tam burada işler. `hedefAcilir` işareti gelmemiş bölük (Güney'in Kılıçlıları, 15. sn'ye kadar)
-   * hedef olarak sayılmaz: sahnenin sırası müziğin sırasına böyle kilitlenir.
+   * kuralı tam burada işler.
    */
   function seritDusmani(e, menzil) {
     let iyi = null, en = menzil;
     const cephe = cepheSiniri(e);
     for (const o of world.entities) {
       if (!o.alive || o.faction === e.faction) continue;
-      if (o.hedefAcilir > sahne.saniye) continue;
       // Şerit birimin **bölüğünden** gelir, o anki yerinden değil: dövüşün itmesiyle şeridinin dışına savrulan
       // bir asker hedeflenemez hâle gelseydi (önceki sürümde olduğu gibi) sahada ölmeyen artıklar kalırdı.
       if (o.serit !== e.serit) continue;
@@ -412,7 +432,7 @@ export function createHucumGosteri(world, { arenaReady }) {
 
   function uyanmalar(once) {
     const gecti = (t) => once < t && sahne.saniye >= t;
-    for (const ad of ['kanatlar', 'menzilliEriyor', 'enKotu', 'nida']) {
+    for (const ad of UYANMA_ISARETLERI) {
       if (!gecti(K.isaret[ad])) continue;
       for (const e of birimler()) if (e.uyanma === ad && !e.akinci) uyandir(e);
     }
@@ -636,21 +656,35 @@ export function createHucumGosteri(world, { arenaReady }) {
   // ---- Evreler
 
   /**
-   * Kanat savaşının durumu. Yusuf'un isteği gereği (bkz. config `kanat`) **burada kimse tükenmemeli**: ölçüler
+   * Kanat savaşının durumu. Yusuf'un isteği gereği (bkz. config `kanatDayanim`) **burada kimse tükenmemeli**: ölçüler
    * "kaç kişi kaldı"yı değil "savaş sürüyor mu"yu söyler.
-   *  `kuzey` / `guney` iki tarafın ayakta kanat askeri · `dovusen` o an hedefi olan (yani dövüşen) kanat
-   *  askeri · `guneyCephe` Güney'in kanat askerlerinin **ortalama** `kanat` yeri: Kuzey bastırdıkça güneye
-   *  kayar, "kanatları baskı altına almış" görüntüsünün sayısal karşılığı budur.
+   *  `kuzey` / `guney` iki tarafın ayakta kanat askeri · `emirli` saldırı emri almış kanat askeri ·
+   *  `dovusen` **gerçekten vuruşabilecek** kadar yakın olanlar (bkz. `temasta`) · `guneyCephe` Güney'in kanat
+   *  askerlerinin **ortalama** `kanat` yeri: Kuzey bastırdıkça güneye kayar, "kanatları baskı altına almış"
+   *  görüntüsünün sayısal karşılığı budur.
    */
   const kanatSavasi = () => {
-    let kuzey = 0, guney = 0, dovusen = 0, gb = 0;
+    let kuzey = 0, guney = 0, emirli = 0, dovusen = 0, gb = 0;
     for (const t of Object.values(taraflar)) for (const e of t.birimler) {
       if (!e.alive || e.serit === 'merkez') continue;
       if (t.ad === 'kuzey') kuzey++; else { guney++; gb += bOf(e.pos); }
-      if (e.brain && e.brain.order && e.brain.order.kind === 'attack') dovusen++;
+      if (e.brain && e.brain.order && e.brain.order.kind === 'attack') { emirli++; if (temasta(e)) dovusen++; }
     }
-    return { kuzey, guney, dovusen, guneyCephe: guney ? +(gb / guney).toFixed(1) : 0 };
+    return { kuzey, guney, emirli, dovusen, guneyCephe: guney ? +(gb / guney).toFixed(1) : 0 };
   };
+
+  /**
+   * Birim hedefiyle **temasta** mı: saldırı emrinin hedefi yaşıyor ve ai.js'in vuruş açtığı mesafenin
+   * (`engage`: menzilli için yay erimi, piyade için `range` + hedefin yarıçapı) içinde. "Emir aldı" demek
+   * dövüşüyor demek değildir — emri yeni almış, hedefine daha yürüyen bir asker de emirlidir; bu ölçü
+   * kanatların nida anında gerçekten birbirine değdiğini söyler.
+   */
+  function temasta(e) {
+    const h = e.brain && e.brain.order && e.brain.order.target;
+    if (!h || !h.alive) return false;
+    const w = e.stats.weapon, d = Math.hypot(h.pos.x - e.pos.x, h.pos.z - e.pos.z);
+    return d <= (w.ranged ? w.range : w.range + (h.radius || 0));
+  }
 
   function olcumler() {
     const k = kanatSavasi();
@@ -795,11 +829,17 @@ export function createHucumGosteri(world, { arenaReady }) {
     /** Kapanış karesinde kadrajda kalan Kuzey birimi (-1 = kapanışa gelinmedi): bozgunun ölçüsü. */
     kuzeyKalan: sahne.kuzeyKalan, kuzeyMerkezKalan: sahne.kuzeyMerkez, hepsiKaciyor: sahne.hepsiKaciyor,
     yapi: world.structures.length,
-    /** Sahanın içinde kalan altın madeni (engel + düğüm + çizim): sıfır olmalı (Yusuf: "altın madenleri olmasın"). */
+    /**
+     * Sahanın içinde kalan altın madeni: hepsi sıfır olmalı (Yusuf: "altın madenleri olmasın"). `engel` ve
+     * `dugum` dünyanın verisi, `cizim` çizim listesi, `sahnede` ise **gerçekten ekrandaki** sahne: liste
+     * temizlendiği hâlde eski görünüm ayakta kalsaydı (bkz. main.js envView yeniden kurulumu) yalnız liste
+     * sayan bir ölçü bunu kaçırırdı. Maden kayaları sahnedeki tek `DodecahedronGeometry`dir (environment.js).
+     */
     maden: {
       engel: world.obstacles.filter(o => o.kind === 'gold' && !sahaDisi(o.pos, K.maden.pay)).length,
       dugum: (world.nodes || []).filter(n => n.kind === 'gold' && !sahaDisi(n.pos, K.maden.pay)).length,
       cizim: ((world.env && world.env.decor && world.env.decor.mines) || []).filter(m => !sahaDisi(m, K.maden.pay)).length,
+      sahnede: madenKayalari(),
     },
   });
   world.gosteriDurum = durum;
