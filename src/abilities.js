@@ -19,8 +19,11 @@ export function heroVolley(world, e, dir) {
   const n = Math.max(1, Math.round(heroArrows(e) * (k.arrowMult || 1)));
   const fan = Math.min(k.fanMax, k.fanStep * (n - 1)) * Math.PI / 180;
   const base = Math.atan2(dir.x, dir.z), range = reachOf(e).range, cosTol = Math.cos(k.homingDeg * Math.PI / 180);
+  // Ok sayısı çiftse simetrik yelpazede nişana (imlece) giden ok olmaz: yelpaze yarım aralık kayar, bir ok tam nişana
+  // gider. Ok sayısı (hasar) değişmez; yalnız dağılım bir yana yarım aralık kayar.
+  const shift = n > 1 && n % 2 === 0 ? fan / (n - 1) / 2 : 0;
   for (let i = 0; i < n; i++) {
-    const a = base + (n > 1 ? (i / (n - 1) - 0.5) * fan : 0);
+    const a = base + (n > 1 ? (i / (n - 1) - 0.5) * fan : 0) + shift;
     const d = new T.Vector3(Math.sin(a), 0, Math.cos(a));
     fireArrow(world, e, d, hostileAlong(world, e, d.x, d.z, range * 1.1, cosTol), 1, 0);
   }
