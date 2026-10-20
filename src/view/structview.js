@@ -23,8 +23,8 @@ export function structureMesh(kind, faction, owner = null) {
     for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; box(g, '#7c7e88', Math.cos(a) * 1.15, 4.5, Math.sin(a) * 1.15, 0.3, 0.4, 0.3); }
     box(g, '#5a4632', 0, 5.2, 0, 0.12, 1.8, 0.12);
     flag = box(g, color, 0.45, 5.7, 0, 0.9, 0.55, 0.05);
-    // Kule halkası = gerçek menzil (towerTarget ve ok sınırı tam bu çember): sancak halkasıyla karışmasın diye kalın ve belirgin.
-    rng = groundRing(g, color, TOWER.range - 0.5, TOWER.range, 0.45);
+    // Kule halkası = gerçek menzil: iç kenarını geçen vurulur (TOWER.ring), ok dış kenarı aşamaz. Kalın ve belirgin.
+    rng = groundRing(g, color, TOWER.range - TOWER.ring, TOWER.range, 0.45);
   } else if (kind === 'barracks') {
     box(g, '#8d8f9a', 0, 0.3, 0, 3.6, 0.6, 3.0);
     box(g, '#c9b28a', 0, 1.5, 0, 3.2, 1.9, 2.6);
@@ -116,6 +116,9 @@ export function attachStructureView(scene, s) {
   g.position.set(s.pos.x, 0, s.pos.z); scene.add(g);
   const bars = makeHpBar(scene, s.kind === 'banner' ? 2.6 : s.kind === 'tower' ? 2 : 1.8, s.kind === 'banner' ? 0.26 : 0.22);
   const barY = s.kind === 'banner' ? 5.8 : s.kind === 'tower' ? 6.6 : 4.2;
+  // Kule halkası yapıdan ayrı durur: sisteki (henüz görülmemiş) rakip kulenin halkası, halka görüşe girince kule
+  // görünmeden de çizilir (bkz. fog.js ringSeen). Oyuncu sınırı içine girmeden görür.
+  if (ring && s.kind === 'tower') { g.remove(ring); ring.position.set(s.pos.x, 0.03, s.pos.z); scene.add(ring); }
   s.view = { g, flag, ring, camp, ruin, bars, barY, shots: s.shots || 0, flagSpin: 0 };
   syncStructureView(s, 0, 0, null);
   return s.view;
@@ -124,6 +127,7 @@ export function attachStructureView(scene, s) {
 export function detachStructureView(s) {
   const v = s.view; if (!v) return;
   removeGroup(v.g);
+  if (v.ring && v.ring.parent && v.ring.parent !== v.g) { v.ring.parent.remove(v.ring); v.ring.geometry.dispose(); v.ring.material.dispose(); }
   if (v.bars && v.bars.g.parent) v.bars.g.parent.remove(v.bars.g);
   s.view = null;
 }
@@ -158,5 +162,6 @@ export function syncStructureView(s, dt, clock, camQuat, side = 'blue') {
       else v.g.scale.setScalar(1 + s.hitFlash * 0.4);
     }
   }
+  if (s.kind === 'tower' && v.ring && v.ring.visible) v.ring.visible = v.g.visible || Boolean(s.ringSeen);
   if (camQuat) setHpBar(v.bars, s.hp, s.maxHp, s.pos.x, v.barY, s.pos.z, camQuat, s.alive && v.g.visible);
 }

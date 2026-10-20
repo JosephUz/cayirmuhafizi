@@ -426,7 +426,13 @@ export async function start(root) {
    */
   let drawer = false, lastTap = 0, lastPlacing = null, wasPlaying = false;
   const tbar = root.querySelector('#mg-tbar'), drawerClose = root.querySelector('#mg-drawer-close'), placeTap = root.querySelector('#mg-place-tap');
-  const setDrawer = on => { drawer = on; root.classList.toggle('drawer', on); };
+  // Minimap tek tuvaldir: çekmece açıkken çekmecede (inşa menüsünün sağında), kapalıyken sol alt köşede durur.
+  const miniCanvas = root.querySelector('#mg-minimap'), miniHome = root.querySelector('#mg-bar .mini'), miniCorner = root.querySelector('#mg-minicorner');
+  const setDrawer = on => {
+    drawer = on; root.classList.toggle('drawer', on);
+    if (touch) { const box = on ? miniHome : miniCorner; if (miniCanvas.parentNode !== box) box.prepend(miniCanvas); }
+  };
+  setDrawer(false);
   if (touch) {
     world.touchBuild = () => { if (world.placing) world.ui.cancelModes(true); else setDrawer(!drawer); };
     drawerClose.onclick = () => setDrawer(false);
@@ -440,7 +446,7 @@ export async function start(root) {
     if (playing && !wasPlaying) enterFullscreen();
     wasPlaying = playing;
     world.input.touch.show(playing);
-    tbar.hidden = !playing; drawerClose.hidden = !playing;
+    tbar.hidden = !playing; drawerClose.hidden = !playing; miniCorner.hidden = !playing || drawer;
     const sel = world.sel.structure;
     // Yapıya her dokunuşta (aynı yapı yeniden dahil) çekmece açılır: ui.select world.selTap sayacını artırır.
     if (sel && (world.selTap || 0) !== lastTap) setDrawer(true);

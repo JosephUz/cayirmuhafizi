@@ -312,8 +312,9 @@ html.vv #meadow-game{--mg-h:var(--vv-h);inset:auto;top:var(--vv-top);left:var(--
 #meadow-game .tbtn[data-t=attack]{right:0;bottom:0;width:96px;height:96px;background:#c9a13de6;color:#1d1a10;border-color:#fff3}
 #meadow-game .tbtn[data-t=attack] b{font-size:15px}
 #meadow-game .tbtn[data-t=attack].on{background:#e6c25a}
-#meadow-game .tbtn[data-t=dodge]{right:112px;bottom:4px;width:76px;height:76px;border-color:#8fd0ff88}
-#meadow-game .tbtn[data-t=army]{right:98px;bottom:96px;width:66px;height:66px;border-color:#bfe59a88}
+/* ATIL ile ORDU yer değişti: ATIL SALDIR'ın sol üstünde, ORDU solunda (merkezler eski yerlerinde). */
+#meadow-game .tbtn[data-t=dodge]{right:93px;bottom:91px;width:76px;height:76px;border-color:#8fd0ff88}
+#meadow-game .tbtn[data-t=army]{right:117px;bottom:9px;width:66px;height:66px;border-color:#bfe59a88}
 #meadow-game .tbtn[data-t=jump]{right:12px;bottom:112px;width:64px;height:64px}
 #meadow-game .tbtn[data-t=build]{right:18px;bottom:190px;width:52px;height:52px;border-color:#e6c25a88}
 #meadow-game .tbtn[data-t=build] b{font-size:24px}
@@ -352,6 +353,10 @@ html.vv #meadow-game{--mg-h:var(--vv-h);inset:auto;top:var(--vv-top);left:var(--
 #meadow-game.touch .info .line{font-size:11px;gap:10px}
 #meadow-game.touch .mini{grid-column:auto;flex-direction:column}
 #meadow-game.touch #mg-minimap{width:180px;height:90px}
+/* Çekmece kapalıyken aynı minimap sol alt köşede durur (bkz. main.js setDrawer); dokunuşu joystick'e bırakır. */
+#meadow-game #mg-minicorner{position:absolute;left:calc(10px + env(safe-area-inset-left));bottom:calc(10px + env(safe-area-inset-bottom));z-index:5;pointer-events:none;line-height:0}
+#meadow-game #mg-minicorner #mg-minimap{opacity:.92}
+#meadow-game.gosteri #mg-minicorner{display:none!important}
 #meadow-game.touch .minibtns{display:none}
 #meadow-game.touch .hint-label.fixed{bottom:auto!important;top:calc(62px + var(--mg-top))}
 

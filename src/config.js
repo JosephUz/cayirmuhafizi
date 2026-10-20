@@ -408,6 +408,11 @@ export const TOWER = {
   unitRangeMax: 1 / 3,
   /** Kule oku kahramanı da tek atışta öldürür (zıplayana değil). */
   lethalVsHeroes: true, soldierDamageMult: 0.4,
+  /**
+   * Yerdeki menzil halkasının kalınlığı. Kule yalnızca **halkanın iç kenarını geçmiş** birime ok atar ve onu vurur
+   * (merkezi kuleden en çok range - ring uzakta): halkaya basmak ya da dışında durmak ok yemez.
+   */
+  ring: 0.5,
   /** Mancınık taşı kuleye bu katla vurur: kule kırmanın yolu kuşatmadır (220 x 2.5 = 550). */
   siegeDamageMult: 2.5,
   /**

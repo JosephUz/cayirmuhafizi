@@ -335,6 +335,8 @@ export function fireArrow(world, e, dir, target = null, dmgMult = 1, side = 0, o
      * çemberi kulenin gerçek erişimidir — menzilden kaçan birimi takipli ok artık haritanın öbür ucuna kadar kovalamaz.
      */
     origin: sure ? { x: e.pos.x, z: e.pos.z } : null, maxRange: sure ? w.range : 0,
+    /** Kule oku yalnızca halkanın iç kenarını geçmiş birime değer (bkz. TOWER.ring): halkaya basan vurulmaz. */
+    reach: sure ? w.range - TOWER.ring : 0,
   };
   world.arrows.push(a);
   world.fx.addArrow(a);
@@ -374,7 +376,7 @@ export function updateArrows(world, dt) {
     if (!hit && a.sure) {
       const t = a.target, p = a.pos;
       // Hedef bu arada halkadan çıktıysa vuruş yok: ok halkanın kenarına kadar gidip kaybolur.
-      const inside = Math.hypot(t.pos.x - a.origin.x, t.pos.z - a.origin.z) <= a.maxRange;
+      const inside = Math.hypot(t.pos.x - a.origin.x, t.pos.z - a.origin.z) <= a.reach;
       if (inside && Math.hypot(p.x - t.pos.x, p.z - t.pos.z) <= t.radius + 0.3 + a.speed * dt * 0.5) {
         const len = Math.hypot(a.vel.x, a.vel.z) || 1;
         damageEntity(world, t, hitDamage(a.source, t, a.damage), a.vel.x / len, a.vel.z / len, a.knock, a.source);
@@ -385,7 +387,7 @@ export function updateArrows(world, dt) {
       for (const t of world.entities) {
         if (!t.alive || t.faction === a.faction || t.dodgeTimer > 0 || t.invuln > 0) continue;
         // Hedefini kaybetmiş kule oku da halkanın dışındaki birime değmez.
-        if (a.maxRange > 0 && Math.hypot(t.pos.x - a.origin.x, t.pos.z - a.origin.z) > a.maxRange) continue;
+        if (a.maxRange > 0 && Math.hypot(t.pos.x - a.origin.x, t.pos.z - a.origin.z) > a.reach) continue;
         const dx = p.x - t.pos.x, dz = p.z - t.pos.z, rr = t.radius + 0.25;
         if (dx * dx + dz * dz > rr * rr) continue;
         if (t.jumpY > COMBAT.jumpDodgeHeight) continue;

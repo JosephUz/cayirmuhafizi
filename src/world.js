@@ -351,7 +351,7 @@ function updateTowers(world, dt) {
     t.cooldown -= dt;
     if (t.cooldown > 0) continue;
     const sh = t.shooter; sh.facing = 0;
-    const target = towerTarget(world, sh, TOWER.range);
+    const target = towerTarget(world, sh, TOWER.range - TOWER.ring);
     if (!target) continue;
     t.cooldown = TOWER.cooldown;
     const dir = world.tmpVec.set(target.pos.x - t.pos.x, 0, target.pos.z - t.pos.z).normalize();

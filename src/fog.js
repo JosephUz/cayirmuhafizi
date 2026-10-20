@@ -1,5 +1,5 @@
 import * as T from 'three';
-import { BUILDINGS, FOG, HALF, VISION } from './config.js';
+import { BUILDINGS, FOG, HALF, TOWER, VISION } from './config.js';
 import { knownBy, markKnown } from './structures.js';
 
 /**
@@ -81,6 +81,15 @@ export function createFog(world) {
       }
       // Görünen rakip yapı bilinir olur (sis dokusunu beklemeden: bkz. ai.js knownTo da aynı işi yapar).
       for (const s of world.structures) if (!knownBy(s, side) && s.alive && fog.isVisible(s.pos.x, s.pos.z)) markKnown(s, side);
+      // Rakip kulenin halkası görüşe girdi mi (yalnız istemci, çizim için): halka üzerinde 48 noktadan biri görünürse
+      // ya da kule görünürse halka çizilir. Kule sisteyken bile oyuncu menzilin sınırını içine girmeden görür.
+      if (plane) for (const s of world.structures) {
+        if (s.kind !== 'tower' || s.faction === side) continue;
+        s.ringSeen = false;
+        if (!s.alive || !s.ready) continue;
+        const r = TOWER.range - TOWER.ring / 2;
+        for (let k = 0; k < 48 && !s.ringSeen; k++) { const a = (k / 48) * Math.PI * 2; s.ringSeen = fog.isVisible(s.pos.x + Math.cos(a) * r, s.pos.z + Math.sin(a) * r); }
+      }
       for (let k = 0; k < N * N; k++) if (visible[k]) explored[k] = 1;
       if (data) {
         const ea = Math.round(255 * FOG.exploredAlpha);
