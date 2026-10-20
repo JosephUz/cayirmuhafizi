@@ -55,7 +55,10 @@ Kök alan adı kullanılacaksa Cloudflare DNS sayfasındaki eski A / CNAME kayd�
 ## Ekranlar
 
 Hesap yok. **Giriş**: ad (tarayıcıda hatırlanır) ve üç düğme: **Tek başına** (kurulum ekranı, sonra oyun), **Oda kur**
-(kurulum ekranı, sonra lobi ve oda kodu) ve **Odaya katıl** (tıklayınca oda kodu satırı açılır). `?oda=KOD` linkiyle gelen ad ekranından lobiye düşer.
+(kurulum ekranı, sonra lobi ve oda kodu; **Özel oda** kutusu işaretliyse oda listede görünmez, yalnız kodla / linkle katılınır) ve **Odaya katıl** (tıklayınca oda kodu satırı açılır). `?oda=KOD` linkiyle gelen ad ekranından lobiye düşer.
+**Açık odalar** (sunucu karşılarken giriş ekranında): başlamamış, boş koltuğu olan herkese açık lobiler; her satırda kuranın adı,
+kaça kaç · zorluk, `n/10 oyuncu` ve **KATIL →** (kod yazmadan). **HIZLI KATIL →** en kalabalık açık lobiye oturtur, yoksa
+yeni açık oda kurar (kuran olursun, lobi akışı aynı). Başlamış maça sonradan girilmediği için listede yalnız lobiler var.
 **Kurulum**: kaça kaç (1v1 … 5v5) ve zorluk. **Lobi**: oda kodu, "Linki kopyala", iki takımın koltukları (boş koltuklara
 bot oturur). Gelen oyuncu önce seçili büyüklükteki **boş koltuğa** oturur (önce mavi, sonra kırmızı; 1v1 odaya gelen
 kırmızıya geçer, oda 1v1 kalır); iki takım da doluysa oda bir büyür. **Karşı takımdaki bir bot koltuğuna tıklayan oraya
@@ -181,7 +184,7 @@ Kamera **normal oyun kamerasıdır** (izometrik, kahramanı izler; kadraj 17 yer
 
 ## Testler
 
-`npm test` önce tarayıcısız birim testlerini (`tests/*.test.mjs`, şu an görünür alan kilidi), sonra tarayıcı testlerini sırayla koşturur: gösteri kipi, kahramanların gücü sahnesi, iki ordu sahnesi, otopilot, dokunmatik, telefonda üst alan (`tests/mobil-ust-alan.mjs`), oyun içi müzik (`tests/muzik-smoke.mjs`), standart üst araç çubuğu (`tests/standart-cubuk.mjs`). Betik (`scripts/test.mjs`) **kendi kendine yeter**: oyun sunucusunu boş bir portta açar, Playwright'ı bulur (önce `PLAYWRIGHT_MODULE`, sonra bu depodaki kurulum, sonra komşu depolardaki tarayıcısı inmiş kurulum) ve bitince sunucuyu kapatır — elle kurulum gerekmez. Playwright bu depoya bilerek kurulu değildir (oyun paketine girmesin diye); hiç bulunamazsa betik ne yapılacağını yazıp düşer. Tek bir testi koşturmak için `GAME_URL` ve `PLAYWRIGHT_MODULE` verip `node tests/<ad>.mjs` yeter. Kare hızı eşikleri donanıma bağlı olduğu için `FPS_ESIK` (ortalama) ve `FPS_DIP_ESIK` (en kötü yarım saniye) ile indirilebilir.
+`npm test` önce tarayıcısız birim testlerini (`tests/*.test.mjs`: görünür alan kilidi, açık oda listesi + hızlı katıl), sonra tarayıcı testlerini sırayla koşturur: gösteri kipi, kahramanların gücü sahnesi, iki ordu sahnesi, otopilot, dokunmatik, telefonda üst alan (`tests/mobil-ust-alan.mjs`), oyun içi müzik (`tests/muzik-smoke.mjs`), standart üst araç çubuğu (`tests/standart-cubuk.mjs`). Betik (`scripts/test.mjs`) **kendi kendine yeter**: oyun sunucusunu boş bir portta açar, Playwright'ı bulur (önce `PLAYWRIGHT_MODULE`, sonra bu depodaki kurulum, sonra komşu depolardaki tarayıcısı inmiş kurulum) ve bitince sunucuyu kapatır — elle kurulum gerekmez. Playwright bu depoya bilerek kurulu değildir (oyun paketine girmesin diye); hiç bulunamazsa betik ne yapılacağını yazıp düşer. Tek bir testi koşturmak için `GAME_URL` ve `PLAYWRIGHT_MODULE` verip `node tests/<ad>.mjs` yeter. Kare hızı eşikleri donanıma bağlı olduğu için `FPS_ESIK` (ortalama) ve `FPS_DIP_ESIK` (en kötü yarım saniye) ile indirilebilir.
 
 ## Çevrim içi co-op
 
@@ -223,7 +226,10 @@ görseller `world.fx` kancalarından geçer (tarayıcıda mesh, sunucuda olay).
   ekranının sağ altında "● N çevrim içi" yazar (`S2C.ONLINE`, değişince en çok 2 sn'de bir). Boşta bağlantı 20 sn'de bir
   ping atar (Cloudflare sessiz soketi ~100 sn'de keser). `/health`: `online` açık sekme, `inRoom` bir odada oturan sekme.
   Oda kur / katıl aynı bağlantıyı kullanır (önce ad yenilenir).
-- Kapsam dışı (bilerek): hesap, kalıcı istatistik, yabancılarla eşleştirme, izleyici. Yapı bunları engellemez.
+- **Açık oda listesi**: giriş ekranı görünür ve sekme öndeyken istemci 3 sn'de bir `C2S.ROOMS` yollar, sunucu `S2C.ROOMS`
+  ile en çok 30 satır döner (özel, başlamış, dolu ve boş odalar yok; sıra: kalabalık önce). `C2S.QUICK` hızlı katıldır;
+  `CREATE` `priv: true` ile özel oda kurar, `LOBBY` `priv` alanını taşır. Test: `tests/odalar.test.mjs` (`npm test` içinde).
+- Kapsam dışı (bilerek): hesap, kalıcı istatistik, beceri eşleştirmesi, izleyici. Yapı bunları engellemez.
 
 ## PvP (insanlar iki takımda)
 

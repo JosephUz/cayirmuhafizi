@@ -4,8 +4,10 @@
  */
 export const C2S = {
   HELLO: 'hello',      // { nick, token } — bağlantı kimliği; token varsa eski koltuğa geri bağlanır
-  CREATE: 'create',    // { teamSize, difficulty } — oda kur (kuran lobinin sahibidir)
+  CREATE: 'create',    // { teamSize, difficulty, priv } — oda kur (kuran lobinin sahibidir); priv: özel oda, listede görünmez
   JOIN: 'join',        // { code }
+  ROOMS: 'rooms',      // açık oda listesini iste (giriş ekranı açıkken ~3 sn'de bir)
+  QUICK: 'quick',      // hızlı katıl: en kalabalık açık lobiye otur, uygun oda yoksa yeni açık oda kur
   SETTINGS: 'settings',// { teamSize, difficulty } — yalnızca kuran
   TEAM: 'team',        // { team: 'blue'|'red' } — lobide takım değiştir (iki takımda insan varsa PvP)
   MOVE: 'move',        // { id, team } ya da { id, with } — yalnızca kuran: oyuncuyu boş koltuğa taşı ya da iki oyuncuyu değiştir
@@ -17,7 +19,8 @@ export const C2S = {
 };
 export const S2C = {
   WELCOME: 'welcome',  // { id, token, nick }
-  LOBBY: 'lobby',      // { code, hostId, settings, seats: [{ slot, id, nick, online, team }], state }
+  LOBBY: 'lobby',      // { code, hostId, settings, priv, seats: [{ slot, id, nick, online, team }], state }
+  ROOMS: 'rooms',      // { list: [{ code, host, teamSize, difficulty, n, max }] } — başlamamış, boş koltuğu olan açık odalar
   ERROR: 'error',      // { msg }
   START: 'start',      // { seed, teamSize, difficulty, players: [{ id, name, color, faction, slot, human }], you }
   EVENTS: 'ev',        // { list: [...] } — o tik biriken olaylar (durum paketinden önce uygulanır)

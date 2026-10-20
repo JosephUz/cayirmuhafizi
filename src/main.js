@@ -173,14 +173,16 @@ export async function start(root) {
   const net = createNetClient(world, {
     onWelcome() {
       screens.setServer(true);
+      net.rooms();
       // Boşta bağlantının karşılaması durum yazısına dokunmaz (örn. "adını yazıp Katıl'a bas" kalsın).
       if (!pendingRoom) return;
       screens.setStatus('');
       const r = pendingRoom; pendingRoom = null;
       // Geri bağlanmada sunucu koltuğu token'dan tanır ve lobiyi / oyunu kendisi yollar; tanımadıysa koda yeniden katılmayı dener.
       if (r.rejoin) { setTimeout(() => { if (!world.replicated && !net.lobby) net.join(r.code); }, 400); return; }
-      if (r.create) net.create(r.settings); else net.join(r.code);
+      if (r.quick) net.quick(); else if (r.create) net.create(r.settings); else net.join(r.code);
     },
+    onRooms(list) { screens.rooms(list); },
     // Oyun sürerken gelen lobi güncellemesi (biri koptu / döndü) ekranı açmaz; yalnızca lobideyken çizilir.
     onLobby(lobby) { if (!world.replicated || !world.running || world.ended) screens.lobby(lobby); },
     onError(msg) { screens.setStatus(msg); },
@@ -228,6 +230,8 @@ export async function start(root) {
     // Bağlantı çoğunlukla açıktır (sayfa açılınca kurulur): önce ad yenilenir, oda isteği WELCOME'da (onWelcome) gider.
     createRoom(nick, settings) { world.net = net; pendingRoom = { create: true, settings }; if (net.connected) net.hello(nick); else net.connect(nick); },
     joinRoom(nick, code) { world.net = net; pendingRoom = { create: false, code }; if (net.connected) net.hello(nick); else net.connect(nick); },
+    refreshRooms() { if (networked && net.connected) net.rooms(); },
+    quickJoin(nick) { world.net = net; pendingRoom = { quick: true }; if (net.connected) net.hello(nick); else net.connect(nick); },
     lobbySettings(s) { net.settings(s); },
     lobbyTeam(team) { net.team(team); },
     lobbyMove(m) { net.move(m); },
@@ -408,6 +412,8 @@ export async function start(root) {
     // Boşta bağlantı: giriş ekranındaki "çevrim içi" sayısı için (oda kurulunca / katılınca aynı bağlantı kullanılır).
     net.connect(screens.nick());
   }
+  // Açık odalar listesi yalnız giriş ekranı görünürken ve sekme öndeyken 3 sn'de bir istenir (cevap küçük: en çok 30 satır).
+  if (networked && !gosteri && !otopilot) setInterval(() => { if (net.connected && !world.replicated && !document.hidden && screens.visible() === screens.els.home) net.rooms(); }, 3000);
 
   // Android uygulamasında geri tuşu: pencereyi kapat / menüyü aç-kapat (Esc gibi); giriş ekranında uygulamadan çık.
   const nativeApp = isApp() ? window.Capacitor?.registerPlugin?.('App') : null;

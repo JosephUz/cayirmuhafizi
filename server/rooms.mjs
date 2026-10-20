@@ -8,7 +8,8 @@ import { C2S, DIFFICULTIES, EV, NET, S2C, roomCode } from '../src/net/protocol.j
 import { TEAMS } from '../src/config.js';
 
 /**
- * Odalar: kur / katıl / lobi / başlat / oyun / bitiş. Lobide herkes takımını seçer (conn.team): insanlar yalnızca mavide
+ * Odalar: kur / katıl / açık oda listesi + hızlı katıl / lobi / başlat / oyun / bitiş. Özel oda (priv) listede görünmez,
+ * yalnız kodla (ya da linkle) katılınır. Lobide herkes takımını seçer (conn.team): insanlar yalnızca mavide
  * ise co-op, iki takımda da insan varsa PvP; boş koltukları botlar doldurur. Sunucu otoriterdir: her oda kendi dünyasını saniyede 20 adım koşturur,
  * her 2 adımda bir durum paketi ve biriken olayları yayar. Hesap yok: bağlantı `token` ile tanınır, kopan oyuncu aynı
  * token'la koltuğuna geri döner. **Bot devralmaz**: ayrılanın kahramanı durur, askerleri ve binaları sahada kalır
@@ -41,7 +42,7 @@ export function createRooms({ log = console.log } = {}) {
   }
 
   function lobbyMsg(room) {
-    return { t: S2C.LOBBY, code: room.code, hostId: room.hostId, settings: room.settings, state: room.state,
+    return { t: S2C.LOBBY, code: room.code, hostId: room.hostId, settings: room.settings, state: room.state, priv: room.priv,
       seats: room.seats.map((c, i) => ({ slot: i, id: c.id, nick: c.nick, online: Boolean(c.ws), team: c.team })) };
   }
   const MAX_TEAM = TEAMS.sizes[TEAMS.sizes.length - 1];
@@ -59,6 +60,44 @@ export function createRooms({ log = console.log } = {}) {
     return b <= r ? 'blue' : 'red';
   }
   const broadcastLobby = room => { for (const c of room.seats) send(c, lobbyMsg(room)); };
+
+  /**
+   * Açık oda listesi (giriş ekranı): **özel olmayan**, henüz başlamamış (lobide bekleyen) ve boş koltuğu olan odalar.
+   * Başlamış maça sonradan oturulamaz (JOIN "Oyun başlamış" der), bu yüzden listede yalnız lobiler var. Sıra hızlı
+   * katılla aynıdır: önce kalabalık oda (insanlar buluşsun), eşitse eski oda.
+   */
+  const MAX_SEATS = MAX_TEAM * 2;
+  const openRooms = () => [...rooms.values()]
+    .filter(r => !r.priv && r.state === 'lobby' && r.seats.length > 0 && r.seats.length < MAX_SEATS)
+    .sort((a, b) => b.seats.length - a.seats.length || a.created - b.created);
+  function roomsMsg() {
+    const list = openRooms().slice(0, 30).map(r => {
+      const host = r.seats.find(c => c.id === r.hostId) || r.seats[0];
+      return { code: r.code, host: host.nick, teamSize: r.settings.teamSize, difficulty: r.settings.difficulty, n: r.seats.length, max: MAX_SEATS };
+    });
+    return { t: S2C.ROOMS, list };
+  }
+
+  /** Yeni oda: kuran mavi takımda, lobinin sahibidir. priv: özel oda (listede ve hızlı katılda görünmez, yalnız kodla). */
+  function createRoom(conn, settings, priv) {
+    if (conn.room) leaveRoom(conn, { hard: true });
+    conn.left = false; // önceki odada "Oyundan çık" demiş olabilir: bayrak taşınırsa yeni oyunda girdisi yok sayılır
+    let code = roomCode(); while (rooms.has(code)) code = roomCode();
+    conn.team = 'blue';
+    const r = { code, hostId: conn.id, seats: [conn], state: 'lobby', settings, priv: Boolean(priv), world: null, events: [], playerEvents: new Map(), timer: null, report: null, created: Date.now() };
+    rooms.set(code, r); conn.room = r;
+    broadcastLobby(r); log(`oda kuruldu ${code} (${conn.nick})${r.priv ? ' özel' : ''}`);
+    return r;
+  }
+  /** Lobideki bir odaya otur (koltuk ve takım pickTeam'den); oda dolu / başlamış denetimi çağıranda. */
+  function seatInRoom(conn, r) {
+    if (conn.room) leaveRoom(conn, { hard: true });
+    conn.left = false;
+    conn.team = pickTeam(r);
+    r.seats.push(conn); conn.room = r;
+    r.settings.teamSize = Math.max(r.settings.teamSize, minTeamSize(r));
+    broadcastLobby(r); log(`katıldı ${conn.nick} -> ${r.code}`);
+  }
 
   function leaveRoom(conn, { keepSeat = false, hard = false } = {}) {
     const room = conn.room; if (!room) return;
@@ -231,14 +270,12 @@ export function createRooms({ log = console.log } = {}) {
         send(conn, { t: S2C.ONLINE, n: conns.size });
         return;
       }
-      case C2S.CREATE: {
-        if (room) leaveRoom(conn, { hard: true });
-        conn.left = false; // önceki odada "Oyundan çık" demiş olabilir: bayrak taşınırsa yeni oyunda girdisi yok sayılır
-        let code = roomCode(); while (rooms.has(code)) code = roomCode();
-        conn.team = 'blue';
-        const r = { code, hostId: conn.id, seats: [conn], state: 'lobby', settings: sanitize(msg), world: null, events: [], playerEvents: new Map(), timer: null, report: null, created: Date.now() };
-        rooms.set(code, r); conn.room = r;
-        broadcastLobby(r); log(`oda kuruldu ${code} (${conn.nick})`);
+      case C2S.CREATE: { createRoom(conn, sanitize(msg), msg.priv === true); return; }
+      case C2S.ROOMS: { send(conn, roomsMsg()); return; }
+      case C2S.QUICK: {
+        // Hızlı katıl: oturduğu oda dışındaki en kalabalık açık lobi; yoksa yeni **açık** oda kurar (kuran olur, lobi akışı aynı).
+        const r = openRooms().find(x => x !== room);
+        if (r) seatInRoom(conn, r); else createRoom(conn, sanitize({}), false);
         return;
       }
       case C2S.JOIN: {
@@ -255,13 +292,9 @@ export function createRooms({ log = console.log } = {}) {
           return;
         }
         if (r.state !== 'lobby') return error(conn, 'Oyun başlamış');
-        if (r.seats.length >= MAX_TEAM * 2) return error(conn, 'Oda dolu');
-        if (room) leaveRoom(conn, { hard: true });
-        conn.left = false;
-        conn.team = pickTeam(r);
-        r.seats.push(conn); conn.room = r;
-        r.settings.teamSize = Math.max(r.settings.teamSize, minTeamSize(r));
-        broadcastLobby(r); log(`katıldı ${conn.nick} -> ${code}`);
+        if (r.seats.length >= MAX_SEATS) return error(conn, 'Oda dolu');
+        if (r.seats.includes(conn)) return broadcastLobby(r); // zaten bu lobide (ör. listeden kendi odasına bastı)
+        seatInRoom(conn, r);
         return;
       }
       case C2S.SETTINGS: {

@@ -18,6 +18,7 @@ export function createScreens(root, world, app) {
     endCard: $('#end-card'), helpHero: $('#help-hero'), menuResume: $('#menu-resume'), menuSound: $('#menu-sound'), menuQuality: $('#menu-quality'),
     menuMuzik: $('#menu-muzik'),
     homeSound: $('#home-sound'), homeMuzik: $('#home-muzik'), menuLeave: $('#menu-leave'),
+    rooms: $('#home-rooms'), roomsList: $('#home-rooms-list'), roomsN: $('#home-rooms-n'), privRow: $('#setup-private-row'), priv: $('#setup-private'), lobbyVis: $('#lobby-vis'),
   };
   const overlays = [els.home, els.setup, els.lobby, els.end, els.help, els.menu];
   let setupMode = 'solo', helpReturn = null;
@@ -37,14 +38,16 @@ export function createScreens(root, world, app) {
   const readRadio = name => { const el = root.querySelector(`input[name=${name}]:checked`); return el ? el.value : null; };
 
   // ---- Giriş
-  $('#home-solo').onclick = () => { setupMode = 'solo'; els.setupTitle.textContent = 'Tek başına'; show(els.setup); };
-  $('#home-create').onclick = () => { setupMode = 'create'; els.setupTitle.textContent = 'Oda kur'; show(els.setup); };
+  $('#home-solo').onclick = () => { setupMode = 'solo'; els.setupTitle.textContent = 'Tek başına'; els.privRow.hidden = true; show(els.setup); };
+  $('#home-create').onclick = () => { setupMode = 'create'; els.setupTitle.textContent = 'Oda kur'; els.privRow.hidden = false; show(els.setup); };
+  $('#home-quick').onclick = () => { els.homeStatus.textContent = 'Oda aranıyor…'; app.quickJoin(nick()); };
   $('#home-join').onclick = () => { els.joinRow.hidden = !els.joinRow.hidden; if (!els.joinRow.hidden) els.code.focus(); };
   const joinGo = () => { const code = els.code.value.trim().toUpperCase(); if (code.length < 4) { els.homeStatus.textContent = 'Oda kodunu yaz'; return; } els.homeStatus.textContent = 'Bağlanıyor…'; app.joinRoom(nick(), code); };
   $('#home-join-go').onclick = joinGo;
   // Sunucuya bağlanılamadıkça (kapalı ya da config.js → ONLINE ile kapatılmış) oda düğmeleri "Yakında" yazar ve basılmaz;
   // sunucu karşılayınca (main.js → onWelcome) açılır.
   function setServer(up) {
+    els.rooms.hidden = !up; // açık odalar kutusu yalnız sunucu karşılarken görünür
     for (const id of ['#home-create', '#home-join', '#home-join-go']) {
       const b = $(id), tag = b.querySelector('.soon-tag');
       b.disabled = !up; b.classList.toggle('soon', !up); b.title = up ? '' : 'Çok oyunculu yakında';
@@ -60,7 +63,7 @@ export function createScreens(root, world, app) {
   $('#setup-start').onclick = () => {
     const teamSize = Number(readRadio('teams') || 1), difficulty = readRadio('difficulty') || 'normal';
     if (setupMode === 'solo') { show(null); app.startLocal(nick(), difficulty, teamSize); }
-    else { els.homeStatus.textContent = ''; app.createRoom(nick(), { teamSize, difficulty }); }
+    else { els.homeStatus.textContent = ''; app.createRoom(nick(), { teamSize, difficulty, priv: els.priv.checked }); }
   };
   $('#setup-back').onclick = () => show(els.home);
 
@@ -73,7 +76,7 @@ export function createScreens(root, world, app) {
   };
   els.lobbyTeams.onchange = els.lobbyDiff.onchange = () => app.lobbySettings({ teamSize: Number(els.lobbyTeams.value), difficulty: els.lobbyDiff.value });
   els.lobbyStart.onclick = () => app.startRoom();
-  $('#lobby-leave').onclick = () => { app.leaveRoom(); show(els.home); };
+  $('#lobby-leave').onclick = () => { app.leaveRoom(); show(els.home); app.refreshRooms(); };
 
   /**
    * Lobi: iki takımın koltukları. Oyuncular seçtikleri takımın ilk koltuklarına oturur, kalanı bot doldurur. Öbür
@@ -83,6 +86,7 @@ export function createScreens(root, world, app) {
   function renderLobby(lobby) {
     const isHost = lobby.hostId === app.netId();
     els.lobbyCode.textContent = lobby.code;
+    els.lobbyVis.textContent = lobby.priv ? 'Özel oda · yalnız kodla' : 'Açık oda · listede görünür';
     const n = lobby.settings.teamSize;
     const me = lobby.seats.find(s => s.id === app.netId());
     // Renk sırası oyunla aynı: insanlar lobi sırasıyla TEAMS.humanColors'tan alır (bkz. players.js createPlayers).
@@ -130,6 +134,18 @@ export function createScreens(root, world, app) {
       li.ondragleave = () => li.classList.remove('drop');
       li.ondrop = e => { e.preventDefault(); li.classList.remove('drop'); const t = target(); if (t) app.lobbyMove(t); };
     }
+  }
+
+  /**
+   * Açık odalar (giriş ekranı): kuranın adı, kaça kaç · zorluk, oturan / en çok oyuncu ve KATIL →. Kod yazmadan katılır
+   * (sunucuya yine kodla JOIN gider). Liste sunucudan ~3 sn'de bir gelir (main.js); boşsa tek satırlık bilgi.
+   */
+  const DIFF_AD = { easy: 'Kolay', normal: 'Normal', hard: 'Zor' };
+  function renderRooms(list) {
+    els.roomsN.textContent = list.length ? String(list.length) : '';
+    if (!list.length) { els.roomsList.innerHTML = '<div class="empty">Şu an bekleyen açık oda yok. Hızlı katıl yeni bir oda kurar.</div>'; return; }
+    els.roomsList.innerHTML = list.map(o => `<button type="button" class="open-room" data-code="${escapeHtml(o.code)}"><span><b>${escapeHtml(o.host)}</b><small>${o.teamSize}v${o.teamSize} · ${DIFF_AD[o.difficulty] || ''} · ${o.n}/${o.max} oyuncu · lobide</small></span><em>KATIL →</em></button>`).join('');
+    for (const b of els.roomsList.querySelectorAll('.open-room')) b.onclick = () => { els.homeStatus.textContent = 'Bağlanıyor…'; app.joinRoom(nick(), b.dataset.code); };
   }
 
   // ---- Kısayollar
@@ -189,8 +205,9 @@ export function createScreens(root, world, app) {
 
   const screens = {
     els, show, visible, nick, setServer,
-    home(status = '') { els.homeStatus.textContent = status; els.joinRow.hidden = true; show(els.home); },
+    home(status = '') { els.homeStatus.textContent = status; els.joinRow.hidden = true; show(els.home); app.refreshRooms(); },
     lobby: renderLobby,
+    rooms: renderRooms,
     setOnline(n) { if (els.online) { els.online.textContent = n > 0 ? `● ${n} çevrim içi` : ''; els.online.title = 'Siteyi şu an açık tutan sekme sayısı'; } },
     setStatus(text) { if (visible() === els.lobby) els.lobbyStatus.textContent = text; else els.homeStatus.textContent = text; },
     end(report, actions) { renderReport(els.endCard, report, world, actions); show(els.end); },

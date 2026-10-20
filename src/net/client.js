@@ -64,6 +64,7 @@ export function createNetClient(world, hooks) {
       case S2C.END: world.ended = true; world.report = msg.report; remember(null); hooks.onEnd && hooks.onEnd(msg.report); break;
       case S2C.PONG: rtt = performance.now() - msg.at; client.rtt = rtt; break;
       case S2C.ONLINE: client.online = msg.n; hooks.onOnline && hooks.onOnline(msg.n); break;
+      case S2C.ROOMS: hooks.onRooms && hooks.onRooms(msg.list || []); break;
       default: break;
     }
   }
@@ -322,6 +323,9 @@ export function createNetClient(world, hooks) {
     hello(nick) { curNick = nick; send({ t: C2S.HELLO, nick, token: token() }); },
     create(settings) { send({ t: C2S.CREATE, ...settings }); },
     join(code) { send({ t: C2S.JOIN, code }); },
+    /** Açık oda listesi (cevap S2C.ROOMS -> hooks.onRooms) ve hızlı katıl. */
+    rooms() { send({ t: C2S.ROOMS }); },
+    quick() { send({ t: C2S.QUICK }); },
     settings(s) { send({ t: C2S.SETTINGS, ...s }); },
     team(team) { send({ t: C2S.TEAM, team }); },
     move(m) { send({ t: C2S.MOVE, ...m }); },

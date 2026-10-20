@@ -16,7 +16,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 /** Tarayıcısız birim testleri (`node --test`): sunucu da Playwright de gerekmez. */
-const BIRIM_TESTLER = ['tests/gorunur-alan.test.mjs'];
+const BIRIM_TESTLER = ['tests/gorunur-alan.test.mjs', 'tests/odalar.test.mjs'];
 const TESTLER = ['tests/gosteri-smoke.mjs', 'tests/gosteri-kahraman-smoke.mjs', 'tests/gosteri-savas-smoke.mjs', 'tests/gosteri-mancinik-smoke.mjs', 'tests/gosteri-hucum-smoke.mjs', 'tests/otopilot-smoke.mjs', 'tests/touch-smoke.mjs', 'tests/mobil-ust-alan.mjs', 'tests/muzik-smoke.mjs', 'tests/standart-cubuk.mjs'];
 
 /** İşletim sisteminin verdiği boş bir port: sabit 5173 başka bir sunucuda açık olabilir. */

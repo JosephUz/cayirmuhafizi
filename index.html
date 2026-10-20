@@ -82,6 +82,12 @@
         </div>
         <div class="home-meta"><span>1v1 – 5v5 · BOTLARLA</span><span>CO-OP / PvP</span><span id="home-online" class="online"></span></div>
         <p id="home-status" class="status"></p>
+        <!-- Açık odalar: başlamamış, boş koltuğu olan herkese açık lobiler (özel odalar görünmez). Kodsuz katılınır; Hızlı katıl
+             en kalabalık odaya oturtur, yoksa yeni açık oda kurar. Sunucu yokken bütün kutu gizlidir. -->
+        <div id="home-rooms" class="open-rooms" hidden>
+          <div class="open-rooms-head"><b>AÇIK ODALAR</b><span id="home-rooms-n"></span><button type="button" id="home-quick">HIZLI KATIL →</button></div>
+          <div id="home-rooms-list" class="open-rooms-list"></div>
+        </div>
         <div class="rule-cards">
           <div><b>01 / TOPLA</b><span>İşçiler altın, odun ve yiyecek getirir.</span></div>
           <div><b>02 / KUR</b><span>Kışla, okçuluk, ahır ve kule dik.</span></div>
@@ -109,6 +115,7 @@
           <label><input type="radio" name="difficulty" value="normal" checked> Normal</label>
           <label><input type="radio" name="difficulty" value="hard"> Zor</label>
         </fieldset>
+        <label class="private-room" id="setup-private-row" hidden><input type="checkbox" id="setup-private"> Özel oda <small>açık odalar listesinde görünmez, yalnız kodla ya da linkle katılınır</small></label>
         <div class="row">
           <button type="button" id="setup-start" class="primary">Savaşı başlat</button>
           <button type="button" id="setup-back">Geri</button>
@@ -119,7 +126,7 @@
     <!-- Lobi: oda kodu, koltuklar, ayarlar. -->
     <div id="mg-lobby" class="overlay" hidden>
       <div class="card lobby">
-        <div class="codebox"><span class="lbl">Oda</span><b id="lobby-code">----</b><button type="button" id="lobby-copy" title="Katılma linkini kopyala">Linki kopyala</button></div>
+        <div class="codebox"><span class="lbl">Oda</span><b id="lobby-code">----</b><button type="button" id="lobby-copy" title="Katılma linkini kopyala">Linki kopyala</button><span id="lobby-vis" class="vis"></span></div>
         <div class="teams">
           <div class="team blue"><h3>Mavi takım</h3><ol id="lobby-blue" class="seats"></ol></div>
           <div class="team red"><h3>Kırmızı takım</h3><ol id="lobby-red" class="seats"></ol></div>
