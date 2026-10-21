@@ -71,21 +71,29 @@
         <h1>Sancağını koru.<br><span>Çayırı kazan.</span></h1>
         <p>Kahramanınla öne atıl, işçilerle altın ve odun topla.<br>Ordunu kur, kuleni dik, rakibin sancağını yık.</p>
         <label class="field"><span>Adın</span><input id="home-nick" type="text" maxlength="16" autocomplete="off" spellcheck="false"></label>
+        <!-- Oda standardı (josephuz docs/oda-standardi.md): ADIN · TEK BAŞINA · ÇEVRİM İÇİ (HIZLI KATIL → / ODA KUR /
+             ODAYA KATIL + durum satırı) · AÇIK ODALAR. Tek başına seçimleri (kaça kaç, zorluk) kurulum ekranındadır;
+             son seçilenler ODA KUR ve HIZLI KATIL'ın kurduğu odanın da başlangıç ayarlarıdır. -->
         <div class="home-buttons">
           <button type="button" id="home-solo" class="primary">TEK BAŞINA <span>↗</span></button>
-          <button type="button" id="home-create">Oda kur</button>
-          <button type="button" id="home-join">Odaya katıl</button>
         </div>
-        <div class="row joinrow" id="home-joinrow" hidden>
-          <input id="home-code" type="text" maxlength="6" placeholder="ODA KODU" autocomplete="off" spellcheck="false">
-          <button type="button" id="home-join-go">Katıl</button>
+        <div class="online-block">
+          <div class="online-head"><b>ÇEVRİM İÇİ</b><span id="home-online" class="online"></span></div>
+          <div class="home-buttons">
+            <button type="button" id="home-quick" class="primary">HIZLI KATIL <span>→</span></button>
+            <button type="button" id="home-create">ODA KUR</button>
+            <button type="button" id="home-join">ODAYA KATIL</button>
+          </div>
+          <div class="row joinrow" id="home-joinrow" hidden>
+            <input id="home-code" type="text" maxlength="6" placeholder="ODA KODU" autocomplete="off" spellcheck="false">
+            <button type="button" id="home-join-go">KATIL</button>
+          </div>
+          <p id="home-status" class="status"></p>
         </div>
-        <div class="home-meta"><span>1v1 – 5v5 · BOTLARLA</span><span>CO-OP / PvP</span><span id="home-online" class="online"></span></div>
-        <p id="home-status" class="status"></p>
-        <!-- Açık odalar: başlamamış, boş koltuğu olan herkese açık lobiler (özel odalar görünmez). Kodsuz katılınır; Hızlı katıl
-             en kalabalık odaya oturtur, yoksa yeni açık oda kurar. Sunucu yokken bütün kutu gizlidir. -->
+        <!-- Açık odalar: lobide bekleyen herkese açık odalar (özel odalar ve başlamış maçlar görünmez). Liste değişince sunucu
+             kendisi yollar (istemci yoklamaz). Sunucu yokken bütün kutu gizlidir. -->
         <div id="home-rooms" class="open-rooms" hidden>
-          <div class="open-rooms-head"><b>AÇIK ODALAR</b><span id="home-rooms-n"></span><button type="button" id="home-quick">HIZLI KATIL →</button></div>
+          <div class="open-rooms-head"><b>AÇIK ODALAR</b><span id="home-rooms-n"></span></div>
           <div id="home-rooms-list" class="open-rooms-list"></div>
         </div>
         <div class="rule-cards">
@@ -97,10 +105,10 @@
       <div class="home-note"><i></i> AGE OF + DOTA <span>Üstünlükleri bil, ordunu ona göre bas.</span></div>
     </section>
 
-    <!-- Kurulum: kaça kaç ve zorluk (tek başına ve oda kurma için aynı ekran). -->
+    <!-- Kurulum (tek başına): kaça kaç ve zorluk. Son seçim saklanır (cm.kurulum): ODA KUR / HIZLI KATIL da bunu kullanır. -->
     <div id="mg-setup" class="overlay" hidden>
       <div class="card">
-        <h2 id="setup-title">Savaşa hazırlan</h2>
+        <h2 id="setup-title">Tek başına</h2>
         <fieldset class="difficulty teams">
           <legend>Kaça kaç</legend>
           <label><input type="radio" name="teams" value="1" checked> 1v1</label>
@@ -115,30 +123,32 @@
           <label><input type="radio" name="difficulty" value="normal" checked> Normal</label>
           <label><input type="radio" name="difficulty" value="hard"> Zor</label>
         </fieldset>
-        <label class="private-room" id="setup-private-row" hidden><input type="checkbox" id="setup-private"> Özel oda <small>açık odalar listesinde görünmez, yalnız kodla ya da linkle katılınır</small></label>
         <div class="row">
-          <button type="button" id="setup-start" class="primary">Savaşı başlat</button>
+          <button type="button" id="setup-start" class="primary">MAÇI BAŞLAT ↗</button>
           <button type="button" id="setup-back">Geri</button>
         </div>
       </div>
     </div>
 
-    <!-- Lobi: oda kodu, koltuklar, ayarlar. -->
+    <!-- Bekleme odası (oda standardı): göz ODA · özet, büyük kod, Linki kopyala, görünürlük; takım sütunları; kuranın
+         ayarları (ODA: Herkese açık / Özel dahil); "N insan · M bot"; MAÇI BAŞLAT ↗ / Odadan çık. -->
     <div id="mg-lobby" class="overlay" hidden>
       <div class="card lobby">
-        <div class="codebox"><span class="lbl">Oda</span><b id="lobby-code">----</b><button type="button" id="lobby-copy" title="Katılma linkini kopyala">Linki kopyala</button><span id="lobby-vis" class="vis"></span></div>
+        <div id="lobby-eyebrow" class="lobby-eyebrow">ODA</div>
+        <div class="codebox"><b id="lobby-code">----</b><button type="button" id="lobby-copy" title="Katılma linkini kopyala">Linki kopyala</button><span id="lobby-vis" class="vis"></span></div>
         <div class="teams">
           <div class="team blue"><h3>Mavi takım</h3><ol id="lobby-blue" class="seats"></ol></div>
           <div class="team red"><h3>Kırmızı takım</h3><ol id="lobby-red" class="seats"></ol></div>
         </div>
-        <p id="lobby-mode" class="lobby-mode"></p>
         <div class="row settings">
           <label>Kaça kaç <select id="lobby-teams"><option value="1">1v1</option><option value="2">2v2</option><option value="3">3v3</option><option value="4">4v4</option><option value="5">5v5</option></select></label>
           <label>Zorluk <select id="lobby-diff"><option value="easy">Kolay</option><option value="normal" selected>Normal</option><option value="hard">Zor</option></select></label>
+          <label>Oda <select id="lobby-priv"><option value="0">Herkese açık</option><option value="1">Özel</option></select></label>
         </div>
+        <p id="lobby-mode" class="lobby-mode"></p>
         <div class="row">
-          <button type="button" id="lobby-start" class="primary">Başlat</button>
-          <button type="button" id="lobby-leave">Ayrıl</button>
+          <button type="button" id="lobby-start" class="primary">MAÇI BAŞLAT ↗</button>
+          <button type="button" id="lobby-leave">Odadan çık</button>
           <span id="lobby-status" class="status"></span>
         </div>
       </div>

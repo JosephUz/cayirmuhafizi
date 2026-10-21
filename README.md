@@ -54,16 +54,31 @@ Kök alan adı kullanılacaksa Cloudflare DNS sayfasındaki eski A / CNAME kayd�
 
 ## Ekranlar
 
-Hesap yok. **Giriş**: ad (tarayıcıda hatırlanır) ve üç düğme: **Tek başına** (kurulum ekranı, sonra oyun), **Oda kur**
-(kurulum ekranı, sonra lobi ve oda kodu; **Özel oda** kutusu işaretliyse oda listede görünmez, yalnız kodla / linkle katılınır) ve **Odaya katıl** (tıklayınca oda kodu satırı açılır). `?oda=KOD` linkiyle gelen ad ekranından lobiye düşer.
-**Açık odalar** (sunucu karşılarken giriş ekranında): başlamamış, boş koltuğu olan herkese açık lobiler; her satırda kuranın adı,
-kaça kaç · zorluk, `n/10 oyuncu` ve **KATIL →** (kod yazmadan). **HIZLI KATIL →** en kalabalık açık lobiye oturtur, yoksa
-yeni açık oda kurar (kuran olursun, lobi akışı aynı). Başlamış maça sonradan girilmediği için listede yalnız lobiler var.
-**Kurulum**: kaça kaç (1v1 … 5v5) ve zorluk. **Lobi**: oda kodu, "Linki kopyala", iki takımın koltukları (boş koltuklara
-bot oturur). Gelen oyuncu önce seçili büyüklükteki **boş koltuğa** oturur (önce mavi, sonra kırmızı; 1v1 odaya gelen
-kırmızıya geçer, oda 1v1 kalır); iki takım da doluysa oda bir büyür. **Karşı takımdaki bir bot koltuğuna tıklayan oraya
-geçer**; kuran oyuncuları **sürükleyip bırakır** (bkz. PvP). Kaça kaç ve zorluğu **yalnızca kuran** değiştirir ve **Başlat**'a basar, kimse
-"hazır" basmaz; 1v1 seçilirse kuran tek başına botlarla oynar. **Bitiş**: karne (bkz. Karne ve skor). **Kontroller**
+Hesap yok. Oda akışı ve yazıları bütün JosephUz oyunlarında aynıdır: **oda standardı** (josephuz deposu,
+`docs/oda-standardi.md`). **Giriş** sırası: **Adın** (tarayıcıda hatırlanır, `cm.nick`) · **TEK BAŞINA ↗** (kurulum
+ekranı: kaça kaç ve zorluk, sonra oyun; son seçim `cm.kurulum`da saklanır) · **ÇEVRİM İÇİ** bölümü (başlığın yanında
+`● N çevrim içi`): **HIZLI KATIL →**, **ODA KUR**, **ODAYA KATIL** (altında `ODA KODU` + **KATIL** satırı açılır, Enter de
+katılır) ve durum satırı (`Oda aranıyor…` / `Oda kuruluyor…` / `Odaya bağlanıyor…` / hata) · **AÇIK ODALAR** listesi.
+Sunucuya bağlanılamazken üç çevrim içi düğme kapalıdır ve **YAKINDA** yazar, liste gizlenir.
+**ODA KUR** odayı **hemen** kurar (ayar ekranı açılmaz): başlangıç ayarları son tek başına seçimleri (yoksa 1v1 · Normal),
+oda herkese açıktır. **HIZLI KATIL →** en kalabalık açık lobiye oturtur, yoksa aynı ayarlarla yeni açık oda kurar (kuran
+olursun). **Açık odalar**: lobideki herkese açık odalar (özel odalar ve başlamış maçlar yok: Çayır'da maç ortasında
+katılınmaz); her satırda kuranın adı, `3v3 · Normal · 2/10 oyuncu`, **LOBİDE** etiketi ve **KATIL →** (doluysa kapalı
+**DOLU**); en çok 20 satır, boşken `Şu an açık oda yok. Hızlı katıl yeni bir oda kurar.` Liste değişince sunucu kendisi
+yollar, istemci yoklamaz. **Oda kodu** `KPRT-4` biçimindedir; tiresiz (`kprt4`) yazılırsa düzeltilir, 4 harften kısaysa
+`Oda kodunu yaz`. Hatalar: `Böyle bir oda yok` · `Oda dolu` · `Maç başlamış`. **Davet linki** `?oda=KPRT-4` ile açılan
+sayfa sunucu karşılar karşılamaz odaya **kendiliğinden** girer; odadayken adres çubuğu `?oda=KOD` gösterir, odadan çıkınca
+silinir; sayfa yenilenirse `Odaya geri bağlanıyor…` ile aynı koltuğa dönülür.
+**Bekleme odası**: göz satırı `ODA · 3v3 · Normal`, büyük kod, **Linki kopyala** (`Link kopyalandı`), `AÇIK ODA · listede
+görünür` / `ÖZEL ODA · yalnız kodla`; iki takımın koltukları (dolu koltukta `kuran` / `sen` / `koptu`, boş koltukta
+`Bot · boş koltuk`, tıklanabiliyorsa üstüne gelince `Buraya otur`). Gelen oyuncu önce seçili büyüklükteki **boş koltuğa**
+oturur (önce mavi, sonra kırmızı; 1v1 odaya gelen kırmızıya geçer, oda 1v1 kalır); iki takım da doluysa oda bir büyür.
+**Karşı takımdaki boş koltuğa tıklayan oraya geçer**; kuran oyuncuyu **sürükleyip bırakır** ya da **oyuncuya, sonra koltuğa
+tıklar** (`Taşınacak koltuğa tıkla`; bkz. PvP). Kaça kaç, zorluk ve **Oda: Herkese açık / Özel** ayarını **yalnızca kuran**
+değiştirir (ötekilerde kapalı görünür). Bilgi satırı `N insan · M bot · Co-op|PvP`. Kuranda **MAÇI BAŞLAT ↗**, ötekilerde
+kapalı `Kuranın başlatması bekleniyor`; herkeste **Odadan çık**. Kimse "hazır" basmaz; Esc bekleme odasını kapatmaz.
+**Bitiş**: karne (bkz. Karne ve skor); çevrim içinde **LOBİYE DÖN** (sunucu odayı maç biter bitmez bekleme odasına
+döndürür, kuran yeniden başlatır) ve **Odadan çık**, tek başınayken **Tekrar oyna** / Ana ekran. **Kontroller**
 penceresi (F1, sağ alttaki ? ve giriş ekranındaki düğme) bütün tuşları ve kahramanın o anki yetenek setini yazar.
 Ekranlarda anlatım cümlesi yoktur: her şey o pencerededir.
 
@@ -226,16 +241,21 @@ görseller `world.fx` kancalarından geçer (tarayıcıda mesh, sunucuda olay).
   ekranının sağ altında "● N çevrim içi" yazar (`S2C.ONLINE`, değişince en çok 2 sn'de bir). Boşta bağlantı 20 sn'de bir
   ping atar (Cloudflare sessiz soketi ~100 sn'de keser). `/health`: `online` açık sekme, `inRoom` bir odada oturan sekme.
   Oda kur / katıl aynı bağlantıyı kullanır (önce ad yenilenir).
-- **Açık oda listesi**: giriş ekranı görünür ve sekme öndeyken istemci 3 sn'de bir `C2S.ROOMS` yollar, sunucu `S2C.ROOMS`
-  ile en çok 30 satır döner (özel, başlamış, dolu ve boş odalar yok; sıra: kalabalık önce). `C2S.QUICK` hızlı katıldır;
-  `CREATE` `priv: true` ile özel oda kurar, `LOBBY` `priv` alanını taşır. Test: `tests/odalar.test.mjs` (`npm test` içinde).
+- **Açık oda listesi itilir**: istemci yoklamaz. Sunucu `S2C.ROOMS`'u karşılamada (WELCOME'dan hemen sonra), odadan
+  çıkınca ve liste değişince (oda kuruldu / kapandı, biri girdi / çıktı, ayar ya da özel/açık değişti, maç başladı /
+  bitti; değişiklikler ~250 ms toplanır, liste aynıysa gitmez) **odada olmayan** bağlantılara yollar. En çok 20 satır:
+  lobideki herkese açık odalar (dolu olan `full: true`), sıra kalabalık önce. `C2S.QUICK { teamSize, difficulty }` hızlı
+  katıldır (uygun oda yoksa bu ayarlarla kurar); `CREATE` odayı herkese açık kurar; `SETTINGS { teamSize, difficulty, priv }`
+  kuranın ayarı, `LOBBY` `priv` alanını taşır. `JOIN` kodu `normalCode` ile düzeltir (`KPRT4` → `KPRT-4`). Maç bitince
+  (`END`) oda lobiye döner: maçtan çıkmış ya da kopmuş koltuklar boşalır, kuran çıkmışsa kuranlık sıradakine geçer.
+  Test: `tests/odalar.test.mjs` (`npm test` içinde).
 - Kapsam dışı (bilerek): hesap, kalıcı istatistik, beceri eşleştirmesi, izleyici. Yapı bunları engellemez.
 
 ## PvP (insanlar iki takımda)
 
 Co-op ile aynı oda ve aynı sunucu; tek fark insanların **iki takıma** dağılması. Lobide karşı takımdaki bir bot koltuğuna
-tıklayan o takıma geçer (`C2S.TEAM`, yalnızca boş koltuk varsa). **Kuran sürükle-bırakla** düzenler (`C2S.MOVE`):
-öbür takımdaki bir oyuncunun üstüne bırakırsa ikisi yer değiştirir (takımlar doluyken, örneğin 5v5'te, tek yol budur),
+tıklayan o takıma geçer (`C2S.TEAM`, yalnızca boş koltuk varsa). **Kuran sürükle-bırakla ya da önce oyuncuya, sonra
+koltuğa tıklayarak** düzenler (`C2S.MOVE`): öbür takımdaki bir oyuncunun üstüne bırakırsa ikisi yer değiştirir (takımlar doluyken, örneğin 5v5'te, tek yol budur),
 bot koltuğuna bırakırsa oyuncu oraya geçer. Takım başı en çok 5 insan; kalan koltukları iki tarafta da botlar doldurur
 (1v1 saf PvP, 2v2'de insan + bot karşısında insan + bot gibi karışık maçlar olur). Kaça kaç en kalabalık takımın insan
 sayısından küçük seçilemez.

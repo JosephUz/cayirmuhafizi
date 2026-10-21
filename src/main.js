@@ -172,31 +172,46 @@ export async function start(root) {
   // ---- Ağ istemcisi ve ekranlar
   const net = createNetClient(world, {
     onWelcome() {
+      // Açık oda listesini sunucu karşılamada ve liste değişince kendisi yollar (onRooms); istemci yoklamaz.
       screens.setServer(true);
-      net.rooms();
-      // Boşta bağlantının karşılaması durum yazısına dokunmaz (örn. "adını yazıp Katıl'a bas" kalsın).
+      // Boşta bağlantının karşılaması durum yazısına dokunmaz.
       if (!pendingRoom) return;
-      screens.setStatus('');
       const r = pendingRoom; pendingRoom = null;
       // Geri bağlanmada sunucu koltuğu token'dan tanır ve lobiyi / oyunu kendisi yollar; tanımadıysa koda yeniden katılmayı dener.
       if (r.rejoin) { setTimeout(() => { if (!world.replicated && !net.lobby) net.join(r.code); }, 400); return; }
-      if (r.quick) net.quick(); else if (r.create) net.create(r.settings); else net.join(r.code);
+      if (r.quick) net.quick(r.settings); else if (r.create) net.create(r.settings); else net.join(r.code);
     },
     onRooms(list) { screens.rooms(list); },
-    // Oyun sürerken gelen lobi güncellemesi (biri koptu / döndü) ekranı açmaz; yalnızca lobideyken çizilir.
-    onLobby(lobby) { if (!world.replicated || !world.running || world.ended) screens.lobby(lobby); },
-    onError(msg) { screens.setStatus(msg); },
+    // Oyun sürerken gelen lobi güncellemesi (biri koptu / döndü) ekranı açmaz; yalnızca lobideyken çizilir. Sonuç ekranı
+    // açıkken de açmaz (LOBİYE DÖN'e basınca en son lobi çizilir). Odadayken adres çubuğu ?oda=KOD gösterir.
+    onLobby(lobby) {
+      setUrlRoom(lobby.code);
+      if (screens.endVisible()) return;
+      if (!world.replicated || !world.running || world.ended) screens.lobby(lobby);
+    },
+    // Katılma hatası (Böyle bir oda yok / Oda dolu / Maç başlamış): linkten gelinmişse ?oda adresten silinir.
+    onError(msg) { screens.setStatus(msg); if (!net.lobby && !world.replicated) setUrlRoom(null); },
     onStart(msg, first) { screens.show(null); if (first) macBasladi(); }, // ölçüm: yalnız gerçek başlangıç (geri bağlanma START'ı değil)
     onArena() { arenaReady(); },
     onHero(e) { world.camTarget.copy(e.pos); look.copy(e.pos); },
     onLevel(e) { rebuildSwing(e); },
     onOwnDeath() { world.ui.cancelModes(); },
-    onEnd(report) { if (world.replicated && world.running) macBitti(); /* ölçüm: yalnız maçı oynayan için */ world.ui.cancelModes(true); unlockPointer(); screens.end(report, { lobby: () => { screens.show(null); if (net.lobby) screens.lobby(net.lobby); else screens.home(); }, home: () => { leaveGame(); screens.home(); } }); },
+    // Maç bitince sunucu odayı bekleme odasına döndürür: sonuç ekranında LOBİYE DÖN en son lobiyi açar, kuran yeniden başlatır.
+    onEnd(report) { if (world.replicated && world.running) macBitti(); /* ölçüm: yalnız maçı oynayan için */ world.ui.cancelModes(true); unlockPointer(); screens.end(report, { lobby: () => { screens.show(null); if (net.lobby) screens.lobby(net.lobby); else { leaveGame(); screens.home(); } }, home: () => { leaveGame(); screens.home(); } }); },
     onDisconnect() { screens.setServer(false); screens.setOnline(0); if (world.replicated) screens.netStrip(true); },
     onConnect() { screens.netStrip(false); },
     onOnline(n) { screens.setOnline(n); },
   });
   let pendingRoom = null;
+  /** Odadayken adres çubuğunda ?oda=KOD durur (davet linkiyle aynı); odadan çıkınca silinir. Sayfa yeniden yüklenmez. */
+  function setUrlRoom(code) {
+    if (!networked) return;
+    try {
+      const u = new URL(location.href);
+      if (code) u.searchParams.set('oda', code); else u.searchParams.delete('oda');
+      if (u.href !== location.href) history.replaceState(history.state, '', u.href);
+    } catch { /* adres değiştirilemedi: önemsiz */ }
+  }
 
   const online = () => world.replicated && world.net;
   const actions = {
@@ -228,15 +243,17 @@ export async function start(root) {
     netId: () => net.id,
     startLocal(nick, difficulty, teamSize) { startLocal(nick, difficulty, teamSize); },
     // Bağlantı çoğunlukla açıktır (sayfa açılınca kurulur): önce ad yenilenir, oda isteği WELCOME'da (onWelcome) gider.
+    // Oda kur: oda hemen kurulur (ayar ekranı yok), başlangıç ayarları son tek başına seçimleri; özel/açık lobide değişir.
     createRoom(nick, settings) { world.net = net; pendingRoom = { create: true, settings }; if (net.connected) net.hello(nick); else net.connect(nick); },
     joinRoom(nick, code) { world.net = net; pendingRoom = { create: false, code }; if (net.connected) net.hello(nick); else net.connect(nick); },
-    refreshRooms() { if (networked && net.connected) net.rooms(); },
-    quickJoin(nick) { world.net = net; pendingRoom = { quick: true }; if (net.connected) net.hello(nick); else net.connect(nick); },
+    // Hızlı katıl: uygun açık oda yoksa sunucu bu ayarlarla yeni açık oda kurar.
+    quickJoin(nick, settings) { world.net = net; pendingRoom = { quick: true, settings }; if (net.connected) net.hello(nick); else net.connect(nick); },
     lobbySettings(s) { net.settings(s); },
     lobbyTeam(team) { net.team(team); },
     lobbyMove(m) { net.move(m); },
     startRoom() { net.start(); },
-    leaveRoom() { net.leave(); },
+    // Bekleme odasından çık (maçtan sonra dönülen lobide kopya dünya da boşaltılır).
+    leaveRoom() { if (world.replicated) leaveGame(); else { net.leave(); setUrlRoom(null); } },
     leaveGame() { leaveGame(); },
     resume() { if (!world.replicated && world.running && world.paused) { world.paused = false; world.ui.update(); } },
     pauseForMenu() { if (!world.replicated && world.running && !world.ended) { world.paused = true; unlockPointer(); world.ui.update(); } },
@@ -263,7 +280,7 @@ export async function start(root) {
 
   /** Oyundan çık: yerel oyunu durdur ya da odadan ayrıl; dünya boşaltılır. */
   function leaveGame() {
-    if (world.replicated) { net.leave(); net.clearWorld(); world.replicated = false; }
+    if (world.replicated) { net.leave(); net.clearWorld(); world.replicated = false; setUrlRoom(null); }
     world.running = false; world.paused = false; world.ended = false; world.net = null;
     clearSelection(world); world.placing = null; world.heroMenu = false;
     unlockPointer();
@@ -401,19 +418,22 @@ export async function start(root) {
     screens.show(null);
     gosteri.basla();
   } else if (!networked) screens.home('');
-  else if (remembered) {
+  else if (remembered && (!urlCode || urlCode === remembered)) {
     // Sayfa yenilendi ya da bağlantı koptu: aynı kimlikle sunucuya dönülür; oda sürüyorsa sunucu oyunu / lobiyi yeniden yollar.
     screens.home('Odaya geri bağlanıyor…');
     world.net = net; pendingRoom = { create: false, code: remembered, rejoin: true };
     net.connect(screens.nick());
-    setTimeout(() => { if (!world.replicated && !net.lobby) { net.forgetRoom(); if (screens.visible() === screens.els.home) screens.home(''); } }, 4000);
+    setTimeout(() => { if (!world.replicated && !net.lobby) { net.forgetRoom(); setUrlRoom(null); if (screens.visible() === screens.els.home) screens.home(''); } }, 4000);
+  } else if (urlCode) {
+    // Davet linki (?oda=KOD, KPRT4 de olur): sunucu karşılar karşılamaz odaya kendiliğinden girilir (ad boşsa varsayılan ad).
+    screens.home('Odaya bağlanıyor…');
+    world.net = net; pendingRoom = { create: false, code: urlCode };
+    net.connect(screens.nick());
   } else {
-    screens.home(urlCode ? 'Odaya katılmak için adını yazıp Katıl’a bas' : '');
-    // Boşta bağlantı: giriş ekranındaki "çevrim içi" sayısı için (oda kurulunca / katılınca aynı bağlantı kullanılır).
+    screens.home('');
+    // Boşta bağlantı: "çevrim içi" sayısı ve açık oda listesi için (oda kurulunca / katılınca aynı bağlantı kullanılır).
     net.connect(screens.nick());
   }
-  // Açık odalar listesi yalnız giriş ekranı görünürken ve sekme öndeyken 3 sn'de bir istenir (cevap küçük: en çok 30 satır).
-  if (networked && !gosteri && !otopilot) setInterval(() => { if (net.connected && !world.replicated && !document.hidden && screens.visible() === screens.els.home) net.rooms(); }, 3000);
 
   // Android uygulamasında geri tuşu: pencereyi kapat / menüyü aç-kapat (Esc gibi); giriş ekranında uygulamadan çık.
   const nativeApp = isApp() ? window.Capacitor?.registerPlugin?.('App') : null;
@@ -422,7 +442,8 @@ export async function start(root) {
     else if (world.placing) world.ui.cancelModes(true);
     else if (drawer) setDrawer(false);
     else if (!screens.visible() || screens.visible() === screens.els.menu || screens.visible() === screens.els.help) screens.escape();
-    else screens.home('');
+    else if (screens.visible() === screens.els.lobby) { app.leaveRoom(); screens.home(''); }
+    else { if (world.replicated) leaveGame(); screens.home(''); }
   });
 
   /**

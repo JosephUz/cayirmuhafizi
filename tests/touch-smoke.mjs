@@ -45,7 +45,9 @@ try {
   assert.ok(await game(() => document.getElementById('meadow-game').classList.contains('touch')), 'dokunmatik kip açılmalı');
   assert.ok(await page.locator('#home-create').isDisabled(), 'Oda kur basılmaz');
   assert.ok(await page.locator('#home-join').isDisabled(), 'Odaya katıl basılmaz');
-  assert.equal(await page.locator('.soon-tag').count(), 2, 'iki düğmede YAKINDA');
+  assert.ok(await page.locator('#home-quick').isDisabled(), 'Hızlı katıl basılmaz');
+  assert.equal(await page.locator('.soon-tag').count(), 3, 'üç çevrim içi düğmede YAKINDA');
+  assert.ok(await page.locator('#home-rooms').isHidden(), 'açık oda listesi gizli');
   await page.screenshot({ path: 'artifacts/t1-home-app.png' });
 
   await page.tap('#home-solo');

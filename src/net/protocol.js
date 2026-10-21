@@ -4,11 +4,11 @@
  */
 export const C2S = {
   HELLO: 'hello',      // { nick, token } — bağlantı kimliği; token varsa eski koltuğa geri bağlanır
-  CREATE: 'create',    // { teamSize, difficulty, priv } — oda kur (kuran lobinin sahibidir); priv: özel oda, listede görünmez
-  JOIN: 'join',        // { code }
-  ROOMS: 'rooms',      // açık oda listesini iste (giriş ekranı açıkken ~3 sn'de bir)
-  QUICK: 'quick',      // hızlı katıl: en kalabalık açık lobiye otur, uygun oda yoksa yeni açık oda kur
-  SETTINGS: 'settings',// { teamSize, difficulty } — yalnızca kuran
+  CREATE: 'create',    // { teamSize, difficulty } — oda hemen, herkese açık kurulur (kuran lobinin sahibidir); özel/açık lobide değişir
+  JOIN: 'join',        // { code } — tiresiz (KPRT4) de olur, sunucu normalCode ile KPRT-4'e çevirir
+  ROOMS: 'rooms',      // açık oda listesini bir kez iste (istemci yoklamaz: liste değişince sunucu kendisi yollar)
+  QUICK: 'quick',      // { teamSize, difficulty } hızlı katıl: en uygun açık lobiye otur, yoksa bu ayarlarla yeni açık oda kur
+  SETTINGS: 'settings',// { teamSize, difficulty, priv } — yalnızca kuran; priv: özel oda (listede ve hızlı katılda görünmez)
   TEAM: 'team',        // { team: 'blue'|'red' } — lobide takım değiştir (iki takımda insan varsa PvP)
   MOVE: 'move',        // { id, team } ya da { id, with } — yalnızca kuran: oyuncuyu boş koltuğa taşı ya da iki oyuncuyu değiştir
   START: 'start',      // yalnızca kuran
@@ -20,7 +20,8 @@ export const C2S = {
 export const S2C = {
   WELCOME: 'welcome',  // { id, token, nick }
   LOBBY: 'lobby',      // { code, hostId, settings, priv, seats: [{ slot, id, nick, online, team }], state }
-  ROOMS: 'rooms',      // { list: [{ code, host, teamSize, difficulty, n, max }] } — başlamamış, boş koltuğu olan açık odalar
+  ROOMS: 'rooms',      // { list: [{ code, host, teamSize, difficulty, n, max, state, full }] } — lobideki açık odalar (en çok 20);
+                       // odada olmayan bağlantılara karşılamada ve liste değişince (~250 ms toplanır) sunucu kendisi yollar
   ERROR: 'error',      // { msg }
   START: 'start',      // { seed, teamSize, difficulty, players: [{ id, name, color, faction, slot, human }], you }
   EVENTS: 'ev',        // { list: [...] } — o tik biriken olaylar (durum paketinden önce uygulanır)
@@ -80,4 +81,12 @@ export const roomCode = () => {
   let s = '';
   for (let i = 0; i < 4; i++) s += A[Math.floor(Math.random() * A.length)];
   return `${s}-${D[Math.floor(Math.random() * D.length)]}`;
+};
+/**
+ * Oda kodu girişi: büyük harfe çevrilir, harf/rakam dışı atılır; tiresiz yazılmışsa (KPRT4) tire eklenir (KPRT-4).
+ * 4 harften kısa kod olduğu gibi döner (istemci "Oda kodunu yaz" der, sunucu "Böyle bir oda yok").
+ */
+export const normalCode = raw => {
+  const s = String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return s.length > 4 ? `${s.slice(0, 4)}-${s.slice(4, 5)}` : s;
 };

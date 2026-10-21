@@ -84,8 +84,8 @@ export function renderReport(card, report, world, actions) {
       <div class="pane">${tab === 'summary' ? summary() : tab === 'rank' ? ranking() : tab === 'timeline' ? timeline() : army()}</div>
       <div class="row">
         ${actions.again ? '<button type="button" class="primary" data-act="again">Tekrar oyna</button>' : ''}
-        ${actions.lobby ? '<button type="button" data-act="lobby">Lobiye dön</button>' : ''}
-        <button type="button" data-act="home">Ana ekran</button>
+        ${actions.lobby ? '<button type="button" class="primary" data-act="lobby">LOBİYE DÖN</button>' : ''}
+        <button type="button" data-act="home">${actions.lobby ? 'Odadan çık' : 'Ana ekran'}</button>
         <button type="button" data-act="copy">Sonucu kopyala</button>
         <span class="status" id="end-status"></span>
       </div>`;

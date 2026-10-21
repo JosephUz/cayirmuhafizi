@@ -173,11 +173,11 @@ html.vv #meadow-game{--mg-h:var(--vv-h);inset:auto;top:var(--vv-top);left:var(--
 #meadow-game .codebox{display:flex;align-items:center;gap:12px;margin-bottom:14px}
 #meadow-game .codebox .lbl{font-size:12px;color:#b8c5aa;letter-spacing:.1em}
 #meadow-game .codebox b{font-size:30px;letter-spacing:.2em;color:#e6c25a;font-variant-numeric:tabular-nums}
-#meadow-game .lobby .teams{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+#meadow-game .lobby .teams{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
 #meadow-game .lobby .team h3{margin:0 0 6px;font-size:12px;letter-spacing:.1em;color:#b8c5aa;font-weight:600}
 #meadow-game .lobby .team.blue h3{color:#8fd0ff}#meadow-game .lobby .team.red h3{color:#ff9f8c}
 #meadow-game .seats{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
-#meadow-game .seats li{background:#1c241e;border:1px solid #3c4a3a;border-radius:6px;padding:8px 10px;display:flex;align-items:center;gap:8px}
+#meadow-game .seats li{background:#1c241e;border:1px solid #3c4a3a;border-radius:6px;padding:8px 10px;display:flex;align-items:center;gap:8px;min-width:0}
 #meadow-game .seats li.me{border-color:#e6c25a}#meadow-game .seats li.bot{color:#8a9a84}#meadow-game .seats li.off{opacity:.5}
 #meadow-game .seats li[draggable=true]{cursor:grab}#meadow-game .seats li.dragging{opacity:.4}
 #meadow-game .seats li.drop{border-color:#8fe08f;background:#243424}
@@ -186,7 +186,7 @@ html.vv #meadow-game{--mg-h:var(--vv-h);inset:auto;top:var(--vv-top);left:var(--
 #meadow-game .seats li small,#meadow-game .score small,#meadow-game .rank small{font-size:10px;color:#b8c5aa;margin-left:4px}
 #meadow-game .dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#888;flex:none;margin-right:6px;vertical-align:middle}
 #meadow-game .dot.bot{background:#5a6a55}#meadow-game .dot.red{background:#ad5542}
-#meadow-game .lobby .settings{margin:14px 0 10px;gap:18px}
+#meadow-game .lobby .settings{margin:14px 0 10px;gap:10px 18px;flex-wrap:wrap}
 #meadow-game .lobby select{font:inherit;color:#f6efd9;background:#1c241e;border:1px solid #718361;border-radius:6px;padding:6px 8px}
 #meadow-game .card.help{max-width:820px}
 #meadow-game .help .cols{display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;margin-bottom:12px}
@@ -298,6 +298,22 @@ html.vv #meadow-game{--mg-h:var(--vv-h);inset:auto;top:var(--vv-top);left:var(--
 #meadow-game .private-room input{width:18px;height:18px;accent-color:#e6c25a;margin:0}
 #meadow-game .private-room small{flex-basis:100%;margin-left:26px;font-size:11px;color:#b8c5aa}
 #meadow-game .codebox{flex-wrap:wrap}#meadow-game .codebox .vis{margin-left:auto;font-size:11px;color:#b8c5aa}
+/* Oda standardı (josephuz docs/oda-standardi.md): giriş ekranında ÇEVRİM İÇİ bölümü, açık oda satırında durum etiketi,
+   bekleme odasında göz satırı, boş koltukta "Buraya otur", kuranın tıklayıp seçtiği oyuncu. */
+#meadow-game .online-block{margin-top:16px}
+#meadow-game .online-head{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+#meadow-game .online-head b{font-size:10px;font-weight:800;letter-spacing:2px;color:#b8c5aa}
+#meadow-game .online-head .online{font-size:12px;color:#8fe08f}
+#meadow-game .online-block .home-buttons{flex-wrap:wrap}
+#meadow-game .online-block .home-buttons .primary{width:200px}
+#meadow-game .open-room .room-state{flex:none;margin-left:auto;font-style:normal;font-size:9px;font-weight:800;letter-spacing:1px;color:#8fe08f;border:1px solid #8fe08f88;border-radius:9px;padding:2px 7px}
+#meadow-game button.open-room:disabled em{color:#b8c5aa}
+#meadow-game .lobby-eyebrow{font-size:10px;font-weight:800;letter-spacing:2px;color:#b8c5aa;margin-bottom:2px}
+#meadow-game .seats li .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+#meadow-game .seats li .seat-sit{display:none;color:#e6c25a}
+#meadow-game .seats li.join:hover .seat-bot{display:none}#meadow-game .seats li.join:hover .seat-sit{display:inline}
+#meadow-game.touch .seats li.join .seat-bot{display:none}#meadow-game.touch .seats li.join .seat-sit{display:inline}
+#meadow-game .seats li.movable{cursor:pointer}#meadow-game .seats li.picked{border-color:#8fe08f;background:#243424}
 #meadow-game .rule-cards{display:flex;margin-top:34px;gap:25px}
 #meadow-game .rule-cards div{max-width:140px;border-top:1px solid #b8c5aa55;padding-top:14px}
 #meadow-game .rule-cards b{display:block;font-size:9px;letter-spacing:1.2px;color:#e6c25a}
@@ -399,6 +415,9 @@ html.vv #meadow-game{--mg-h:var(--vv-h);inset:auto;top:var(--vv-top);left:var(--
 #meadow-game .open-rooms{margin-top:10px;padding:8px 10px}
 #meadow-game .open-rooms-list{max-height:104px}
 #meadow-game .rule-cards,#meadow-game .home-note{display:none}
+#meadow-game .home-content>p,#meadow-game .home-screen .eyebrow{display:none}
+#meadow-game .online-block{margin-top:10px}
+#meadow-game .online-head{margin-bottom:5px}
 #meadow-game .overlay{padding:calc(8px + var(--mg-top)) 8px 8px}
 /* Kart kabın içine **tam** sığar: `94vh` telefonda yanlış ölçüydü (vh tarayıcı çubuklarını saymaz) ve dolgu
    content-box'ta yüksekliğe eklendiği için kart kaptan taşıyordu (5v5 lobisi 844x390'da 397px / 390px). Yüzde
@@ -473,3 +492,16 @@ html.vv #meadow-game{--mg-h:var(--vv-h);inset:auto;top:var(--vv-top);left:var(--
 #meadow-game .open-rooms{position:absolute;top:calc(64px + var(--mg-top));right:calc(16px + env(safe-area-inset-right,0px));left:calc(5vw + 490px + env(safe-area-inset-left,0px));max-width:380px;margin:0 0 0 auto}
 #meadow-game .open-rooms-list{max-height:calc(var(--mg-h) - 150px)}
 }
+/* Dar ekranda (dikey telefon) ÇEVRİM İÇİ bölümünde HIZLI KATIL tam satır, ODA KUR / ODAYA KATIL altında yan yana. */
+@media(max-width:650px){#meadow-game .online-block .home-buttons .primary{width:100%}}
+/* Orta yükseklikte (1280x720 dizüstü) ÇEVRİM İÇİ bölümü ve açık odalarla giriş sütunu ortalanınca üstten logoya
+   taşıyordu: sütun üstten başlar, kural kartları düşer (kaydırma gerekmesin). */
+@media(min-height:561px) and (max-height:820px){
+#meadow-game .home-screen{align-items:flex-start}
+#meadow-game .home-content{padding-top:calc(92px + var(--mg-top))}
+#meadow-game .home-screen h1{margin:14px 0}
+#meadow-game .home-content>p{margin-bottom:16px;line-height:1.6}
+#meadow-game .rule-cards{display:none}
+}
+/* Dar ekranda pencere kartı `width:100%` + dolguyla kaptan taşıyordu (390 px'te 400 px kart): dolgu genişliğe dahil. */
+@media(max-width:650px){#meadow-game .overlay .card{box-sizing:border-box}}

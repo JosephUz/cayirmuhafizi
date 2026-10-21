@@ -43,12 +43,10 @@ const browser = await chromium.launch({
   args: ['--mute-audio', ...(process.env.SWIFTSHADER ? ['--use-gl=angle', '--use-angle=swiftshader'] : ['--use-gl=angle', '--use-angle=d3d11', '--ignore-gpu-blocklist'])],
 });
 
-/** Oda kurup 5v5 lobiye geçer (kartın en uzun hali). */
+/** Oda kurup (ODA KUR odayı hemen kurar, ayar ekranı yok) 5v5 lobiye geçer (kartın en uzun hali). */
 async function lobiyeGec(page) {
   await page.waitForSelector('#home-create:not([disabled])', { timeout: 15000 });
   await page.locator('#home-create').click();
-  await page.waitForSelector('#mg-setup:not([hidden])', { timeout: 15000 });
-  await page.locator('#setup-start').click();
   await page.waitForSelector('#mg-lobby:not([hidden])', { timeout: 15000 });
   await page.selectOption('#lobby-teams', '5');
   await page.waitForTimeout(600);

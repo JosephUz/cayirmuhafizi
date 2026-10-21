@@ -323,9 +323,8 @@ export function createNetClient(world, hooks) {
     hello(nick) { curNick = nick; send({ t: C2S.HELLO, nick, token: token() }); },
     create(settings) { send({ t: C2S.CREATE, ...settings }); },
     join(code) { send({ t: C2S.JOIN, code }); },
-    /** Açık oda listesi (cevap S2C.ROOMS -> hooks.onRooms) ve hızlı katıl. */
-    rooms() { send({ t: C2S.ROOMS }); },
-    quick() { send({ t: C2S.QUICK }); },
+    /** Hızlı katıl; uygun oda yoksa sunucu bu ayarlarla yeni açık oda kurar. Açık oda listesini sunucu kendisi yollar (hooks.onRooms). */
+    quick(settings) { send({ t: C2S.QUICK, ...settings }); },
     settings(s) { send({ t: C2S.SETTINGS, ...s }); },
     team(team) { send({ t: C2S.TEAM, team }); },
     move(m) { send({ t: C2S.MOVE, ...m }); },
