@@ -4,7 +4,7 @@ const s = (n, one, many) => (Number(n) === 1 ? one : many);
 
 export default {
   // ---- Page
-  'sayfa.baslik': 'Çayır Muhafızı – Banner Battle',
+  'sayfa.baslik': 'Çayır Muhafızı',
   'sayfa.aciklama': 'Hero + army isometric banner battle: gather resources with villagers, raise an army, build towers and topple the enemy banner. 1v1 – 5v5, against bots or online.',
   'hata.yukleme': 'The world could not load: check WebGL support and the local server. ',
 
