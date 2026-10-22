@@ -40,7 +40,7 @@ try {
   const calan = async () => (await sesler()).filter(s => !s.paused && s.volume > 0).sort((a, b) => b.volume - a.volume)[0] || null;
 
   // 1) Açılış: oyun kurulur, müzik açıktır ve hemen çalmayı dener; tarayıcı engellediği için hiçbir şey çalmaz.
-  await page.goto(url + '/?muzik=1');
+  await page.goto(url + '/?muzik=1&dil=tr');
   await page.waitForFunction(() => window.__meadow && window.__meadow.muzik, null, { timeout: 20000 });
   const ilk = await page.evaluate(() => window.__meadow.muzik.durum());
   assert.equal(ilk.kapali, false, 'müzik açık (?muzik=1)');
@@ -157,7 +157,7 @@ try {
   await page.locator('#menu-muzik').click();
   await page.waitForFunction(() => [...document.querySelectorAll('audio')].every(a => a.paused || a.volume === 0), null, { timeout: 8000 });
 
-  await page.goto(url + '/?muzik=1');
+  await page.goto(url + '/?muzik=1&dil=tr');
   await page.waitForFunction(() => window.__meadow && window.__meadow.muzik, null, { timeout: 20000 });
   assert.equal(await page.evaluate(() => window.__meadow.muzik.durum().acik), false, 'yenilemeden sonra müzik kapalı');
   assert.equal(await page.locator('#home-muzik').textContent(), 'Müzik: kapalı', 'giriş ekranındaki düğme de kapalı yazar');
@@ -192,7 +192,7 @@ try {
     }));
     const ip = await ios.newPage(), iosHata = [];
     ip.on('pageerror', e => iosHata.push(e.message));
-    await ip.goto(url + '/?muzik=1');
+    await ip.goto(url + '/?muzik=1&dil=tr');
     await ip.waitForFunction(() => window.__meadow && window.__meadow.muzik, null, { timeout: 20000 });
     await ip.locator('#mg-home h1').click();
     await ip.waitForFunction(() => {
@@ -224,7 +224,7 @@ try {
     const izinli = await browser.newContext({ viewport: { width: 1280, height: 720 } });
     try {
       const ap = await izinli.newPage();
-      await ap.goto(url + '/?muzik=1');
+      await ap.goto(url + '/?muzik=1&dil=tr');
       await ap.waitForFunction(() => {
         const d = window.__meadow?.muzik?.durum();
         return d && d.parca === 'cayir-8-degirmen-yolu' && d.caliyor;

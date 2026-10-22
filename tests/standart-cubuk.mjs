@@ -1,6 +1,6 @@
 // STANDART üst araç çubuğu ve duraklatma menüsü testi (bütün JosephUz oyunlarında aynı).
 // Denetlenenler:
-//  - Giriş ekranının sağ üstü **tam olarak** `← josephuz.com` · `Ses: açık` · `Müzik: açık` · `Kontroller F1`
+//  - Giriş ekranının sağ üstü **tam olarak** `← josephuz.com` · `Ses: açık` · `Müzik: açık` · `Kontroller F1` · `EN` (dil düğmesi)
 //    sırasında; eski adlar ("Kısayollar", "Nasıl oynanır") kalmamış.
 //  - Çubuk üç ekran ölçüsünde de taşmıyor ve oyun adının üstüne binmiyor.
 //  - Esc menüsü: DEVAM ET → · Kontroller F1 · Ses · Müzik · Grafik · Ana menü ·
@@ -38,12 +38,12 @@ try {
     page.on('pageerror', x => errors.push(x.message));
     page.on('console', x => { if (x.type() === 'error') errors.push(x.text()); });
 
-    await page.goto(url + '/?muzik=1');
+    await page.goto(url + '/?muzik=1&dil=tr');
     await page.waitForFunction(() => window.__meadow && !document.querySelector('#mg-home').hidden, null, { timeout: 20000 });
 
     // 1) Sıra ve yazılar. Dar ekranda `F1` tuş etiketi gizlenir (style.css), sıra ve adlar değişmez.
     const yazilar = await cubukYazilari(page);
-    assert.deepEqual(yazilar, ['← josephuz.com', 'Ses: açık', 'Müzik: açık', 'Kontroller F1'], `${e.ad}: standart çubuk sırası ve yazıları`);
+    assert.deepEqual(yazilar, ['← josephuz.com', 'Ses: açık', 'Müzik: açık', 'Kontroller F1', 'EN'], `${e.ad}: standart çubuk sırası ve yazıları`);
     // Dar ekranda `F1` tuş etiketi görünmez (yer açmak için, style.css @media max-width:1100px); yazı aynı kalır.
     assert.equal(await page.locator('#mg-home .home-actions kbd').isVisible(), e.w > 1100, `${e.ad}: F1 etiketi ${e.w > 1100 ? 'görünür' : 'gizli'}`);
 

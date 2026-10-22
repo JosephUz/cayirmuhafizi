@@ -2,6 +2,7 @@ import * as T from 'three';
 import { updateUnit } from './ai.js';
 import { addEntity, applyLevelUp, createEntity, makeStats, xpNeeded } from './characters.js';
 import { fireArrow, towerTarget, updateArrows, updateCombat, updateSpins, updateTornadoes } from './combat.js';
+import { t, sayi } from './dil.js';
 import { ALERT, BUILD, BUILDINGS, COMBAT, ECONOMY, ENEMY, ENEMY_HERO, HERO_UPGRADE, LEVEL, PHYSICS, POSITIONS, RALLY, SCORE, SOLDIER_TYPES, TEAMS, TOWER, VISION, heroConvertCost, respawnDelay } from './config.js';
 import { buildStructure, clearResources, dropLoot, dropXp, hitNode, initBandits, initCamps, initResources, updateBots, updateCamps, updateEconomy } from './economy.js';
 import { computeEnvironment, computeLayout } from './environment.js';
@@ -122,7 +123,7 @@ function endGame(world, winner, reason) {
  * başlangıç kulesi + kışla, kahramanlar, kamplar ve haydutlar; sis temizlenir.
  * humans: [{ name, color?, faction? }] — en az bir insan (tek başına oyunda 'Sen', mavi).
  */
-export function setupGame(world, { teamSize = TEAMS.default, difficulty = 'normal', humans = [{ name: 'Sen' }], loadout = { ...HERO_UPGRADE.startLoadout }, seed = 814, run = true, light = false } = {}) {
+export function setupGame(world, { teamSize = TEAMS.default, difficulty = 'normal', humans = [{ name: t('oyuncu.sen') }], loadout = { ...HERO_UPGRADE.startLoadout }, seed = 814, run = true, light = false } = {}) {
   for (const e of world.entities) world.fx.removeEntity(e);
   world.entities.length = 0;
   for (const a of world.arrows) world.fx.removeArrow(a); world.arrows.length = 0;
@@ -232,7 +233,7 @@ export function cmdEnqueue(world, player, building, typeKey) {
   return enqueue(world, building, typeKey, player);
 }
 export function cmdCancel(world, player, building, index) {
-  if (!building || building.owner !== player) return 'Bu bina senin değil';
+  if (!building || building.owner !== player) return t('uretim.seninDegil');
   cancelQueued(world, building, index);
   return null;
 }
@@ -242,9 +243,9 @@ export function cmdBuild(world, player, kind, x, z) {
 }
 /** Seçili kendi yapını yıkma (sancak hariç): enkazdan odun düşer; sınır dolduğunda yer açmanın yolu budur. */
 export function cmdDemolish(world, player, s) {
-  if (!s || !s.alive) return 'Yapı yok';
-  if (s.owner !== player) return 'Yalnızca kendi yapını yıkabilirsin';
-  if (s.kind === 'banner') return 'Sancak yıkılamaz';
+  if (!s || !s.alive) return t('komut.yapiYok');
+  if (s.owner !== player) return t('komut.kendiYapin');
+  if (s.kind === 'banner') return t('komut.sancakYikilamaz');
   s.demolished = true;
   world.onStructureDestroyed(s, null);
   return null;
@@ -266,13 +267,13 @@ export function cmdRally(world, player, x, z, target = null) {
 }
 /** Tür değişimi mümkün mü: hata metni ya da null (istemci de anında geri bildirim için aynı denetimi yapar). */
 export function convertError(world, player, key) {
-  const p = player.hero, b = player.banner, t = SOLDIER_TYPES.find(x => x.key === key && !x.worker && !x.siege);
-  if (!t) return 'Bilinmeyen tür';
-  if (!p || !p.alive) return 'Kahraman yerde';
-  if (!b || !b.alive) return 'Sancak yıkık';
-  if (Math.hypot(p.pos.x - b.pos.x, p.pos.z - b.pos.z) > HERO_UPGRADE.range) return 'Kahraman sancağa yaklaşmalı';
-  if (p.loadout.weapon === t.weapon && p.loadout.shield === t.shield && p.loadout.horse === t.horse) return `Zaten ${t.label}sın`;
-  if (player.eco.gold < heroConvertCost(t, world.limits)) return `Yetersiz altın: ${t.label} ${heroConvertCost(t, world.limits).toLocaleString('tr-TR')} altın`;
+  const p = player.hero, b = player.banner, tur = SOLDIER_TYPES.find(x => x.key === key && !x.worker && !x.siege);
+  if (!tur) return t('komut.bilinmeyenTur');
+  if (!p || !p.alive) return t('komut.kahramanYerde');
+  if (!b || !b.alive) return t('komut.sancakYikik');
+  if (Math.hypot(p.pos.x - b.pos.x, p.pos.z - b.pos.z) > HERO_UPGRADE.range) return t('komut.sancagaYaklas');
+  if (p.loadout.weapon === tur.weapon && p.loadout.shield === tur.shield && p.loadout.horse === tur.horse) return t('komut.zaten', { ad: tur.label });
+  if (player.eco.gold < heroConvertCost(tur, world.limits)) return t('uretim.yetersizAltin', { birim: tur.label, altin: sayi(heroConvertCost(tur, world.limits)) });
   return null;
 }
 /** Sancakta altınla başka bir asker türüne dönüşme: donanım ve görünüm değişir, seviye korunur. */

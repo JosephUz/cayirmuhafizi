@@ -3,6 +3,7 @@ import { yawFromDir } from './builders.js';
 import { addEntity, applyLevelUp, createEntity, makeStats } from './characters.js';
 import { damageEntity, startAttack } from './combat.js';
 import { ANTI, GOSTERI_HUCUM as K, SIEGE, SOLDIER_TYPES, VISION } from './config.js';
+import { t } from './dil.js';
 import { removeStructure } from './structures.js';
 import { setupGame, step } from './world.js';
 
@@ -86,7 +87,7 @@ export function createHucumGosteri(world, { arenaReady }) {
     setupGame(world, {
       // İki koltuk da "insan": hiçbir bot yapay zekâsı koşmaz (bkz. economy.js updateBots) ve kahramanlar
       // yalnız girdiyle hareket eder — girdiyi bu sahne verir (bkz. `kahramanGirdisi`).
-      teamSize: 1, humans: [{ name: 'Kuzey' }, { name: 'Güney', faction: 'red' }],
+      teamSize: 1, humans: [{ name: t('oyuncu.kuzey') }, { name: t('oyuncu.guney'), faction: 'red' }],
       seed: Number(new URLSearchParams(location.search).get('tohum')) || K.tohum,
     });
     world.me = world.players[0]; world.player = world.me.hero; world.loadout = world.player.loadout;

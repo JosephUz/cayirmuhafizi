@@ -3,6 +3,7 @@ import { yawFromDir } from './builders.js';
 import { addEntity, createEntity, makeStats } from './characters.js';
 import { startAttack } from './combat.js';
 import { GOSTERI_MANCINIK as K, SIEGE, SOLDIER_BASE, SOLDIER_TYPES, VISION } from './config.js';
+import { t } from './dil.js';
 import { removeStructure } from './structures.js';
 import { setupGame, step } from './world.js';
 
@@ -59,7 +60,7 @@ export function createMancinikGosteri(world, { arenaReady }) {
     setupGame(world, {
       // İki koltuk da "insan": hiçbir bot yapay zekâsı koşmaz (bkz. economy.js updateBots). Kahramanlar da
       // yalnız girdiyle hareket eder; bu sahne onlara hiç girdi vermez, üstelik sahanın dışına park eder.
-      teamSize: 1, humans: [{ name: 'Mavi' }, { name: 'Kızıl', faction: 'red' }],
+      teamSize: 1, humans: [{ name: t('oyuncu.mavi') }, { name: t('oyuncu.kizil'), faction: 'red' }],
       seed: Number(new URLSearchParams(location.search).get('tohum')) || K.tohum,
     });
     world.me = world.players[0]; world.player = world.me.hero; world.loadout = world.player.loadout;

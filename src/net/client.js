@@ -56,7 +56,7 @@ export function createNetClient(world, hooks) {
     switch (msg.t) {
       case S2C.WELCOME: saveToken(msg.token); client.id = msg.id; client.nick = msg.nick; hooks.onWelcome && hooks.onWelcome(msg); break;
       case S2C.LOBBY: client.lobby = msg; remember(msg.code); hooks.onLobby && hooks.onLobby(msg); break;
-      case S2C.ERROR: hooks.onError && hooks.onError(msg.msg); break;
+      case S2C.ERROR: hooks.onError && hooks.onError(msg.msg, msg.kod); break;
       // first: gerçek maç başlangıcı (dünya yoktu ya da önceki maç bitmişti); aynı sayfada geri bağlanmada gelen START değil.
       case S2C.START: { const first = !world.replicated || world.ended; setupClientWorld(msg); hooks.onStart && hooks.onStart(msg, first); break; }
       case S2C.EVENTS: applyEvents(msg.list); break;

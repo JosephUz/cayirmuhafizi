@@ -1,5 +1,6 @@
 import * as T from 'three';
 import { addEntity, applyLevelUp, createEntity, reachOf } from './characters.js';
+import { t } from './dil.js';
 import { ANTI, BANDITS, BUILD, BUILDINGS, CAMPS, ECONOMY, ENEMY_AI, ENEMY_HERO, LEVEL, POSITIONS, SIEGE, SOLDIER_BASE, SOLDIER_TYPES, TOWER, VISION, WORKER } from './config.js';
 import { giveOrder, inEnemyTowerRange } from './ai.js';
 import { armyCount, bestProducer, enqueue, queuedOf, queuedSoldiers, workerTotal } from './production.js';
@@ -311,7 +312,7 @@ export function updateCamps(world, dt) {
  * çıkınca sahadaki **en kalabalık** işçi türünden bir kademe eksilir. Eksiltilen türün adını döndürür, gerekmediyse null.
  */
 export function trimWorkers(world, owner, fresh = null) {
-  const LABEL = { gold: 'madenci', wood: 'oduncu', food: 'çiftçi' };
+  const LABEL = { gold: t('birim.miner.ad'), wood: t('birim.woodcutter.ad'), food: t('birim.farmer.ad') };
   let removed = null;
   for (let guard = 0; guard < 64; guard++) {
     const by = { wood: 0, gold: 0, food: 0 };
@@ -380,17 +381,17 @@ export function spawnUnit(world, typeKey, owner, building) {
 /** İnşa mümkün mü: hata metni ya da null (istemci anında geri bildirim için aynı denetimi yapar; sunucu yeniden denetler). */
 export function buildError(world, kind, owner, x, z, instant = false) {
   const spec = BUILDINGS[kind];
-  if (!spec || kind === 'banner') return 'Bilinmeyen yapı';
+  if (!spec || kind === 'banner') return t('insa.bilinmeyen');
   const bag = owner.eco;
-  if (!owner.banner || !owner.banner.alive) return 'Sancak yıkıldı, inşa edilemez';
-  if (bag.gold < spec.cost || bag.wood < spec.wood) return `Yetersiz odun: ${spec.label} ${spec.wood} odun`;
+  if (!owner.banner || !owner.banner.alive) return t('insa.sancakYikildi');
+  if (bag.gold < spec.cost || bag.wood < spec.wood) return t('insa.yetersizOdun', { ad: spec.label, n: spec.wood });
   const isTower = kind === 'tower', cap = isTower ? world.limits.towers : world.limits.buildings;
-  if (structureCount(world, owner, isTower) >= cap) return isTower ? `Kule sınırı dolu (en fazla ${cap} kule) · birini yıkabilirsin` : `Bina sınırı dolu (en fazla ${cap} bina) · birini yıkabilirsin`;
+  if (structureCount(world, owner, isTower) >= cap) return isTower ? t('insa.kuleSiniri', { n: cap }) : t('insa.binaSiniri', { n: cap });
   if (!instant) {
     const hero = owner.hero;
-    if (!hero || !hero.alive) return 'Kahraman yerde, inşa edilemez';
-    if (kind !== 'tower' && baseRuleFor(owner) && !heroInBase(owner)) return 'Bina yalnızca sancak çemberinin içindeyken dikilir: sancağına dön';
-    if (Math.hypot(hero.pos.x - x, hero.pos.z - z) > BUILD.heroRadius) return `Kahramandan uzak: bina kahramanın ${BUILD.heroRadius} birim yakınına dikilir`;
+    if (!hero || !hero.alive) return t('insa.kahramanYerde');
+    if (kind !== 'tower' && baseRuleFor(owner) && !heroInBase(owner)) return t('insa.cember');
+    if (Math.hypot(hero.pos.x - x, hero.pos.z - z) > BUILD.heroRadius) return t('insa.uzak', { n: BUILD.heroRadius });
     const why = placementError(world, kind, x, z, owner);
     if (why) return why;
   }

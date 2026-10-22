@@ -23,7 +23,8 @@ export function createRooms({ log = console.log, roomsDelay = 250 } = {}) {
 
   const send = (conn, obj) => { if (conn.ws && conn.ws.readyState === 1) conn.ws.send(JSON.stringify(obj)); };
   const sendBin = (conn, bytes) => { if (conn.ws && conn.ws.readyState === 1) conn.ws.send(bytes, { binary: true }); };
-  const error = (conn, msg) => send(conn, { t: S2C.ERROR, msg });
+  /** Hata: dil bağımsız kod + Türkçe yazı (dil standardı: istemci `sunucu.<kod>` anahtarını kendi dilinde gösterir). */
+  const error = (conn, kod, msg) => send(conn, { t: S2C.ERROR, kod, msg });
 
   /**
    * Çevrim içi sayısı: siteyi açan her sekme boşta bir bağlantı tutar (bkz. main.js), yani conns = açık sekme sayısı.
@@ -330,7 +331,7 @@ export function createRooms({ log = console.log, roomsDelay = 250 } = {}) {
       case C2S.JOIN: {
         const code = normalCode(msg.code);
         const r = rooms.get(code);
-        if (!r) return error(conn, 'Böyle bir oda yok');
+        if (!r) return error(conn, 'oda.yok', 'Böyle bir oda yok');
         // Bu odadan ayrılmış (ya da kopmuş) oyuncu: koltuğu hâlâ onun, kaldığı yerden devam eder.
         if (r.seats.includes(conn) && conn.player) {
           conn.left = false; rejoinPlayer(conn.player);
@@ -340,8 +341,8 @@ export function createRooms({ log = console.log, roomsDelay = 250 } = {}) {
           log(`geri döndü ${conn.nick} (${r.code})`);
           return;
         }
-        if (r.state !== 'lobby') return error(conn, 'Maç başlamış');
-        if (r.seats.length >= MAX_SEATS) return error(conn, 'Oda dolu');
+        if (r.state !== 'lobby') return error(conn, 'mac.basladi', 'Maç başlamış');
+        if (r.seats.length >= MAX_SEATS) return error(conn, 'oda.dolu', 'Oda dolu');
         if (r.seats.includes(conn)) return broadcastLobby(r); // zaten bu lobide (ör. listeden kendi odasına bastı)
         seatInRoom(conn, r);
         return;
@@ -358,7 +359,7 @@ export function createRooms({ log = console.log, roomsDelay = 250 } = {}) {
         if (!room || room.state !== 'lobby') return;
         const team = msg.team === 'red' ? 'red' : 'blue';
         if (conn.team === team) return;
-        if (teamCount(room, team) >= room.settings.teamSize) return error(conn, 'Takım dolu: kuran seni biriyle yer değiştirebilir');
+        if (teamCount(room, team) >= room.settings.teamSize) return error(conn, 'takim.dolu', 'Takım dolu: kuran seni biriyle yer değiştirebilir');
         conn.team = team;
         broadcastLobby(room); return;
       }
@@ -372,7 +373,7 @@ export function createRooms({ log = console.log, roomsDelay = 250 } = {}) {
         else {
           const team = msg.team === 'red' ? 'red' : 'blue';
           if (who.team === team) return;
-          if (teamCount(room, team) >= room.settings.teamSize) return error(conn, 'Takım dolu: bir oyuncunun üstüne bırakıp yer değiştir');
+          if (teamCount(room, team) >= room.settings.teamSize) return error(conn, 'takim.doluTasi', 'Takım dolu: bir oyuncunun üstüne bırakıp yer değiştir');
           who.team = team;
         }
         broadcastLobby(room); return;

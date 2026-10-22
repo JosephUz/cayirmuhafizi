@@ -2,6 +2,7 @@ import * as T from 'three';
 import { yawFromDir } from './builders.js';
 import { applyLevelUp, createEntity, makeStats } from './characters.js';
 import { COMBAT, GOSTERI_SAVAS as K } from './config.js';
+import { t } from './dil.js';
 import { applyImpulse } from './physics.js';
 import { removeStructure } from './structures.js';
 import { touchDevice } from './touch.js';
@@ -74,7 +75,7 @@ export function createSavasGosteri(world, { arenaReady }) {
     setupGame(world, {
       // İki koltuk da "insan": hiçbir bot yapay zekâsı koşmaz (bkz. economy.js updateBots) ve iki kahraman da
       // yalnız girdiyle hareket eder — ikisinin de girdisini bu sahne kurar.
-      teamSize: 1, humans: [{ name: 'Mavi' }, { name: 'Kızıl', faction: 'red' }],
+      teamSize: 1, humans: [{ name: t('oyuncu.mavi') }, { name: t('oyuncu.kizil'), faction: 'red' }],
       loadout: { ...K.kahraman.loadout }, seed: 1000 + Math.floor(Math.random() * 900000),
     });
     world.me = world.players[0]; world.player = world.me.hero; world.loadout = world.player.loadout;

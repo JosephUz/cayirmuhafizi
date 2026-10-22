@@ -1,5 +1,6 @@
 import { giveOrder } from './ai.js';
 import { BUILDINGS, QUEUE, RALLY, SOLDIER_TYPES } from './config.js';
+import { t } from './dil.js';
 import { botRally, spawnUnit } from './economy.js';
 import { baseRuleFor, heroInBase } from './structures.js';
 import { statSpent } from './stats.js';
@@ -59,19 +60,19 @@ export function queuedOf(world, owner, key) {
 /** Emir alınabilir mi: hata metni ya da null (istemci anında geri bildirim için aynı denetimi yapar; sunucu yeniden denetler). */
 export function enqueueError(world, owner, building, typeKey) {
   const type = typeOf(typeKey);
-  if (!type) return 'Bilinmeyen birim';
-  if (!building || !building.alive) return `${type.label} için önce ${BUILDINGS[type.building].label.toLowerCase()} kur`;
-  if (building.owner !== owner) return 'Bu bina senin değil';
-  if (!building.ready) return `${BUILDINGS[building.kind].label} henüz inşa ediliyor`;
-  if (building.kind !== type.building) return `${type.label} ${BUILDINGS[type.building].from} basılır`;
-  if (building.queue.length >= QUEUE.max) return `Sıra dolu (en fazla ${QUEUE.max} emir)`;
-  if (baseRuleFor(owner) && !heroInBase(owner)) return 'Asker yalnızca sancak çemberinin içindeyken basılır: sancağına dön';
+  if (!type) return t('uretim.bilinmeyen');
+  if (!building || !building.alive) return t('uretim.onceKur', { birim: type.label, bina: BUILDINGS[type.building].label.toLowerCase() });
+  if (building.owner !== owner) return t('uretim.seninDegil');
+  if (!building.ready) return t('uretim.insaEdiliyor', { bina: BUILDINGS[building.kind].label });
+  if (building.kind !== type.building) return t('uretim.binadan', { birim: type.label, kaynak: BUILDINGS[type.building].from });
+  if (building.queue.length >= QUEUE.max) return t('uretim.siraDolu', { n: QUEUE.max });
+  if (baseRuleFor(owner) && !heroInBase(owner)) return t('uretim.cember');
   // Nüfus sınırı emri **geri çevirmez** (Age of tarzı): asker sınırı doluyken de sıraya alınır ve ücreti şimdi düşer;
   // sahada yer açılınca sıradaki hemen çıkar (bkz. updateProduction). İşçide de sınır engellemez (bkz. economy.js trimWorkers).
   const bag = owner.eco, wood = type.wood || 0;
   if (bag.gold < type.cost || bag.food < type.food || bag.wood < wood) {
-    if (wood) return `Yetersiz kaynak: ${type.label} ${type.cost} altın + ${wood} odun`;
-    return type.food ? `Yetersiz kaynak: ${type.label} ${type.cost} altın + ${type.food} yiyecek` : `Yetersiz altın: ${type.label} ${type.cost} altın`;
+    if (wood) return t('uretim.yetersizOdun', { birim: type.label, altin: type.cost, odun: wood });
+    return type.food ? t('uretim.yetersizYiyecek', { birim: type.label, altin: type.cost, yiyecek: type.food }) : t('uretim.yetersizAltin', { birim: type.label, altin: type.cost });
   }
   return null;
 }

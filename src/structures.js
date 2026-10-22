@@ -1,5 +1,6 @@
 import * as T from 'three';
 import { BUILD, BUILDINGS, CAMPS, TOWER } from './config.js';
+import { t } from './dil.js';
 
 /**
  * Yapılar: sancak, kışla, okçuluk, ahır, kuşatma, kule, tarafsız kamp. Hepsi aynı kayıt biçimini kullanır:
@@ -73,20 +74,20 @@ export function placementError(world, kind, x, z, owner) {
   if (kind === 'tower') {
     const onLane = (world.lanePoints || []).some(p => Math.hypot(p.x - x, p.z - z) <= TOWER.laneDist)
       || (world.towerSpots || []).some(t => Math.hypot(t.x - x, t.z - z) <= 3);
-    if (!onLane) return 'Kuleler yalnızca yollara dikilir';
+    if (!onLane) return t('insa.yolda');
     for (const foe of world.structures) {
       if (foe.kind !== 'banner' || !foe.alive || foe.faction === owner.faction) continue;
-      if (Math.hypot(foe.pos.x - x, foe.pos.z - z) <= BUILD.bannerRadius) return 'Rakibin sancak çemberine kule dikilemez';
+      if (Math.hypot(foe.pos.x - x, foe.pos.z - z) <= BUILD.bannerRadius) return t('insa.rakipCember');
     }
     for (const s of world.structures) {
       if (!s.alive || s.kind !== 'tower') continue;
-      if (Math.hypot(s.pos.x - x, s.pos.z - z) < TOWER.minGap) return `Kulelerin atış alanları çakışamaz: kuleler arası en az ${TOWER.minGap} birim`;
+      if (Math.hypot(s.pos.x - x, s.pos.z - z) < TOWER.minGap) return t('insa.kuleAraligi', { n: TOWER.minGap });
     }
     return null;
   }
   const b = owner.banner;
-  if (!b || !b.alive) return 'Sancak yıkıldı, inşa edilemez';
-  if (Math.hypot(b.pos.x - x, b.pos.z - z) > BUILD.bannerRadius) return 'Sancak çemberinin dışına bina dikilemez';
+  if (!b || !b.alive) return t('insa.sancakYikildi');
+  if (Math.hypot(b.pos.x - x, b.pos.z - z) > BUILD.bannerRadius) return t('insa.cemberDisi');
   return null;
 }
 
@@ -95,13 +96,13 @@ export function placementError(world, kind, x, z, owner) {
  * `faction` verilirse o takımın birimleri engel sayılmaz. Uygunsa null, değilse sebep döner.
  */
 export function canPlace(world, x, z, radius, faction = null) {
-  if (Math.abs(x) > world.half - radius - 1 || Math.abs(z) > world.half - radius - 1) return 'Harita dışı';
-  for (const o of world.obstacles) if (Math.hypot(o.pos.x - x, o.pos.z - z) < o.radius + radius + 0.5) return 'Burası dolu';
-  for (const s of world.structures) if (s.alive && Math.hypot(s.pos.x - x, s.pos.z - z) < s.radius + radius + 1) return 'Başka bir yapıya çok yakın';
-  for (const sp of world.spots) if (Math.hypot(sp.x - x, sp.z - z) < radius + 1.2) return 'Çalışma yerinin üstüne kurulamaz';
+  if (Math.abs(x) > world.half - radius - 1 || Math.abs(z) > world.half - radius - 1) return t('insa.haritaDisi');
+  for (const o of world.obstacles) if (Math.hypot(o.pos.x - x, o.pos.z - z) < o.radius + radius + 0.5) return t('insa.dolu');
+  for (const s of world.structures) if (s.alive && Math.hypot(s.pos.x - x, s.pos.z - z) < s.radius + radius + 1) return t('insa.yakin');
+  for (const sp of world.spots) if (Math.hypot(sp.x - x, sp.z - z) < radius + 1.2) return t('insa.calismaYeri');
   for (const e of world.entities) {
     if (!e.alive || (faction && e.faction === faction)) continue;
-    if (Math.hypot(e.pos.x - x, e.pos.z - z) < e.radius + radius) return 'Üstünde düşman birimi var';
+    if (Math.hypot(e.pos.x - x, e.pos.z - z) < e.radius + radius) return t('insa.dusman');
   }
   return null;
 }

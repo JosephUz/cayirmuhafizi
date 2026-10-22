@@ -1,15 +1,16 @@
 import * as T from 'three';
 import { CAMERA } from './config.js';
+import { t } from './dil.js';
 import { pickHostile } from './ai.js';
 import { pickOwnStructure } from './structures.js';
 import { createTouch, TOUCH } from './touch.js';
 
 /** Dokunmatik düğmeler (sağ alt): SALDIR basılı tutulunca sol tık gibi şarj olur; ORDU toplanma alanını kahramana diker. */
 const BUTTONS = [
-  { id: 'attack', label: 'SALDIR', sub: 'TUT: GÜÇLÜ', cls: 'big' },
-  { id: 'dodge', label: 'ATIL' },
-  { id: 'army', label: 'ORDU', sub: 'YANIMA' },
-  { id: 'jump', label: 'ZIPLA', sub: 'HAVADA ×2' },
+  { id: 'attack', label: t('dokun.saldir'), sub: t('dokun.tutGuclu'), cls: 'big' },
+  { id: 'dodge', label: t('dokun.atil') },
+  { id: 'army', label: t('dokun.ordu'), sub: t('dokun.yanima') },
+  { id: 'jump', label: t('dokun.zipla'), sub: t('dokun.havada') },
   { id: 'build', label: '⚒' },
 ];
 /** İzometrikte dokunmatik vuruş kahramanın bu yarıçapındaki en yakın düşmana nişan alır. */
@@ -140,7 +141,7 @@ export function attachInput(world, canvas, camera, dragEl, touchRoot = null) {
      */
     if (e.code === 'KeyE' && !e.repeat) {
       e.preventDefault();
-      if (world.ui) { if (input.hasAim) world.ui.setRally(input.aim.x, input.aim.z); else world.ui.hint('Önce imleci sahaya getir', 1.6); }
+      if (world.ui) { if (input.hasAim) world.ui.setRally(input.aim.x, input.aim.z); else world.ui.hint(t('ipucu.imlec'), 1.6); }
       return;
     }
     if (MOVE.includes(e.code)) { e.preventDefault(); input.keys.add(e.code); if (e.code === 'Space' && !e.repeat) input.jumpQueued = true; }

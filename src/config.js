@@ -1,4 +1,6 @@
 // Tüm ayar sayıları tek yerde. Hız birimi: birim/sn, süreler saniye.
+// Kullanıcıya görünen adlar ve açıklamalar sözlükten gelir (src/diller, josephuz dil standardı); veri anahtarları değişmez.
+import { t } from './dil.js';
 
 /**
  * Takım oyunu: 1v1 … 5v5. İnsan oyuncu her zaman **mavi** takımda 0. yuvadadır; kalan yuvalar (iki takımda da) botlarla
@@ -119,55 +121,55 @@ export const KIT = {
    * Girdap: çevrede 1 sn dönen bıçak çemberi (SPIN). Kılıç fırtınası: hortumla aynı alan sayıları (yarıçap, süre, tempo, hasar)
    * ama görselde durduğun yerde savrulan kılıçlar (blades tane, farklı yarıçap ve yüksekliklerde dönüp takla atar).
    */
-  sword: { label: 'Kılıçlı', primary: 'Çevre kesik', secondary: 'Kılıç fırtınası', charge: 'Şok dalgası',
+  sword: { label: t('birim.sword.ad'), primary: t('kit.cevreKesik'), secondary: t('kit.kilicFirtinasi'), charge: t('kit.sokDalgasi'),
     fieldRadius: TORNADO.radius, fieldLife: TORNADO.duration, fieldTick: TORNADO.tick, fieldDamage: TORNADO.damageMult, fieldKnock: TORNADO.knockback, blades: 10,
-    primaryDesc: '360° döner, menzildeki herkesi vurur (menzil seviyeyle büyür)',
-    chargeDesc: '3 dalga, menzilin 1x/1.2x/1.4x katı, üç kat iter',
-    secondaryDesc: `durduğun yerde ${TORNADO.duration} sn savrulan kılıçlar (${TORNADO.radius} birim, ${TORNADO.tick} sn'de bir vuruşun ${TORNADO.damageMult} katı)` },
+    primaryDesc: t('kit.sword.primaryDesc'),
+    chargeDesc: t('kit.sword.chargeDesc'),
+    secondaryDesc: t('kit.sword.secondaryDesc', { sure: TORNADO.duration, r: TORNADO.radius, tick: TORNADO.tick, kat: TORNADO.damageMult }) },
   /**
    * Koridor: mızrak vuruşu yay değil, bakış yönünde corridorLen x menzil uzunluğunda, corridorWidth genişliğinde bir
    * koridordur; içindeki herkes vurulur (delip geçer). Kazık alanı: hortum gibi **durduğun yerde** açılır; yerden yükselen
    * kazıklar fieldLife sn boyunca fieldTick sn'de bir yarıçaptaki herkese vuruşun fieldDamage katını verir ve dışa iter.
    */
-  spear: { label: 'Mızraklı', primary: 'Koridor', secondary: 'Kazık alanı', charge: 'Şok dalgası',
+  spear: { label: t('birim.spear.ad'), primary: t('kit.koridor'), secondary: t('kit.kazikAlani'), charge: t('kit.sokDalgasi'),
     corridorLen: 2, corridorWidth: 1.8,
     fieldRadius: 3.2, fieldLife: 2, fieldTick: 0.25, fieldDamage: 0.6, fieldKnock: 3, stakes: 16,
-    primaryDesc: 'önünde 2 kat menzil boyu, 1.8 birim eni koridor; içindeki herkesi deler',
-    chargeDesc: '3 koridor dalgası, 1x/1.4x/1.8x boy, en yakınını sana çeker',
-    secondaryDesc: 'durduğun yerde 2 sn yerden kazık (3.2 birim, 0.25 sn\'de bir vuruşun 0.6 katı, dışa iter)' },
+    primaryDesc: t('kit.spear.primaryDesc'),
+    chargeDesc: t('kit.spear.chargeDesc'),
+    secondaryDesc: t('kit.spear.secondaryDesc') },
   /**
    * Yelpaze: seviye kadar ok fanMax dereceye kadar dağılır, her ok kendi yönündeki (homingDeg) düşmana kilitlenir.
    * Ok yağmuru: hortum gibi **durduğun yerde** açılır; fieldLife sn boyunca fieldTick sn'de bir yarıçaptaki herkese
    * vuruşun fieldDamage katı ok düşer (görselde her tick gökten oklar iner). Yarıçap dashMult ile büyür.
    */
-  bow: { label: 'Okçu', primary: 'Yelpaze', secondary: 'Ok yağmuru', charge: 'Hızlı yaylım',
-    chargeDesc: '5 yaylım, 0.12 sn arayla; nişan imleci izler',
+  bow: { label: t('birim.bow.ad'), primary: t('kit.yelpaze'), secondary: t('kit.okYagmuru'), charge: t('kit.hizliYaylim'),
+    chargeDesc: t('kit.bow.chargeDesc'),
     fanStep: 8, fanMax: 70, homingDeg: 10, arrowMult: 1,
     fieldRadius: 3.2, fieldLife: 2, fieldTick: 0.25, fieldDamage: 0.6, fieldKnock: 1,
-    primaryDesc: 'seviyen kadar ok 70° yelpazede, her biri kendi yönündeki düşmana kilitlenir',
-    secondaryDesc: 'durduğun yerde 2 sn ok yağmuru (3.2 birim, 0.25 sn\'de bir vuruşun 0.6 katı)' },
+    primaryDesc: t('kit.bow.primaryDesc'),
+    secondaryDesc: t('kit.bow.secondaryDesc') },
   /**
    * Atlı setler: sağ tık alan etkisi yayanınkiyle aynıdır (KIT[silah] alan sayıları) ve üstüne **vakum** gelir: tık anında
    * alanın merkezinden vacuum.radius (alan yarıçapının katı) içindeki düşmanlar vacuum.life sn boyunca merkeze çekilir
    * (vacuum.pull: çekme itmesi, kütleden bağımsız), böylece alanın içine toplanıp vuruşları yerler.
    */
-  horsesword: { label: 'Kılıçlı Atlı', primary: 'Geniş kesik', secondary: 'Kılıç fırtınası + vakum', field: 'blades',
-    charge: 'Şok dalgası', chargeDesc: '3 dalga, gitgide genişler',
+  horsesword: { label: t('birim.horsesword.ad'), primary: t('kit.genisKesik'), secondary: t('kit.kilicFirtinasiVakum'), field: 'blades',
+    charge: t('kit.sokDalgasi'), chargeDesc: t('kit.horsesword.chargeDesc'),
     arcMult: 1.6, knockMult: 2, vacuum: { radius: 2.4, life: 0.6, pull: 42 },
-    primaryDesc: 'vuruş yayı 180°, itme iki kat; önündeki kalabalığı savurur',
-    secondaryDesc: 'durduğun yerde 2 sn savrulan kılıç; tıkta çevredekiler merkeze çekilir' },
+    primaryDesc: t('kit.horsesword.primaryDesc'),
+    secondaryDesc: t('kit.horsesword.secondaryDesc') },
   /** Hücum: vururken yavaşlamaz, hasar hıza göre artar (tam koşuda 1+chargeBonus). Mızrak hücumu: atılma bitince öne koni vuruşu. */
-  horsespear: { label: 'Mızraklı Atlı', primary: 'Hücum', secondary: 'Kazık alanı + vakum', field: 'spikes',
-    charge: 'Şok dalgası', chargeDesc: '3 koridor dalgası, gitgide uzar, en yakınını sana çeker',
+  horsespear: { label: t('birim.horsespear.ad'), primary: t('kit.hucum'), secondary: t('kit.kazikAlaniVakum'), field: 'spikes',
+    charge: t('kit.sokDalgasi'), chargeDesc: t('kit.horsespear.chargeDesc'),
     chargeBonus: 1, attackControl: 1, vacuum: { radius: 2.4, life: 0.6, pull: 42 },
-    primaryDesc: 'vururken yavaşlamazsın, hasar hızınla artar (tam koşuda 2x)',
-    secondaryDesc: 'durduğun yerde 2 sn yerden kazık; tıkta çevredekiler merkeze çekilir' },
+    primaryDesc: t('kit.horsespear.primaryDesc'),
+    secondaryDesc: t('kit.horsespear.secondaryDesc') },
   /** Koşarken atış: yavaşlamaz, ok sayısı arrowMult katı, dar yelpaze. Geriye yaylım: atılırken arkaya takipli oklar. */
-  horsebow: { label: 'Atlı Okçu', primary: 'Koşarken atış', secondary: 'Ok yağmuru + vakum', field: 'rain',
-    charge: 'Hızlı yaylım', chargeDesc: '5 yaylım, 0.12 sn arayla, seviyenin iki katı ok',
+  horsebow: { label: t('birim.horsebow.ad'), primary: t('kit.kosarkenAtis'), secondary: t('kit.okYagmuruVakum'), field: 'rain',
+    charge: t('kit.hizliYaylim'), chargeDesc: t('kit.horsebow.chargeDesc'),
     attackControl: 1, arrowMult: 2, fanStep: 3, fanMax: 20, homingDeg: 8, vacuum: { radius: 2.4, life: 0.6, pull: 42 },
-    primaryDesc: 'atarken yavaşlamazsın, seviyenin iki katı ok dar yelpazede',
-    secondaryDesc: 'durduğun yerde 2 sn ok yağmuru; tıkta çevredekiler merkeze çekilir' },
+    primaryDesc: t('kit.horsebow.primaryDesc'),
+    secondaryDesc: t('kit.horsebow.secondaryDesc') },
 };
 
 /** Vuruşların hedefi itme çarpanı (asker ve kule vuruşları). 0 = itmez. */
@@ -186,22 +188,22 @@ export const COMBAT = {
 };
 
 export const WEAPONS = {
-  sword: { label: 'Kılıç', range: 2.2, arc: Math.PI * 0.62, damage: 26, cooldown: 0.46, windup: 0.13, duration: 0.4, knockback: 12 },
-  spear: { label: 'Mızrak', range: 3.1, arc: Math.PI * 0.45, damage: 22, cooldown: 0.6, windup: 0.18, duration: 0.5, knockback: 9 },
+  sword: { label: t('silah.sword'), range: 2.2, arc: Math.PI * 0.62, damage: 26, cooldown: 0.46, windup: 0.13, duration: 0.4, knockback: 12 },
+  spear: { label: t('silah.spear'), range: 3.1, arc: Math.PI * 0.45, damage: 22, cooldown: 0.6, windup: 0.18, duration: 0.5, knockback: 9 },
   /**
    * Menzili birim tavanıdır (TOWER.range x TOWER.unitRangeMax = 9): oyundaki en uzun asker menzili budur, kuleyi
    * hiçbir asker dışarıdan dövemez. soldierMult: asker okçular kahramandan daha zayıf atar.
    */
-  bow: { label: 'Yay', range: 9, arc: 0, damage: 18, cooldown: 0.85, windup: 0.25, duration: 0.45, knockback: 0, ranged: true, arrowSpeed: 17, soldierMult: 0.65 },
+  bow: { label: t('silah.bow'), range: 9, arc: 0, damage: 18, cooldown: 0.85, windup: 0.25, duration: 0.45, knockback: 0, ranged: true, arrowSpeed: 17, soldierMult: 0.65 },
   /** İşçi aleti: saldırmaz. */
-  tool: { label: 'Kazma', range: 1, arc: 0.5, damage: 0, cooldown: 1, windup: 0.1, duration: 0.3, knockback: 0 },
+  tool: { label: t('silah.tool'), range: 1, arc: 0.5, damage: 0, cooldown: 1, windup: 0.1, duration: 0.3, knockback: 0 },
   /**
    * Mancınık: **uzaktan vurabilen tek birim**. Menzili kule menzilinin (27) 9 birim dışındadır (36), böylece kuşatma
    * kulenin atış alanına girmeden dövebilir; menzil tavanı (TOWER.unitRangeMax) yalnızca ona işlemez.
    * **Vuruş gücü artık normaldir**: 40 hasar, 2.2 sn'de bir — canlı hedefe olduğu gibi iner (dağılma çarpanı kalktı),
    * kuleye TOWER.siegeDamageMult katı geçer (40 x 2.5 = 100). Siege silahlara asker hasar çarpanı (0.55) uygulanmaz.
    */
-  catapult: { label: 'Mancınık', range: 36, arc: 0, damage: 40, cooldown: 2.2, windup: 0.45, duration: 0.9, knockback: 0, ranged: true, arrowSpeed: 16, siege: true },
+  catapult: { label: t('silah.catapult'), range: 36, arc: 0, damage: 40, cooldown: 2.2, windup: 0.45, duration: 0.9, knockback: 0, ranged: true, arrowSpeed: 16, siege: true },
 };
 
 /** Mancınık gövdesi: askerlere karşı çok dayanıksız, yavaş, geniş. */
@@ -279,25 +281,25 @@ export function antiInfo(key) {
  */
 export const SOLDIER_TYPES = [
   // Kışla
-  { key: 'sword', label: 'Kılıçlı', icon: '⚔', cost: 9, food: 3, train: 1, weapon: 'sword', shield: false, horse: false, building: 'barracks' },
-  { key: 'swordshield', label: 'Kılıç Kalkan', icon: '🛡', cost: 15, food: 5, train: 1.5, weapon: 'sword', shield: true, horse: false, building: 'barracks' },
-  { key: 'spear', label: 'Mızraklı', icon: '🔱', cost: 12, food: 4, train: 1.2, weapon: 'spear', shield: false, horse: false, building: 'barracks' },
-  { key: 'spearshield', label: 'Mızrak Kalkan', icon: '🔰', cost: 18, food: 5, train: 1.7, weapon: 'spear', shield: true, horse: false, building: 'barracks' },
+  { key: 'sword', label: t('birim.sword.ad'), icon: '⚔', cost: 9, food: 3, train: 1, weapon: 'sword', shield: false, horse: false, building: 'barracks' },
+  { key: 'swordshield', label: t('birim.swordshield.ad'), icon: '🛡', cost: 15, food: 5, train: 1.5, weapon: 'sword', shield: true, horse: false, building: 'barracks' },
+  { key: 'spear', label: t('birim.spear.ad'), icon: '🔱', cost: 12, food: 4, train: 1.2, weapon: 'spear', shield: false, horse: false, building: 'barracks' },
+  { key: 'spearshield', label: t('birim.spearshield.ad'), icon: '🔰', cost: 18, food: 5, train: 1.7, weapon: 'spear', shield: true, horse: false, building: 'barracks' },
   // Okçuluk
-  { key: 'bow', label: 'Okçu', icon: '🏹', cost: 15, food: 4, train: 1.3, weapon: 'bow', shield: false, horse: false, building: 'archery' },
-  { key: 'horsebow', label: 'Atlı Okçu', icon: '🐎🏹', cost: 27, food: 7, train: 2.3, weapon: 'bow', shield: false, horse: true, building: 'archery' },
+  { key: 'bow', label: t('birim.bow.ad'), icon: '🏹', cost: 15, food: 4, train: 1.3, weapon: 'bow', shield: false, horse: false, building: 'archery' },
+  { key: 'horsebow', label: t('birim.horsebow.ad'), icon: '🐎🏹', cost: 27, food: 7, train: 2.3, weapon: 'bow', shield: false, horse: true, building: 'archery' },
   // Ahır
-  { key: 'horsespear', label: 'Mızraklı Atlı', icon: '🐎🔱', cost: 24, food: 7, train: 2.2, weapon: 'spear', shield: false, horse: true, building: 'stable' },
-  { key: 'horsesword', label: 'Kılıçlı Atlı', icon: '🐎⚔', cost: 24, food: 7, train: 2.2, weapon: 'sword', shield: false, horse: true, building: 'stable' },
-  { key: 'horseswordshield', label: 'Kılıç Kalkan Atlısı', icon: '🐎🛡', cost: 33, food: 9, train: 2.8, weapon: 'sword', shield: true, horse: true, building: 'stable' },
-  { key: 'horsespearshield', label: 'Mızrak Kalkan Atlısı', icon: '🐎🔰', cost: 33, food: 9, train: 2.8, weapon: 'spear', shield: true, horse: true, building: 'stable' },
+  { key: 'horsespear', label: t('birim.horsespear.ad'), icon: '🐎🔱', cost: 24, food: 7, train: 2.2, weapon: 'spear', shield: false, horse: true, building: 'stable' },
+  { key: 'horsesword', label: t('birim.horsesword.ad'), icon: '🐎⚔', cost: 24, food: 7, train: 2.2, weapon: 'sword', shield: false, horse: true, building: 'stable' },
+  { key: 'horseswordshield', label: t('birim.horseswordshield.ad'), icon: '🐎🛡', cost: 33, food: 9, train: 2.8, weapon: 'sword', shield: true, horse: true, building: 'stable' },
+  { key: 'horsespearshield', label: t('birim.horsespearshield.ad'), icon: '🐎🔰', cost: 33, food: 9, train: 2.8, weapon: 'spear', shield: true, horse: true, building: 'stable' },
   // Savaş aletleri: yiyecek değil odun ister; fiyatı öbür askerlerle aynı aralıktadır. Her hedefe (birim, bina, kule)
   // saldırır: kuleye tam katlı, canlı hedefe düşük (WEAPONS.catapult.unitMult) hasar verir; gövdesi çok dayanıksızdır.
-  { key: 'catapult', label: 'Mancınık', icon: '🪨', cost: 45, food: 0, wood: 30, train: 3.2, weapon: 'catapult', shield: false, horse: false, building: 'siege', siege: true },
+  { key: 'catapult', label: t('birim.catapult.ad'), icon: '🪨', cost: 45, food: 0, wood: 30, train: 3.2, weapon: 'catapult', shield: false, horse: false, building: 'siege', siege: true },
   // Sancak (işçiler)
-  { key: 'woodcutter', label: 'Oduncu', icon: '🪓', cost: 10, food: 0, train: 1, weapon: 'tool', shield: false, horse: false, worker: 'wood', building: 'banner' },
-  { key: 'miner', label: 'Madenci', icon: '⛏', cost: 10, food: 0, train: 1, weapon: 'tool', shield: false, horse: false, worker: 'gold', building: 'banner' },
-  { key: 'farmer', label: 'Çiftçi', icon: '🌾', cost: 10, food: 0, train: 1, weapon: 'tool', shield: false, horse: false, worker: 'food', building: 'banner' },
+  { key: 'woodcutter', label: t('birim.woodcutter.ad'), icon: '🪓', cost: 10, food: 0, train: 1, weapon: 'tool', shield: false, horse: false, worker: 'wood', building: 'banner' },
+  { key: 'miner', label: t('birim.miner.ad'), icon: '⛏', cost: 10, food: 0, train: 1, weapon: 'tool', shield: false, horse: false, worker: 'gold', building: 'banner' },
+  { key: 'farmer', label: t('birim.farmer.ad'), icon: '🌾', cost: 10, food: 0, train: 1, weapon: 'tool', shield: false, horse: false, worker: 'food', building: 'banner' },
 ];
 
 /**
@@ -308,10 +310,10 @@ export const SOLDIER_TYPES = [
 export const RALLY = {
   /** Birim sınıfları (HUD sayımı ve üretim binası eşlemesi için; ordu sınıf sınıf değil bütün olarak yönetilir). */
   classes: [
-    { key: 'foot', label: 'Piyade', icon: '🛡', buildings: ['barracks'] },
-    { key: 'archer', label: 'Okçu', icon: '🏹', buildings: ['archery'] },
-    { key: 'cavalry', label: 'Süvari', icon: '🐎', buildings: ['stable'] },
-    { key: 'siege', label: 'Mancınık', icon: '🪨', buildings: ['siege'] },
+    { key: 'foot', label: t('sinif.foot'), icon: '🛡', buildings: ['barracks'] },
+    { key: 'archer', label: t('sinif.archer'), icon: '🏹', buildings: ['archery'] },
+    { key: 'cavalry', label: t('sinif.cavalry'), icon: '🐎', buildings: ['stable'] },
+    { key: 'siege', label: t('sinif.siege'), icon: '🪨', buildings: ['siege'] },
   ],
   /**
    * Tek toplanma bayrağı: **orta tık** imlecin (omuz üstünde artının) gösterdiği yere diker; bütün ordu oraya yürür.
@@ -319,7 +321,7 @@ export const RALLY = {
    * Orta tık bir **düşmanın üstündeyse** (birim, kahraman, bina, kule; pickRadius kenar payı) bayrak oraya kırmızı dikilir ve
    * bütün ordu o hedefe saldırır: görüşünde dövüşecek bir şey yoksa hedefe yürüyüp onu döver (bkz. ai.js updateAggressive).
    */
-  label: 'Toplanma alanı', color: '#ffd12e', attackColor: '#ff6a4a', attackLabel: 'Saldırı hedefi', pickRadius: 1.8,
+  label: t('toplanma.alan'), color: '#ffd12e', attackColor: '#ff6a4a', attackLabel: t('toplanma.saldiri'), pickRadius: 1.8,
 };
 
 /**
@@ -430,14 +432,14 @@ export const TOWER = {
  * Yıkılan yapı çevreye `loot` kadar odun bırakır (yalnızca kahramanlar toplar).
  */
 export const BUILDINGS = {
-  banner: { label: 'Sancak', from: 'sancaktan', icon: '⚑', hp: 10000, radius: 0.9, vision: 18, loot: 6, produces: ['woodcutter', 'miner', 'farmer'], builds: ['barracks', 'archery', 'stable', 'siege', 'tower'] },
-  barracks: { label: 'Kışla', from: 'kışladan', icon: '🏯', cost: 0, wood: 60, loot: 3, hp: 260, radius: 1.7, vision: 11, buildTime: 6, produces: ['sword', 'swordshield', 'spear', 'spearshield'], desc: 'Kılıçlı, kılıç kalkan, mızraklı, mızrak kalkan basar' },
-  archery: { label: 'Okçuluk', from: 'okçuluktan', icon: '🎯', cost: 0, wood: 80, loot: 3, hp: 220, radius: 1.6, vision: 11, buildTime: 6, produces: ['bow', 'horsebow'], desc: 'Okçu ve atlı okçu basar' },
-  stable: { label: 'Ahır', from: 'ahırdan', icon: '🐴', cost: 0, wood: 100, loot: 3, hp: 280, radius: 1.9, vision: 11, buildTime: 8, produces: ['horsespear', 'horsesword', 'horseswordshield', 'horsespearshield'], desc: 'Dört tür atlı basar' },
-  siege: { label: 'Kuşatma', from: 'kuşatma binasından', icon: '⚙', cost: 0, wood: 150, loot: 3, hp: 240, radius: 1.8, vision: 11, buildTime: 8, produces: ['catapult'], desc: 'Mancınık basar: kule menzili dışından her hedefi döver, kuleyi yeğler' },
-  tower: { label: 'Kule', from: 'kuleden', icon: '🏰', cost: 0, wood: 1000, loot: 3, hp: 2000, radius: 1.0, /** Kule gördüğü kadar vurur: görüşü menzilinin tıpatıp aynısıdır. */ vision: TOWER.range, buildTime: 5, produces: [], desc: 'Menzile gireni okla vurur (gördüğü kadar vurur); kuleler ayaktayken sancak vurulamaz' },
+  banner: { label: t('bina.banner.ad'), from: t('bina.banner.kaynak'), icon: '⚑', hp: 10000, radius: 0.9, vision: 18, loot: 6, produces: ['woodcutter', 'miner', 'farmer'], builds: ['barracks', 'archery', 'stable', 'siege', 'tower'] },
+  barracks: { label: t('bina.barracks.ad'), from: t('bina.barracks.kaynak'), icon: '🏯', cost: 0, wood: 60, loot: 3, hp: 260, radius: 1.7, vision: 11, buildTime: 6, produces: ['sword', 'swordshield', 'spear', 'spearshield'], desc: t('bina.barracks.aciklama') },
+  archery: { label: t('bina.archery.ad'), from: t('bina.archery.kaynak'), icon: '🎯', cost: 0, wood: 80, loot: 3, hp: 220, radius: 1.6, vision: 11, buildTime: 6, produces: ['bow', 'horsebow'], desc: t('bina.archery.aciklama') },
+  stable: { label: t('bina.stable.ad'), from: t('bina.stable.kaynak'), icon: '🐴', cost: 0, wood: 100, loot: 3, hp: 280, radius: 1.9, vision: 11, buildTime: 8, produces: ['horsespear', 'horsesword', 'horseswordshield', 'horsespearshield'], desc: t('bina.stable.aciklama') },
+  siege: { label: t('bina.siege.ad'), from: t('bina.siege.kaynak'), icon: '⚙', cost: 0, wood: 150, loot: 3, hp: 240, radius: 1.8, vision: 11, buildTime: 8, produces: ['catapult'], desc: t('bina.siege.aciklama') },
+  tower: { label: t('bina.tower.ad'), from: t('bina.tower.kaynak'), icon: '🏰', cost: 0, wood: 1000, loot: 3, hp: 2000, radius: 1.0, /** Kule gördüğü kadar vurur: görüşü menzilinin tıpatıp aynısıdır. */ vision: TOWER.range, buildTime: 5, produces: [], desc: t('bina.tower.aciklama') },
   /** Tarafsız kamp: oyuncu dikemez, harita kurulurken yerleşir (bkz. CAMPS). Yıkılınca yıkıntısı kalır ve geri sayımla yeniden kurulur. */
-  camp: { label: 'Yaratık Kampı', from: 'kamptan', icon: '⛺', cost: 0, wood: 0, loot: 4, hp: 900, radius: 2.2, vision: 12, buildTime: 0, produces: [], desc: 'Tarafsız kamp: çevresinde muhafızlar bekler, akıncı kamplar dakikada bir dalga çıkarır' },
+  camp: { label: t('bina.camp.ad'), from: t('bina.camp.kaynak'), icon: '⛺', cost: 0, wood: 0, loot: 4, hp: 900, radius: 2.2, vision: 12, buildTime: 0, produces: [], desc: t('bina.camp.aciklama') },
 };
 
 /**
@@ -475,7 +477,7 @@ export const PERF = { shadowMapSize: 2048, shadowBox: { iso: 60, tps: 100 }, cul
  */
 export const QUALITY = {
   order: ['low', 'medium', 'high'],
-  labels: { low: 'Düşük', medium: 'Orta', high: 'Yüksek' },
+  labels: { low: t('kalite.low'), medium: t('kalite.medium'), high: t('kalite.high') },
   low: { shadows: false, map: 1024, every: 3, units: false },
   medium: { shadows: true, map: 1024, every: 2, units: false },
   high: { shadows: true, map: 2048, every: 1, units: true },
@@ -742,9 +744,9 @@ export const HOMING_TURN = 5.5;
 
 /** Zorluk: rakip kahramanın topladığı kaynakların çarpanı. */
 export const DIFFICULTY = {
-  easy: { label: "Kolay", resourceMult: 0.5 },
-  normal: { label: "Normal", resourceMult: 1 },
-  hard: { label: "Zor", resourceMult: 2 },
+  easy: { label: t('zorluk.easy'), resourceMult: 0.5 },
+  normal: { label: t('zorluk.normal'), resourceMult: 1 },
+  hard: { label: t('zorluk.hard'), resourceMult: 2 },
 };
 
 /**
@@ -1036,7 +1038,7 @@ export const GOSTERI_KAHRAMAN = {
     yumusatma: 3.2, odakYumusatma: 3.8, donus: 0.12, sapma: 0.5,
   },
   /** Ekrandaki büyük açıklama yazısı (yalnız bu sahnede; yeri için bkz. style.css `#mg-gosteri-yazi`). */
-  yazi: { zipla: 'Boşluk: zıpla · Sağ tık: ok yağmuru', dalga: 'Sol tık basılı: hızlı yaylım' },
+  yazi: { zipla: t('gosteri.zipla'), dalga: t('gosteri.dalga') },
   /**
    * Yalnız bu sahnenin çizim ayarı (kalabalıkla 60 fps için): `lod` birim sadeleştirme uzaklığı (normalde
    * PERF.lodDist 42) — bu uzaklıktan öteki birimlerde uzuv ve silah çizilmez; `gorus` kadraj elemesinin yarıçapı

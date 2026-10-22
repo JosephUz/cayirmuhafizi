@@ -22,7 +22,7 @@ export const S2C = {
   LOBBY: 'lobby',      // { code, hostId, settings, priv, seats: [{ slot, id, nick, online, team }], state }
   ROOMS: 'rooms',      // { list: [{ code, host, teamSize, difficulty, n, max, state, full }] } — lobideki açık odalar (en çok 20);
                        // odada olmayan bağlantılara karşılamada ve liste değişince (~250 ms toplanır) sunucu kendisi yollar
-  ERROR: 'error',      // { msg }
+  ERROR: 'error',      // { kod, msg }: kod dil bağımsız (istemcide sunucu.<kod>), msg Türkçe yedek
   START: 'start',      // { seed, teamSize, difficulty, players: [{ id, name, color, faction, slot, human }], you }
   EVENTS: 'ev',        // { list: [...] } — o tik biriken olaylar (durum paketinden önce uygulanır)
   PLAYERS: 'pl',       // { time, list: [{ g, w, f, sp, att, ban, rally, elim }] } — oyuncu başı hafif durum

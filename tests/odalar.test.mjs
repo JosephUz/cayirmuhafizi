@@ -56,6 +56,7 @@ test('koda tiresiz ve küçük harfle katılınır; yanlış kod ve başlamış 
   assert.equal(b.son(S2C.LOBBY).code, kod);
   c.yolla({ t: C2S.JOIN, code: 'ZZZZ9' });
   assert.equal(c.son(S2C.ERROR).msg, 'Böyle bir oda yok');
+  assert.equal(c.son(S2C.ERROR).kod, 'oda.yok', 'hata dil bağımsız kodla gelir (dil standardı)');
   a.yolla({ t: C2S.START });
   c.yolla({ t: C2S.JOIN, code: kod });
   assert.equal(c.son(S2C.ERROR).msg, 'Maç başlamış');

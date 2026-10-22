@@ -1,6 +1,7 @@
 import * as T from 'three';
 import { addEntity, applyLevelUp, createEntity, makeStats, setLodGoz } from './characters.js';
 import { CHARGE, GOSTERI_KAHRAMAN as K } from './config.js';
+import { t } from './dil.js';
 import { touchDevice } from './touch.js';
 import { setupGame, step } from './world.js';
 
@@ -53,7 +54,7 @@ export function createKahramanGosteri(world, { arenaReady, root }) {
     setupGame(world, {
       // İki koltuk da "insan": böylece hiçbir bot yapay zekâsı koşmaz (bkz. economy.js updateBots) ve iki kahraman da
       // yalnız girdiyle hareket eder — kahramana girdi verilir, rakibe hiç verilmez, yani o sancağında kıpırdamaz.
-      teamSize: 1, humans: [{ name: 'Kahraman' }, { name: 'Rakip', faction: 'red' }],
+      teamSize: 1, humans: [{ name: t('oyuncu.kahraman') }, { name: t('oyuncu.rakip'), faction: 'red' }],
       loadout: { ...K.kahraman.loadout }, seed: 1000 + Math.floor(Math.random() * 900000),
     });
     world.me = world.players[0]; world.player = world.me.hero; world.loadout = world.player.loadout;

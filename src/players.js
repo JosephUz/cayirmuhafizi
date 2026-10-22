@@ -1,3 +1,4 @@
+import { t } from './dil.js';
 import { DIFFICULTY, ECONOMY, LIMITS, LIMITS_LIGHT, TEAMS } from './config.js';
 
 /**
@@ -9,7 +10,7 @@ import { DIFFICULTY, ECONOMY, LIMITS, LIMITS_LIGHT, TEAMS } from './config.js';
  * humans: [{ name, color?, faction? }] — kendi takımının (varsayılan mavi) 0..n-1 yuvalarına oturur; takım başı en çok
  * teamSize. İki takımda da insan varsa oyun **PvP**'dir; insansız takımın botları zorluk çarpanını alır (bkz. resourceMult).
  */
-export function createPlayers(teamSize, humans = [{ name: 'Sen' }]) {
+export function createPlayers(teamSize, humans = [{ name: t('oyuncu.sen') }]) {
   const players = [];
   const sideOf = h => (h.faction === 'red' ? 'red' : 'blue');
   // İnsan renkleri önce dağıtılır: bot renkleri bunlarla çakışmasın.

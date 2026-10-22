@@ -1,5 +1,5 @@
 import * as T from 'three';
-import { CHARGE, DASH, KIT, TORNADO } from './config.js';
+import { CHARGE, DASH, KIT, TORNADO, WEAPONS } from './config.js';
 import { dashMult, isEvading, kitOf, reachOf } from './characters.js';
 import { damageEntity, damageMult, damageStructure, fireArrow, heroArrows, hitDamage } from './combat.js';
 import { applyImpulse } from './physics.js';
@@ -42,15 +42,14 @@ export function heroCharged(world, p, c) {
   chargePulse(world, p, 0, n === 1);
   if (n > 1) world.zones.push({ id: world.ids.zone++, kind: 'burst', source: p, faction: p.faction, left: n - 1, i: 1, gap: k.gap, tick: k.gap, life: (n - 1) * k.gap + 0.05, view: null });
   if (p.isPlayer && p.owner) {
-    const label = w.ranged ? 'Hızlı yaylım' : 'Şok dalgası';
-    world.fx.float(p.owner, `${label} x${n}`, { x: p.pos.x, y: 2.6, z: p.pos.z }, w.ranged ? '#ffd86b' : '#ffe9a8');
+    world.fx.float(p.owner, { kod: 'kit.sarjSayi', ad: w.ranged ? 'kit.hizliYaylim' : 'kit.sokDalgasi', n }, { x: p.pos.x, y: 2.6, z: p.pos.z }, w.ranged ? '#ffd86b' : '#ffe9a8');
   }
 }
 
 /** Kahramanın silahına göre şarj ayarları (bkz. CHARGE). */
 function chargeSpec(p) {
   const w = p.stats.weapon;
-  return w.ranged ? CHARGE.bow : w.label === 'Mızrak' ? CHARGE.spear : CHARGE.sword;
+  return w.ranged ? CHARGE.bow : w.label === WEAPONS.spear.label ? CHARGE.spear : CHARGE.sword;
 }
 
 /**
@@ -67,7 +66,7 @@ function chargePulse(world, p, i, last = false) {
 
   if (w.ranged) { heroVolley(world, p, new T.Vector3(fx, 0, fz)); world.fx.burst(p.pos.x + fx * 0.8, 1.3, p.pos.z + fz * 0.8, '#ffd86b', 6, 0.08); return; }
 
-  if (w.label === 'Mızrak') {
+  if (w.label === WEAPONS.spear.label) {
     // Koridor dalgası: her dalga bir öncekinden uzun; hattaki herkes vurulur, en yakını kahramana çekilir.
     const r = reachOf(p), cor = r.corridor || { length: r.range * 2, width: 1.8 };
     const len = cor.length * grow, half = cor.width / 2;

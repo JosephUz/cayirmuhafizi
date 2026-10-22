@@ -20,6 +20,7 @@ import { isApp, onlineEnabled } from './platform.js';
 import { createScreens } from './screens.js';
 import { enterFullscreen, touchDevice } from './touch.js';
 import { createUI } from './ui.js';
+import { dilUygula, t } from './dil.js';
 import { clearEffects, updateEffects } from './view/effects.js';
 import { syncArrowView, syncItemView } from './view/itemview.js';
 import { createSceneFx } from './view/scenefx.js';
@@ -44,6 +45,8 @@ import { cmdBuild, cmdCancel, cmdConvert, cmdDemolish, cmdEnqueue, cmdRally, con
  * gösteri; kamera izometrik değil **3B**'dir (sahne yerleştirir) ve kadraj elemesi / birim sadeleştirmesi sahneden gelir.
  */
 export async function start(root) {
+  // Dil (josephuz dil standardı): HTML'deki data-i18n işaretleri, <html lang>, başlık ve meta açıklama.
+  dilUygula();
   const view = root.querySelector('#mg-view');
   const touch = touchDevice(), networked = onlineEnabled();
   root.classList.toggle('touch', touch);
@@ -62,7 +65,7 @@ export async function start(root) {
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
   renderer.outputColorSpace = T.SRGBColorSpace;
   view.insertBefore(renderer.domElement, view.firstChild);
-  renderer.domElement.setAttribute('aria-label', 'Ağaçlar ve tarlalarla çevrili izometrik savaş alanı');
+  renderer.domElement.setAttribute('aria-label', t('sahne.aria'));
   const isoCamera = new T.OrthographicCamera(-20, 20, 15, -15, 0.1, 160);
   const tpsCamera = new T.PerspectiveCamera(CAMERA.tps.fov, 1, 0.1, 420);
   let camera = isoCamera;
@@ -190,7 +193,8 @@ export async function start(root) {
       if (!world.replicated || !world.running || world.ended) screens.lobby(lobby);
     },
     // Katılma hatası (Böyle bir oda yok / Oda dolu / Maç başlamış): linkten gelinmişse ?oda adresten silinir.
-    onError(msg) { screens.setStatus(msg); if (!net.lobby && !world.replicated) setUrlRoom(null); },
+    // Sunucu yazıyı dil bağımsız kodla yollar (dil standardı): istemci kendi dilinde gösterir, kod tanınmazsa sunucunun yazısı.
+    onError(msg, kod) { const k = kod ? `sunucu.${kod}` : null, yazi = k && t(k) !== k ? t(k) : msg; screens.setStatus(yazi); if (!net.lobby && !world.replicated) setUrlRoom(null); },
     onStart(msg, first) { screens.show(null); if (first) macBasladi(); }, // ölçüm: yalnız gerçek başlangıç (geri bağlanma START'ı değil)
     onArena() { arenaReady(); },
     onHero(e) { world.camTarget.copy(e.pos); look.copy(e.pos); },
@@ -291,7 +295,7 @@ export async function start(root) {
   function startLocal(nick, difficulty, teamSize) {
     if (world.replicated) { net.leave(); net.clearWorld(); world.replicated = false; }
     world.net = null; world.replicated = false;
-    setupGame(world, { teamSize, difficulty, humans: [{ name: nick || 'Sen' }], seed: 1000 + Math.floor(Math.random() * 900000), light: touch });
+    setupGame(world, { teamSize, difficulty, humans: [{ name: nick || t('oyuncu.sen') }], seed: 1000 + Math.floor(Math.random() * 900000), light: touch });
     world.me = world.players[0]; world.player = world.me.hero; world.loadout = world.player.loadout;
     world.onEnd = report => { macBitti(); /* ölçüm: çevrimdışı maç bitti */ world.ui.cancelModes(true); unlockPointer(); screens.end(report, { again: () => { screens.show(null); startLocal(nick, difficulty, teamSize); }, home: () => { leaveGame(); screens.home(); } }); };
     arenaReady();
@@ -401,7 +405,7 @@ export async function start(root) {
   new ResizeObserver(resize).observe(view); resize();
 
   // Boş bir arena: giriş ekranının arkasında çayır görünsün.
-  setupGame(world, { teamSize: 1, humans: [{ name: 'Sen' }], run: false });
+  setupGame(world, { teamSize: 1, humans: [{ name: t('oyuncu.sen') }], run: false });
   world.me = world.players[0]; world.player = world.me.hero; world.loadout = world.player.loadout;
   arenaReady();
   const urlCode = gosteri || otopilot ? null : screens.urlCode();
@@ -420,13 +424,13 @@ export async function start(root) {
   } else if (!networked) screens.home('');
   else if (remembered && (!urlCode || urlCode === remembered)) {
     // Sayfa yenilendi ya da bağlantı koptu: aynı kimlikle sunucuya dönülür; oda sürüyorsa sunucu oyunu / lobiyi yeniden yollar.
-    screens.home('Odaya geri bağlanıyor…');
+    screens.home(t('durum.odayaGeriBaglaniyor'));
     world.net = net; pendingRoom = { create: false, code: remembered, rejoin: true };
     net.connect(screens.nick());
     setTimeout(() => { if (!world.replicated && !net.lobby) { net.forgetRoom(); setUrlRoom(null); if (screens.visible() === screens.els.home) screens.home(''); } }, 4000);
   } else if (urlCode) {
     // Davet linki (?oda=KOD, KPRT4 de olur): sunucu karşılar karşılamaz odaya kendiliğinden girilir (ad boşsa varsayılan ad).
-    screens.home('Odaya bağlanıyor…');
+    screens.home(t('durum.odayaBaglaniyor'));
     world.net = net; pendingRoom = { create: false, code: urlCode };
     net.connect(screens.nick());
   } else {
@@ -478,7 +482,7 @@ export async function start(root) {
     // Yapıya her dokunuşta (aynı yapı yeniden dahil) çekmece açılır: ui.select world.selTap sayacını artırır.
     if (sel && (world.selTap || 0) !== lastTap) setDrawer(true);
     lastTap = world.selTap || 0;
-    if (world.placing && world.placing !== lastPlacing) { setDrawer(false); world.ui.hint('Yeri seçmek için sahaya dokun · ⚒ vazgeç', 4); }
+    if (world.placing && world.placing !== lastPlacing) { setDrawer(false); world.ui.hint(t('ipucu.yerSec'), 4); }
     lastPlacing = world.placing;
     root.classList.toggle('placing-touch', !!world.placing);
     // İnşa: hayalet sahaya konunca (ilk dokunuş) tepesinde zıplayan ⚒: "aynı yere bir daha dokun, dikilsin".

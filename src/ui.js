@@ -5,6 +5,7 @@ import { bestProducer, queuedSoldiers, unitClass, workerTotal } from './producti
 import { damageMult } from './combat.js';
 import { reachOf, xpNeeded } from './characters.js';
 import { scoreOf } from './stats.js';
+import { t, sayi } from './dil.js';
 
 /**
  * Age of tarzı alt bant: solda komut ızgarası (seçili yapının üretimi / inşa), ortada bilgi kartı (can, üretim sırası,
@@ -23,9 +24,9 @@ export function createUI(root, world, actions) {
   let audio = null, cmdKey = '', infoKey = '', scoreKey = '', hintText = null, hintUntil = 0;
   const campLabels = new Map();
   let lastAlertPing = -99;
-  const typeOf = key => SOLDIER_TYPES.find(t => t.key === key);
-  const antiText = key => { const a = antiInfo(key); if (!a.beats.length && !a.beatenBy.length) return ''; return `Üstün: ${a.beats.join(', ') || '—'} · Zayıf: ${a.beatenBy.join(', ') || '—'}`; };
-  const antiHtml = key => { const a = antiInfo(key); if (!a.beats.length && !a.beatenBy.length) return ''; return `<div class="anti"><span class="good">⚔ Üstün: <b>${a.beats.join(', ') || '—'}</b></span> <span class="bad">☠ Zayıf: <b>${a.beatenBy.join(', ') || '—'}</b></span></div>`; };
+  const typeOf = key => SOLDIER_TYPES.find(x => x.key === key);
+  const antiText = key => { const a = antiInfo(key); if (!a.beats.length && !a.beatenBy.length) return ''; return t('anti.metin', { ust: a.beats.join(', ') || '—', zayif: a.beatenBy.join(', ') || '—' }); };
+  const antiHtml = key => { const a = antiInfo(key); if (!a.beats.length && !a.beatenBy.length) return ''; return `<div class="anti"><span class="good">⚔ ${t('anti.ustun')}: <b>${a.beats.join(', ') || '—'}</b></span> <span class="bad">☠ ${t('anti.zayif')}: <b>${a.beatenBy.join(', ') || '—'}</b></span></div>`; };
   let soundOn = true;
   try { soundOn = localStorage.getItem('cm.sound') !== 'off'; } catch { /* yok */ }
   const ping = kind => {
@@ -54,7 +55,7 @@ export function createUI(root, world, actions) {
      * Kapalı düğmeye basmak sessiz kalmaz: neyin eksik olduğunu alt bandın üstüne yazar. Sebep, düğmeler her
      * tazelendiğinde `data-why` alanına yazılır (bkz. refreshCmd), böylece ipucunu beklemeye gerek kalmaz.
      */
-    if (b.classList.contains('off')) { ui.hint(d.why || 'Şu an yapılamaz', 2.2); ping('error'); b.blur(); return; }
+    if (b.classList.contains('off')) { ui.hint(d.why || t('ui.yapilamaz'), 2.2); ping('error'); b.blur(); return; }
     if (d.soldier) ui.requestSoldier(d.soldier, e.ctrlKey ? QUEUE.batchCtrl : e.shiftKey ? QUEUE.batchShift : 1);
     else if (d.build) ui.startPlacing(d.build);
     else if (d.demolish) ui.demolish();
@@ -101,9 +102,9 @@ export function createUI(root, world, actions) {
     if (!p || !p.alive) return true;
     return inCircle(s.pos.x, s.pos.z) ? heroInBase() : Math.hypot(p.pos.x - s.pos.x, p.pos.z - s.pos.z) <= BUILD.heroRadius + (s.radius || 1);
   };
-  const outOfReach = s => (inCircle(s.pos.x, s.pos.z) ? 'Sancak çemberinin dışındasın: yapıları yönetmek için sancağına dön' : 'Kuleye yaklaş: uzaktaki kule seçilemez');
+  const outOfReach = s => (inCircle(s.pos.x, s.pos.z) ? t('ui.cemberDisi') : t('ui.kuleyeYaklas'));
   const heroNearBanner = () => { const p = world.player, b = world.me && world.me.banner; return Boolean(p && b && p.alive && b.alive && Math.hypot(p.pos.x - b.pos.x, p.pos.z - b.pos.z) <= HERO_UPGRADE.range); };
-  const heroTypeLabel = p => { const t = SOLDIER_TYPES.find(x => !x.worker && x.weapon === p.loadout.weapon && x.shield === p.loadout.shield && x.horse === p.loadout.horse); return t ? t.label : 'Kılıçlı'; };
+  const heroTypeLabel = p => { const tur = SOLDIER_TYPES.find(x => !x.worker && x.weapon === p.loadout.weapon && x.shield === p.loadout.shield && x.horse === p.loadout.horse); return tur ? tur.label : t('birim.sword.ad'); };
 
   // ---- Komut ızgarası (5 x 3)
   const SLOT_COUNT = 15, SLOT_CLOSE = 4, SLOT_DEMOLISH = 14;
@@ -114,31 +115,31 @@ export function createUI(root, world, actions) {
     const s = sel(), out = [];
     if (s.structure && s.structure.kind === 'banner' && world.heroMenu) {
       const p = world.player;
-      for (const t of SOLDIER_TYPES.filter(x => !x.worker && !x.siege)) {
-        const same = p.loadout.weapon === t.weapon && p.loadout.shield === t.shield && p.loadout.horse === t.horse;
-        const cc = heroConvertCost(t, world.limits);
-        out.push({ icon: t.icon, label: t.label, cost: cc, data: { herotype: t.key }, active: same, title: same ? `Şu anki türün: ${t.label}` : `${t.label} ol (${cc.toLocaleString('tr-TR')} altın). Seviyen ve exp'in korunur.` });
+      for (const tur of SOLDIER_TYPES.filter(x => !x.worker && !x.siege)) {
+        const same = p.loadout.weapon === tur.weapon && p.loadout.shield === tur.shield && p.loadout.horse === tur.horse;
+        const cc = heroConvertCost(tur, world.limits);
+        out.push({ icon: tur.icon, label: tur.label, cost: cc, data: { herotype: tur.key }, active: same, title: same ? t('ui.suankiTur', { ad: tur.label }) : t('ui.turOl', { ad: tur.label, altin: sayi(cc) }) });
       }
-      out.push({ icon: '↩', label: 'Geri', data: { heromenu: 1 }, title: 'Sancak menüsüne dön' });
-      out.push({ icon: '✖', label: 'Kapat', data: { close: 1 }, title: 'Menüyü ve seçimi kapat (Esc)', at: SLOT_CLOSE });
+      out.push({ icon: '↩', label: t('genel.geri'), data: { heromenu: 1 }, title: t('ui.sancakMenusu') });
+      out.push({ icon: '✖', label: t('genel.kapat'), data: { close: 1 }, title: t('ui.kapat.title'), at: SLOT_CLOSE });
       return out;
     }
     if (s.structure) {
       const st = s.structure, spec = BUILDINGS[st.kind];
-      if (!st.ready) out.push({ icon: '🔨', label: 'İnşa', title: 'İnşa ediliyor', disabled: true });
+      if (!st.ready) out.push({ icon: '🔨', label: t('ui.insa'), title: t('ui.insaEdiliyor'), disabled: true });
       else {
-        for (const k of spec.produces) { const t = typeOf(k); out.push({ icon: t.icon, label: t.label, cost: t.cost, food: t.food, wood: t.wood, data: { soldier: t.key }, title: `${t.label}: ${t.cost} altın${t.food ? ` + ${t.food} yiyecek` : ''}${t.wood ? ` + ${t.wood} odun` : ''}, ${t.train} sn${antiText(t.key) ? ` · ${antiText(t.key)}` : ''} · Shift: ${QUEUE.batchShift}, Ctrl: ${QUEUE.batchCtrl} tane` }); }
-        if (st.kind === 'banner') out.push({ icon: '★', label: 'Geliştir', data: { heromenu: 1 }, title: 'Kahraman türünü değiştir (kahraman sancağa yakın olmalı)' });
+        for (const k of spec.produces) { const u = typeOf(k); out.push({ icon: u.icon, label: u.label, cost: u.cost, food: u.food, wood: u.wood, data: { soldier: u.key }, title: `${u.label}: ${t('ui.altin', { n: u.cost })}${u.food ? t('ui.artiYiyecek', { n: u.food }) : ''}${u.wood ? t('ui.artiOdun', { n: u.wood }) : ''}, ${t('ui.saniye', { n: u.train })}${antiText(u.key) ? ` · ${antiText(u.key)}` : ''} · ${t('ui.toplu', { a: QUEUE.batchShift, b: QUEUE.batchCtrl })}` }); }
+        if (st.kind === 'banner') out.push({ icon: '★', label: t('ui.gelistir'), data: { heromenu: 1 }, title: t('ui.gelistir.title') });
       }
     } else {
-      for (const k of BUILDINGS.banner.builds) { const b = BUILDINGS[k]; out.push({ icon: b.icon, label: b.label, cost: b.cost, wood: b.wood, data: { build: k }, active: world.placing === k, title: `${b.label}: ${b.desc}, ${b.wood} odun, ${b.buildTime} sn (kahramanın 14 birim çevresine)` }); }
+      for (const k of BUILDINGS.banner.builds) { const b = BUILDINGS[k]; out.push({ icon: b.icon, label: b.label, cost: b.cost, wood: b.wood, data: { build: k }, active: world.placing === k, title: t('ui.binaTitle', { ad: b.label, aciklama: b.desc, odun: b.wood, sure: b.buildTime }) }); }
     }
     if (s.structure && s.structure.owner === world.me && s.structure.kind !== 'banner') {
       const tower = s.structure.kind === 'tower';
-      out.push({ icon: '💀', label: 'Yık', at: SLOT_DEMOLISH, data: { demolish: 1 }, title: tower ? 'Seçili kuleyi yık: sınırdan düşer, enkazından odun çıkar' : 'Seçili binayı yık: sınırdan düşer, enkazından odun çıkar' });
+      out.push({ icon: '💀', label: t('ui.yik'), at: SLOT_DEMOLISH, data: { demolish: 1 }, title: tower ? t('ui.yikKule') : t('ui.yikBina') });
     }
-    if (world.placing) out.push({ icon: '✖', label: 'Vazgeç', data: { cancel: 1 }, title: 'Açık modu bırak' });
-    else if (s.structure) out.push({ icon: '✖', label: 'Kapat', data: { close: 1 }, title: 'Seçimi ve menüyü kapat (Esc)', at: SLOT_CLOSE });
+    if (world.placing) out.push({ icon: '✖', label: t('ui.vazgec'), data: { cancel: 1 }, title: t('ui.vazgec.title') });
+    else if (s.structure) out.push({ icon: '✖', label: t('genel.kapat'), data: { close: 1 }, title: t('ui.kapatSecim.title'), at: SLOT_CLOSE });
     return out;
   }
   function renderCmd() {
@@ -156,34 +157,34 @@ export function createUI(root, world, actions) {
     const eco = world.me.eco, b = busy();
     // Kapalılık sebebi düğmede taşınır: tıklayınca yazılır (yukarıdaki click), fareyle beklemeye gerek yok.
     const off = (el, why) => { el.classList.toggle('off', Boolean(why)); el.dataset.why = why || ''; };
-    const busyWhy = () => (heroDown() ? 'Kahraman yerde: doğmasını bekle' : world.paused ? 'Oyun duraklatıldı' : world.ended ? 'Oyun bitti' : 'Şu an komut verilemez');
-    const gold = (n, what) => `Yetersiz altın: ${what} ${n.toLocaleString('tr-TR')} altın (sende ${Math.floor(eco.gold).toLocaleString('tr-TR')})`;
+    const busyWhy = () => (heroDown() ? t('ui.kahramanYerde') : world.paused ? t('ui.duraklatildi') : world.ended ? t('ui.oyunBitti') : t('ui.komutYok'));
+    const gold = (n, what) => t('ui.yetersizAltin', { ad: what, n: sayi(n), var: sayi(Math.floor(eco.gold)) });
     const home = heroInBase();
     for (const el of els.cmd.querySelectorAll('button[data-soldier]')) {
-      const t = typeOf(el.dataset.soldier);
-      off(el, b ? busyWhy() : !home ? 'Asker yalnızca sancak çemberinin içinde basılır: sancağına dön' : eco.gold < t.cost ? gold(t.cost, t.label) : eco.food < t.food ? `Yetersiz yiyecek: ${t.label} ${t.food} yiyecek (sende ${Math.floor(eco.food)})` : '');
+      const u = typeOf(el.dataset.soldier);
+      off(el, b ? busyWhy() : !home ? t('ui.askerCember') : eco.gold < u.cost ? gold(u.cost, u.label) : eco.food < u.food ? t('ui.yetersizYiyecek', { ad: u.label, n: u.food, var: Math.floor(eco.food) }) : '');
     }
     for (const el of els.cmd.querySelectorAll('button[data-build]')) {
       const kind = el.dataset.build, spec = BUILDINGS[kind], tower = kind === 'tower';
       const cap = tower ? world.limits.towers : world.limits.buildings;
       const capped = structureCount(world, world.me, tower) >= cap;
       off(el, b ? busyWhy()
-        : !tower && !home ? 'Bina yalnızca sancak çemberinin içinde dikilir: sancağına dön'
-        : capped ? (tower ? `Kule sınırı dolu (en fazla ${cap}) · birini yıkabilirsin` : `Bina sınırı dolu (en fazla ${cap}) · birini yıkabilirsin`)
+        : !tower && !home ? t('ui.binaCember')
+        : capped ? (tower ? t('ui.kuleSiniri', { n: cap }) : t('ui.binaSiniri', { n: cap }))
         : eco.gold < spec.cost ? gold(spec.cost, spec.label)
-        : eco.wood < spec.wood ? `Yetersiz odun: ${spec.label} ${spec.wood} odun (sende ${Math.floor(eco.wood)})` : '');
+        : eco.wood < spec.wood ? t('ui.yetersizOdun', { ad: spec.label, n: spec.wood, var: Math.floor(eco.wood) }) : '');
     }
     const hn = heroNearBanner();
     for (const el of els.cmd.querySelectorAll('button[data-herotype]')) {
-      const t = typeOf(el.dataset.herotype), cc = heroConvertCost(t, world.limits);
-      off(el, b ? busyWhy() : !hn ? 'Kahraman sancağa yaklaşmalı' : eco.gold < cc ? gold(cc, t.label) : '');
+      const u = typeOf(el.dataset.herotype), cc = heroConvertCost(u, world.limits);
+      off(el, b ? busyWhy() : !hn ? t('komut.sancagaYaklas') : eco.gold < cc ? gold(cc, u.label) : '');
     }
   }
 
   // ---- Bilgi kartı (yalnızca sayılar; tuş anlatımı kısayol penceresinde)
   const bar = (hp, max, cls = '') => `<div class="bar ${cls}"><i data-bar style="width:${Math.max(0, Math.min(100, hp / max * 100))}%"></i></div>`;
-  const unitStats = e => { const w = e.stats.weapon; if (e.isSiege) return `Kuleye ${Math.round(w.damage * TOWER.siegeDamageMult)} · Menzil ${w.range} · ${w.cooldown} sn'de bir`; const r = reachOf(e), dm = damageMult(e);
-    return `${w.ranged ? 'Ok' : 'Vuruş'} ${Math.round(w.damage * dm)}${dm > 1.001 ? ` (x${dm.toFixed(2)})` : ''} · Menzil ${r.range.toFixed(1)} · Hız ${e.stats.speed.toFixed(1)}${e.loadout.shield ? ' · Kalkan' : ''}${antiHtml(e.typeKey || loadoutKey(e.loadout))}`; };
+  const unitStats = e => { const w = e.stats.weapon; if (e.isSiege) return t('ui.kuleye', { h: Math.round(w.damage * TOWER.siegeDamageMult), m: w.range, cd: w.cooldown }); const r = reachOf(e), dm = damageMult(e);
+    return `${w.ranged ? t('ui.ok') : t('ui.vurus')} ${Math.round(w.damage * dm)}${dm > 1.001 ? ` (x${dm.toFixed(2)})` : ''} · ${t('ui.menzil', { n: r.range.toFixed(1) })} · ${t('ui.hiz', { n: e.stats.speed.toFixed(1) })}${e.loadout.shield ? ` · ${t('ui.kalkan')}` : ''}${antiHtml(e.typeKey || loadoutKey(e.loadout))}`; };
   function renderInfo() {
     const s = sel(), p = world.player;
     let key, html;
@@ -193,33 +194,33 @@ export function createUI(root, world, actions) {
       const many = grp.length > 1 ? grp : null;
       const totalQ = many ? many.reduce((a, o) => a + o.queue.length, 0) : st.queue.length;
       key = `S${st.id}|${st.ready}|${st.queue.join(',')}|${many ? many.length + ':' + totalQ : ''}`;
-      html = `<div class="card"><div class="ico">${spec.icon}</div><div class="body"><h3>${many ? `${many.length} × ${spec.label}` : spec.label}</h3>${bar(st.hp, st.maxHp)}<div class="line"><span data-hp>♥ ${Math.ceil(st.hp)}/${st.maxHp}</span>${st.ready ? '' : `<span data-build>İnşa %${Math.round((1 - st.buildTimer / st.buildTime) * 100)}</span>`}${st.kind === 'tower' ? `<span>Menzil ${TOWER.range}</span>` : ''}${st.kind === 'banner' ? (bannerShielded(world, st) ? '<span>🛡 kalkanlı</span>' : '<span>⚠ kule yok</span>') : ''}</div>`;
+      html = `<div class="card"><div class="ico">${spec.icon}</div><div class="body"><h3>${many ? `${many.length} × ${spec.label}` : spec.label}</h3>${bar(st.hp, st.maxHp)}<div class="line"><span data-hp>♥ ${Math.ceil(st.hp)}/${st.maxHp}</span>${st.ready ? '' : `<span data-build>${t('ui.insaYuzde', { n: Math.round((1 - st.buildTimer / st.buildTime) * 100) })}</span>`}${st.kind === 'tower' ? `<span>${t('ui.menzil', { n: TOWER.range })}</span>` : ''}${st.kind === 'banner' ? (bannerShielded(world, st) ? `<span>${t('ui.kalkanli')}</span>` : `<span>${t('ui.kuleYok')}</span>`) : ''}</div>`;
       if (st.ready && spec.produces.length) {
-        html += `<div class="queue">${st.queue.map((k, i) => `<button type="button" class="q" data-q="${i}" title="${typeOf(k).label} · iptal için tıkla"><span>${typeOf(k).icon}</span>${i === 0 ? '<i class="prog" data-prog></i>' : ''}</button>`).join('')}<span class="qn" data-qn>${st.queue.length}/${QUEUE.max}</span>${many ? `<span class="qn">· ${many.length} bina, sırada ${totalQ}</span>` : ''}${st.queue.length ? `<span class="qn"><span data-left></span></span>` : ''}</div>`;
+        html += `<div class="queue">${st.queue.map((k, i) => `<button type="button" class="q" data-q="${i}" title="${t('ui.iptal', { ad: typeOf(k).label })}"><span>${typeOf(k).icon}</span>${i === 0 ? '<i class="prog" data-prog></i>' : ''}</button>`).join('')}<span class="qn" data-qn>${st.queue.length}/${QUEUE.max}</span>${many ? `<span class="qn">${t('ui.grupSira', { n: many.length, q: totalQ })}</span>` : ''}${st.queue.length ? `<span class="qn"><span data-left></span></span>` : ''}</div>`;
       }
       html += '</div></div>';
     } else if (p) {
       const own = world.me.banner, shielded = own && bannerShielded(world, own);
       const towers = world.structures.filter(t => t.alive && t.kind === 'tower' && t.owner === world.me).length;
       key = `H|${p.level}|${p.stats.maxHp}|${heroTypeLabel(p)}|${own ? Math.ceil(own.hp) : 0}|${towers}`;
-      html = `<div class="card"><div class="ico">★</div><div class="body"><h3>Kahraman · ${heroTypeLabel(p)} · Sv ${p.level}</h3>${bar(p.hp, p.stats.maxHp)}<div class="line"><span data-hp>♥ ${Math.ceil(p.hp)}/${p.stats.maxHp}</span><span>${unitStats(p)}</span></div><div class="line"><span data-banner>⚑ Sancak ${own ? `${Math.ceil(own.hp)}/${own.maxHp}` : '—'}</span><span>${shielded ? `🛡 ${towers} kule` : '⚠ kule yok'}</span><span>★ ${Math.floor(p.xp || 0)}/${xpNeeded(p.level)} exp</span></div>${own ? `<div class="bar banner"><i data-bbar style="width:${Math.max(0, Math.min(100, own.hp / own.maxHp * 100))}%"></i></div>` : ''}</div></div>`;
+      html = `<div class="card"><div class="ico">★</div><div class="body"><h3>${t('ui.kahramanBaslik', { tur: heroTypeLabel(p), sv: p.level })}</h3>${bar(p.hp, p.stats.maxHp)}<div class="line"><span data-hp>♥ ${Math.ceil(p.hp)}/${p.stats.maxHp}</span><span>${unitStats(p)}</span></div><div class="line"><span data-banner>${t('ui.sancakCan', { can: own ? `${Math.ceil(own.hp)}/${own.maxHp}` : '—' })}</span><span>${shielded ? t('ui.kuleSayi', { n: towers }) : t('ui.kuleYok')}</span><span>${t('ui.exp', { a: Math.floor(p.xp || 0), b: xpNeeded(p.level) })}</span></div>${own ? `<div class="bar banner"><i data-bbar style="width:${Math.max(0, Math.min(100, own.hp / own.maxHp * 100))}%"></i></div>` : ''}</div></div>`;
     } else { key = 'N'; html = ''; }
     if (key !== infoKey) { infoKey = key; els.info.innerHTML = html; return; }
     const st = s.structure;
     if (st) {
       const hp = els.info.querySelector('[data-hp]'); if (hp) hp.textContent = `♥ ${Math.ceil(st.hp)}/${st.maxHp}`;
       const b = els.info.querySelector('[data-bar]'); if (b) b.style.width = `${Math.max(0, st.hp / st.maxHp * 100)}%`;
-      const bd = els.info.querySelector('[data-build]'); if (bd) bd.textContent = `İnşa %${Math.round((1 - st.buildTimer / st.buildTime) * 100)}`;
+      const bd = els.info.querySelector('[data-build]'); if (bd) bd.textContent = t('ui.insaYuzde', { n: Math.round((1 - st.buildTimer / st.buildTime) * 100) });
       if (st.queue.length) {
-        const t = typeOf(st.queue[0]);
-        const pr = els.info.querySelector('[data-prog]'); if (pr) pr.style.height = `${(1 - st.progress / t.train) * 100}%`;
-        const lf = els.info.querySelector('[data-left]'); if (lf) lf.textContent = `${Math.max(0, t.train - st.progress).toFixed(1)} sn`;
+        const u = typeOf(st.queue[0]);
+        const pr = els.info.querySelector('[data-prog]'); if (pr) pr.style.height = `${(1 - st.progress / u.train) * 100}%`;
+        const lf = els.info.querySelector('[data-left]'); if (lf) lf.textContent = t('ui.saniye', { n: Math.max(0, u.train - st.progress).toFixed(1) });
       }
     } else if (p) {
       const hp = els.info.querySelector('[data-hp]'); if (hp) hp.textContent = `♥ ${Math.ceil(p.hp)}/${p.stats.maxHp}`;
       const b = els.info.querySelector('[data-bar]'); if (b) b.style.width = `${Math.max(0, p.hp / p.stats.maxHp * 100)}%`;
       const own = world.me.banner;
-      const bh = els.info.querySelector('[data-banner]'); if (bh && own) bh.textContent = `⚑ Sancak ${Math.ceil(own.hp)}/${own.maxHp}`;
+      const bh = els.info.querySelector('[data-banner]'); if (bh && own) bh.textContent = t('ui.sancakCan', { can: `${Math.ceil(own.hp)}/${own.maxHp}` });
       const bb = els.info.querySelector('[data-bbar]'); if (bb && own) bb.style.width = `${Math.max(0, own.hp / own.maxHp * 100)}%`;
     }
   }
@@ -231,7 +232,7 @@ export function createUI(root, world, actions) {
     const key = rows.map(r => `${r.p.id}:${r.sc}:${r.p.online === false ? 'x' : ''}`).join('|');
     if (key === scoreKey) return;
     scoreKey = key;
-    els.scoreList.innerHTML = rows.map(r => `<li class="${r.p === world.me ? 'me' : ''} ${r.p.faction}${r.p.online === false ? ' off' : ''}"><i class="dot" style="background:${r.p.color}"></i><span class="n">${r.p.name}${r.p.human ? '' : '<small>bot</small>'}</span><b>${Math.round(r.sc).toLocaleString('tr-TR')}</b></li>`).join('');
+    els.scoreList.innerHTML = rows.map(r => `<li class="${r.p === world.me ? 'me' : ''} ${r.p.faction}${r.p.online === false ? ' off' : ''}"><i class="dot" style="background:${r.p.color}"></i><span class="n">${r.p.name}${r.p.human ? '' : '<small>bot</small>'}</span><b>${sayi(Math.round(r.sc))}</b></li>`).join('');
   }
 
   const ui = {
@@ -251,10 +252,10 @@ export function createUI(root, world, actions) {
     /** Seni öldüren birimin / yapının adı (ölüm kamerası için; bkz. main.js killcam). */
     killerLabel(o) {
       if (!o) return '';
-      if (o.kind) return (BUILDINGS[o.kind] && BUILDINGS[o.kind].label) || 'yapı';
-      if (o.isPlayer || o.isHero) return 'rakip kahraman';
-      const t = SOLDIER_TYPES.find(x => x.key === (o.typeKey || loadoutKey(o.loadout)));
-      return t ? t.label : 'asker';
+      if (o.kind) return (BUILDINGS[o.kind] && BUILDINGS[o.kind].label) || t('olum.yapi');
+      if (o.isPlayer || o.isHero) return t('olum.rakipKahraman');
+      const tur = SOLDIER_TYPES.find(x => x.key === (o.typeKey || loadoutKey(o.loadout)));
+      return tur ? tur.label : t('olum.asker');
     },
     updateRespawn() {
       const el = root.querySelector('#mg-respawn'); if (!el) return;
@@ -270,11 +271,11 @@ export function createUI(root, world, actions) {
         el.dataset.n = key;
         if (kc) {
           const who = kc.target ? ui.killerLabel(kc.target) : '';
-          el.querySelector('.sub').textContent = who ? `Seni ${who} öldürdü` : `${p.deaths}. ölüm`;
+          el.querySelector('.sub').textContent = who ? t('olum.seniOldurdu', { kim: who }) : t('olum.kacinci', { n: p.deaths });
         } else {
           num.textContent = n; num.classList.toggle('final', n <= 1);
           num.style.animation = 'none'; void num.offsetWidth; num.style.animation = '';
-          el.querySelector('.sub').textContent = `saniye sonra sancakta doğarsın · ${p.deaths}. ölüm`;
+          el.querySelector('.sub').textContent = t('olum.dogarsin', { n: p.deaths });
         }
       }
     },
@@ -298,9 +299,9 @@ export function createUI(root, world, actions) {
         if (!show) { el.style.display = 'none'; continue; }
         const s = world.toScreen({ x: camp.pos.x, y: camp.alive ? 5.4 : 2.2, z: camp.pos.z });
         if (!s || !isFinite(s.x)) { el.style.display = 'none'; continue; }
-        const t = camp.alive ? camp.waveTimer : camp.respawnTimer;
-        const time = `${Math.floor(Math.max(0, t) / 60)}:${String(Math.floor(Math.max(0, t) % 60)).padStart(2, '0')}`;
-        el.textContent = camp.alive ? `⛺ akın ${time} ${camp.raidSide === world.side ? '→ takımına' : '→ rakibe'}` : `🔥 yeniden kuruluyor ${time}`;
+        const kalan = camp.alive ? camp.waveTimer : camp.respawnTimer;
+        const time = `${Math.floor(Math.max(0, kalan) / 60)}:${String(Math.floor(Math.max(0, kalan) % 60)).padStart(2, '0')}`;
+        el.textContent = camp.alive ? t('kamp.akin', { sure: time, yon: camp.raidSide === world.side ? t('kamp.takimina') : t('kamp.rakibe') }) : t('kamp.kuruluyor', { sure: time });
         el.className = `camp-label${camp.alive ? (camp.raidSide === world.side ? ' danger' : '') : ' ruin'}`;
         el.style.display = 'block'; el.style.left = `${s.x}px`; el.style.top = `${s.y}px`;
       }
@@ -308,6 +309,8 @@ export function createUI(root, world, actions) {
     /** Kahramanın üstünde beliren "+N kaynak / +N exp" yazısı. */
     float(text, pos, color = '#ffd12e') {
       if (!els.floats || !world.toScreen) return;
+      // Sunucudan / simülasyondan gelen yazı dil bağımsız kod olabilir: { kod, ad?, ...değişkenler } (dil standardı).
+      if (text && typeof text === 'object') text = t(text.kod, { ...text, ad: text.ad ? t(text.ad) : '' });
       const s = world.toScreen(pos);
       if (!s || !isFinite(s.x) || !isFinite(s.y)) return;
       const el = document.createElement('span');
@@ -353,7 +356,7 @@ export function createUI(root, world, actions) {
     startPlacing(kind) {
       if (deadBlock() || busy()) return;
       const spec = BUILDINGS[kind]; if (!spec || kind === 'banner') return;
-      if (world.me.eco.gold < spec.cost || world.me.eco.wood < spec.wood) { ping('error'); ui.hint(`Yetersiz odun: ${spec.label} ${spec.wood} odun`, 1.8); return; }
+      if (world.me.eco.gold < spec.cost || world.me.eco.wood < spec.wood) { ping('error'); ui.hint(t('insa.yetersizOdun', { ad: spec.label, n: spec.wood }), 1.8); return; }
       world.placing = kind; ui.hint(null);
       ui.update();
     },
@@ -396,9 +399,9 @@ export function createUI(root, world, actions) {
     /** Üretim emri (count kadar; Shift 5, Ctrl 10): seçili binalara ya da sırası en kısa binaya. */
     requestSoldier(key, count = 1) {
       if (deadBlock() || busy()) return;
-      const t = typeOf(key); if (!t) return;
-      const group = (sel().structures || []).filter(s => s.alive && s.ready && s.kind === t.building);
-      const pick = () => (group.length ? group.reduce((a, b) => (b.queue.length < a.queue.length ? b : a)) : bestProducer(world, world.me, t.building));
+      const u = typeOf(key); if (!u) return;
+      const group = (sel().structures || []).filter(s => s.alive && s.ready && s.kind === u.building);
+      const pick = () => (group.length ? group.reduce((a, b) => (b.queue.length < a.queue.length ? b : a)) : bestProducer(world, world.me, u.building));
       let n = 0, err = null, building = pick();
       for (let i = 0; i < count; i++) {
         building = pick() || building;
@@ -428,8 +431,8 @@ export function createUI(root, world, actions) {
       const foes = world.players.filter(q => q.faction !== world.side), allies = world.players.filter(q => q.faction === world.side && q !== world.me);
       if (p) {
         els.health.textContent = `♥ ${Math.ceil(p.hp)}/${p.stats.maxHp}`;
-        els.level.textContent = `★ ${p.level} · ${Math.floor(p.xp || 0)}/${xpNeeded(p.level)} exp`;
-        els.level.title = `Seviye ${p.level} · ${Math.floor(p.xp || 0)}/${xpNeeded(p.level)} exp (asker ${LEVEL.xp.soldier}, işçi ${LEVEL.xp.worker}, mancınık ${LEVEL.xp.siege}, kahraman ${LEVEL.xp.hero}) · ${p.heroKills} öldürme · ${DIFFICULTY[world.difficulty].label}`;
+        els.level.textContent = t('hud.seviye', { sv: p.level, a: Math.floor(p.xp || 0), b: xpNeeded(p.level) });
+        els.level.title = t('hud.seviye.detay', { sv: p.level, a: Math.floor(p.xp || 0), b: xpNeeded(p.level), as: LEVEL.xp.soldier, is: LEVEL.xp.worker, mn: LEVEL.xp.siege, kh: LEVEL.xp.hero, k: p.heroKills, zorluk: DIFFICULTY[world.difficulty].label });
       }
       els.gold.textContent = `◉ ${eco.gold}`;
       els.wood.textContent = `🪵 ${eco.wood} 🌾 ${eco.food}`;
@@ -444,7 +447,7 @@ export function createUI(root, world, actions) {
         els.allies.hidden = !allies.length;
         if (allies.length) {
           els.allies.textContent = `🤝 ${allies.length} · ⚔ ${c.allies}`;
-          els.allies.title = allies.map(q => `${q.name}${q.human ? '' : ' (bot)'} ⚔ ${c.allyArmy[q.id] || 0}${q.banner && q.banner.alive ? '' : ' (sancağı yıkık)'}`).join(' · ');
+          els.allies.title = allies.map(q => `${q.name}${q.human ? '' : ' (bot)'} ⚔ ${c.allyArmy[q.id] || 0}${q.banner && q.banner.alive ? '' : t('hud.muttefikSancakYikik')}`).join(' · ');
         }
       }
       els.score.hidden = !world.running;
@@ -452,7 +455,7 @@ export function createUI(root, world, actions) {
       renderScore();
       renderCmd(); renderInfo();
       root.classList.toggle('placing', Boolean(world.placing));
-      if (els.cam) { els.cam.classList.toggle('active', world.cam === 'tps'); els.cam.textContent = world.cam === 'tps' ? '🎥 İzometrik' : '🎥 Omuz üstü'; }
+      if (els.cam) { els.cam.classList.toggle('active', world.cam === 'tps'); els.cam.textContent = world.cam === 'tps' ? t('kamera.izo') : t('kamera.omuz'); }
     },
   };
   return ui;

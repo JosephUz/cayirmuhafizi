@@ -2,6 +2,7 @@ import { distXZ, yawFromDir } from './builders.js';
 import { applyLevelUp } from './characters.js';
 import { heroReach } from './combat.js';
 import { CHARGE, HERO_UPGRADE, OTOPILOT as O, POSITIONS } from './config.js';
+import { t } from './dil.js';
 import { spawnUnit } from './economy.js';
 import { isApp } from './platform.js';
 import { createBotAi, nearestEnemyBanner } from './players.js';
@@ -53,7 +54,7 @@ export function createOtopilot(world, { arenaReady }) {
     const teamSize = O.takimlar[macNo % O.takimlar.length];
     const loadout = { ...O.loadoutlar[macNo % O.loadoutlar.length] };
     macNo++;
-    setupGame(world, { teamSize, difficulty: O.difficulty, humans: [{ name: 'Kahraman' }], loadout, seed: 1000 + Math.floor(Math.random() * 900000) });
+    setupGame(world, { teamSize, difficulty: O.difficulty, humans: [{ name: t('oyuncu.kahraman') }], loadout, seed: 1000 + Math.floor(Math.random() * 900000) });
     world.me = world.players[0]; world.player = world.me.hero; world.loadout = world.player.loadout;
     // Oyuncunun koltuğu insandır (kahraman girdiyle oynanır) ama komutan kararlarını bot verir: bu bayrak
     // updateBots'un insan koltuğunu atlamasını engeller, `ai` de o botun karar durumudur (bkz. economy.js).

@@ -54,9 +54,9 @@ export function reachOf(e) {
   if (w.ranged) return { range: Math.min(w.range * bowRangeMult(e), cap), arc: w.arc };
   const range = Math.min(w.range * levelReachMult(e), cap);
   // Kılıçlı kahraman çevresine 360° vurur; mızraklı kahraman yay değil, önüne koridor açar (bkz. KIT.spear.corridorLen / Width).
-  if (w.label === 'Kılıç') return { range, arc: Math.PI * 2 };
+  if (w.label === WEAPONS.sword.label) return { range, arc: Math.PI * 2 };
   // Koridorun boyu da tavanı aşmaz: mızraklı kahramanın gerçek vuruş mesafesi koridorun uzunluğudur.
-  if (w.label === 'Mızrak') return { range, arc: w.arc, corridor: { length: Math.min(range * KIT.spear.corridorLen, cap), width: KIT.spear.corridorWidth } };
+  if (w.label === WEAPONS.spear.label) return { range, arc: w.arc, corridor: { length: Math.min(range * KIT.spear.corridorLen, cap), width: KIT.spear.corridorWidth } };
   return { range, arc: Math.min(Math.PI * 1.9, w.arc * levelArcMult(e)) };
 }
 
