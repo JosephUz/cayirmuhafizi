@@ -1,12 +1,16 @@
 # Çayır Muhafızı
 
+> **EN:** A full-screen isometric field battle that runs in the browser (Three.js), inspired by Age of Empires 2 and DOTA: build, train an army, lead your hero; play solo against bots or online co-op / PvP.
+>
+> **TR:** Tarayıcıda Three.js ile çalışan, Age of Empires 2 + DOTA esintili, tam ekran izometrik kır savaşı: üret, ordu kur, kahramanını yönet; botlara karşı tek başına ya da çevrim içi co-op / PvP.
+
+**Play / Oyna:** https://cayirmuhafizi.josephuz.com · **Source / Kaynak:** https://github.com/JosephUz/cayirmuhafizi
+
 Three.js ile tarayıcıda çalışan, **Age of Empires 2 + DOTA** esintili, tam ekran izometrik kır savaşı.
 Dövüş hissi (iki hızlı fizik, koni içi vuruş, prosedürel animasyon) üstüne Age of tarzı alt bant, üretim kuyruğu,
 savaş sisi, 2B minimap, yapı inşası, ordu emirleri, birim üstünlükleri, rakip kahraman, **takım oyunu** (1v1 … 5v5,
 botlarla), **çevrim içi co-op ve PvP** (oda koduyla takım başı en çok 5 insan; boş koltuklarda bot; sunucu otoriter)
 ve maç sonu **karne**.
-
-**Oyna**: https://cayirmuhafizi.josephuz.com · **Kaynak**: https://github.com/JosephUz/cayirmuhafizi
 
 ## Başlatma
 
@@ -803,3 +807,18 @@ Simülasyon ile görünüm ayrıdır: `src/world.js` ve ona bağlı modüller re
 
 Oyun dünyası tarayıcı konsolunda `__meadow` olarak erişilebilir; tek başına oyunda `__meadow.simulate(30)` oyunu
 30 saniye ileri sarar (hata ayıklama için). Sunucuda `/health` oda ve bağlantı sayısını verir. Kayıt sistemi yoktur.
+
+## Lisans / License
+
+- **Kod:** [MIT](LICENSE), Copyright (c) 2026 JosephUz. Kodu kullanabilir, değiştirebilir, dağıtabilirsin.
+- **MIT dışında, tüm hakları saklıdır:** "Çayır Muhafızı" ve "JosephUz" adları; `muzik/` altındaki müzikler; logo ve simgeler (`store/`, `android/app/src/main/res/`). Ayrıntı: [TRADEMARKS.md](TRADEMARKS.md). Müzik için `muzik/LISANS.txt`.
+- **Fork'lar** başka bir ad ve logo kullanmalı, resmî sürüm olduğunu ima etmemeli.
+- **Üçüncü taraf:** [three.js](https://github.com/mrdoob/three.js) ve [ws](https://github.com/websockets/ws) npm bağımlılığıdır (ikisi de MIT), depoda değil, kendi lisanslarıyla gelir. Müziklerdeki enstrüman örnekleri VSCO 2 Community Edition (CC0).
+
+> **In English:** The code is licensed under [MIT](LICENSE). The name "Çayır Muhafızı", the name "JosephUz", the music in `muzik/`, the logo and icons (`store/`, `android/app/src/main/res/`) are **not** covered by MIT and are all rights reserved; see [TRADEMARKS.md](TRADEMARKS.md). Forks must use a different name and logo.
+
+## Katkı / Contributing
+
+Hata bildirimi, öneri ve pull request'e açığız. Büyük bir değişiklikten önce bir [issue](https://github.com/JosephUz/cayirmuhafizi/issues) açıp konuşalım; oyunun dengesi ve yönü JosephUz'da. Kod ve oyun Türkçe: değişken, işlev ve mesaj adları Türkçe, çevresindeki kodun düzenine uy; `npm test` geçmeli. Gönderdiğin katkı bu deponun MIT lisansıyla yayımlanır. Müzik, ses ya da görsel eklemeden önce issue'da sor. Güvenlik açıklarını issue yerine [SECURITY.md](SECURITY.md)'deki yoldan bildir.
+
+> **In English:** Issues and pull requests are welcome; please open an issue before large changes. Contributions are accepted under the MIT license of this repository. Report security issues privately as described in [SECURITY.md](SECURITY.md).

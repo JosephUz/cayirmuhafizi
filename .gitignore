@@ -8,3 +8,11 @@ artifacts/
 # İmza anahtarları asla repoya girmez (yedekle).
 android/*.jks
 android/keystore.properties
+# Açık depoya girmeyecek yerel dosyalar (sürücü günlükleri, deneme betikleri, sırlar, veritabanları).
+NVIDIA Corporation/
+scratch/
+.env.*
+!.env.example
+*.keystore
+*.db
+*.sqlite
