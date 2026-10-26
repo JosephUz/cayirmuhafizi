@@ -4,7 +4,10 @@
 >
 > **TR:** Tarayıcıda Three.js ile çalışan, Age of Empires 2 + DOTA esintili, tam ekran izometrik kır savaşı: üret, ordu kur, kahramanını yönet; botlara karşı tek başına ya da çevrim içi co-op / PvP.
 
-**Play / Oyna:** https://cayirmuhafizi.josephuz.com · **Source / Kaynak:** https://github.com/JosephUz/cayirmuhafizi
+**Play / Oyna:** https://cayirmuhafizi.josephuz.com · **Source / Kaynak:** https://github.com/JosephUz/cayirmuhafizi · **Android:** [Google Play](https://play.google.com/store/apps/details?id=com.josephuz.cayirmuhafizi)
+
+<p align="center"><img src="docs/ekran/1.jpg" alt="Çayır Muhafızı" width="100%"></p>
+<p align="center"><img src="docs/ekran/2.jpg" alt="Çayır Muhafızı" width="49%"> <img src="docs/ekran/3.jpg" alt="Çayır Muhafızı" width="49%"></p>
 
 Three.js ile tarayıcıda çalışan, **Age of Empires 2 + DOTA** esintili, tam ekran izometrik kır savaşı.
 Dövüş hissi (iki hızlı fizik, koni içi vuruş, prosedürel animasyon) üstüne Age of tarzı alt bant, üretim kuyruğu,
